@@ -2,13 +2,14 @@
 Quadrature based convolution
 '''
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from scipy.integrate import newton_cotes
 
-from FastGL.glpair import glpair
+from core.FastGL.glpair import glpair
 
 '''
 '''
@@ -64,7 +65,7 @@ class QuadConvLayer(nn.Module):
                 mlp_spec = (point_dim, *mlp_channels, share)
 
                 for j in range(loop):
-                    self.weight_func.append( self.create_mlp(mlp_spec) )
+                    self.weight_func.append(self.create_mlp(mlp_spec))
 
         elif kernel_mode == 'sinc':
             self.weight_func = [[]] * channels_out
@@ -117,7 +118,7 @@ class QuadConvLayer(nn.Module):
 
         mesh_weights_sparse = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1])[idx[0,:], idx[1,:]].reshape(1, 1, -1)
 
-        bump = (torch.exp(1)*torch.exp(-1/(1-self.decay_param*bump_arg[tf_vec]))).reshape(1, 1, -1)
+        bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg[tf_vec]))).reshape(1, 1, -1)
 
         temp = (weights_sparse*bump*mesh_weights_sparse).reshape(-1, self.channels_out, self.channels_in)
 
@@ -139,7 +140,7 @@ class QuadConvLayer(nn.Module):
             mlp.append(nn.Linear(mlp_channels[i], mlp_channels[i+1], bias=bias))
             mlp.append(activation)
 
-        mlp.append(nn.Linear(mlp_channels[-2], mlp_channels[-1], bias=False))
+        mlp.append(nn.Linear(mlp_channels[-2], mlp_channels[-1], bias=bias))
 
         return mlp
 
@@ -189,7 +190,6 @@ class QuadConvLayer(nn.Module):
     '''
     def set_output_locs(self, locs):
         if isinstance(locs, int):
-            print(self.quad_type)
             if self.quad_type == 'gauss':
                 _, self.output_locs = self.gauss_quad(locs)
 
@@ -249,11 +249,11 @@ class QuadConvLayer(nn.Module):
         ol =  output_locs.shape[0]
         il =  features.shape[2]
 
-        kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il)
+        kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il).to('cuda')
 
         kf_dense[:,:,:,idx[0,:], idx[1,:]] = (kf.values()).reshape(1, self.channels_out, self.channels_in, -1)
 
-        integral = torch.einsum('b...dij, b...dj  -> b...i', kf_dense, features.reshape(batch_size, 1, self.channels_in, il))
+        integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.reshape(batch_size, 1, self.channels_in, il))
 
         return integral
 
@@ -268,17 +268,17 @@ class QuadConvLayer(nn.Module):
 
     '''
     '''
-    def rquad(self, features, output_locs, level=(), nodes=() , weights=()):
+    def rquad(self, features, output_locs, level=(), nodes=(), weights=()):
         if level == self.point_dim or not level:
             nodes =  self.quad_nodes.unsqueeze(-1)
             weights = self.quad_weights.unsqueeze(-1)
             level = self.point_dim
 
         if level == 1:
-            integral = self.quad(features, output_locs, nodes, weights)
+            integral = self.quad(features, output_locs.to('cuda'), nodes.to('cuda'), weights.to('cuda'))
 
         elif level > 1:
-            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0])
+            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0]).to('cuda')
 
             for i in range(self.N):
                 this_coord = self.quad_nodes[i].expand(self.N, 1)

@@ -12,7 +12,7 @@ def glpairs ( n, k ):
 #
 #  Licensing:
 #
-#    This code is distributed under the GNU LGPL license. 
+#    This code is distributed under the GNU LGPL license.
 #
 #  Modified:
 #
@@ -38,12 +38,12 @@ def glpairs ( n, k ):
 #    Input, integer K, the index of the point to be returned.
 #    1 <= K <= N.
 #
-#    Output, real THETA, WEIGHT, X, the theta coordinate, weight, 
+#    Output, real THETA, WEIGHT, X, the theta coordinate, weight,
 #    and x coordinate of the point.
 #
   import numpy as np
-  from FastGL.besselj1squared import besselj1squared
-  from FastGL.besseljzero import besseljzero
+  from .besselj1squared import besselj1squared
+  from .besseljzero import besseljzero
   from sys import exit
 
   if ( n < 1 ):
@@ -145,7 +145,7 @@ def glpairs ( n, k ):
   bnuosin = b * nuosin
   winvsinc = w * w * nuosin
   wis2 = winvsinc * winvsinc
-# 
+#
 #  Finally compute the node and the weight.
 #
   theta = w * ( nu + theta * winvsinc \
@@ -170,12 +170,12 @@ def glpairs_test ( ):
 #
 #    Test the numerical integration of cos(1000 x) over the range [-1,1]
 #    for varying number of Gauss-Legendre quadrature nodes l.
-#    The fact that only twelve digits of accuracy are obtained is due to the 
+#    The fact that only twelve digits of accuracy are obtained is due to the
 #    condition number of the summation.
 #
 #  Licensing:
 #
-#    This code is distributed under the GNU LGPL license. 
+#    This code is distributed under the GNU LGPL license.
 #
 #  Modified:
 #
@@ -229,4 +229,3 @@ if ( __name__ == '__main__' ):
   timestamp ( )
   glpairs_test ( )
   timestamp ( )
-

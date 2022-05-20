@@ -12,7 +12,7 @@ def glpairtabulated ( l, k ):
 #
 #  Licensing:
 #
-#    This code is distributed under the GNU LGPL license. 
+#    This code is distributed under the GNU LGPL license.
 #
 #  Modified:
 #
@@ -38,12 +38,12 @@ def glpairtabulated ( l, k ):
 #    Input, integer K, the index of the point to be returned.
 #    1 <= K <= L.
 #
-#    Output, real THETA, WEIGHT, X, the theta coordinate, weight, 
+#    Output, real THETA, WEIGHT, X, the theta coordinate, weight,
 #    and x coordinate of the point.
 #
   import numpy as np
-  from FastGL.legendre_theta import legendre_theta
-  from FastGL.legendre_weight import legendre_weight
+  from .legendre_theta import legendre_theta
+  from .legendre_weight import legendre_weight
   from sys import exit
 
   if ( l < 1 or 100 < l ):
@@ -61,7 +61,7 @@ def glpairtabulated ( l, k ):
   theta = legendre_theta ( l, k )
   weight = legendre_weight ( l, k )
 
-  x = np.cos ( theta )   
+  x = np.cos ( theta )
 
   return theta, weight, x
 
@@ -78,7 +78,7 @@ def glpairtabulated_test ( ):
 #
 #  Licensing:
 #
-#    This code is distributed under the GNU LGPL license. 
+#    This code is distributed under the GNU LGPL license.
 #
 #  Modified:
 #
@@ -129,5 +129,3 @@ if ( __name__ == '__main__' ):
   timestamp ( )
   glpairtabulated_test ( )
   timestamp ( )
-
-

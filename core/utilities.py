@@ -26,7 +26,7 @@ def sobolev_loss(pred, x, order=1, lambda_r=(0.25, 0.0625)):
     loss = torch.sum((temp_pred-temp_x)**2)
 
     #compute derivatives l1 error
-    stencil = (torch.tensor([[0.0, -1.0, 0.0],[-1.0, 4.0, -1.0],[0.0, -1.0, 0.0]]).type_as(x))*1/4
+    stencil = torch.tensor([[0.0, -1.0, 0.0],[-1.0, 4.0, -1.0],[0.0, -1.0, 0.0]], device=x.device)*1/4
     stencil = torch.reshape(stencil, (1,1,3,3)).repeat(1, x.shape[1], 1, 1)
 
     for i in range(order):
@@ -45,7 +45,7 @@ def make_gif(model, save_path, data_inputs):
 
     data_inputs['use_all_channels'] = False
 
-    ignition_data_rs, test_dl, s = load_ignition_data(dataloader=False, **data_inputs)
+    ignition_data_rs, test_dl, s = IgnitionDataModule(dataloader=False, **data_inputs).get_data()
     ignition_data_rs = ignition_data_rs.to(device)
 
     model.eval()

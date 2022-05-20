@@ -31,7 +31,7 @@ class PointCloudDataModule(pl.LightningDataModule):
 
     @staticmethod
     def add_args(parent_parser):
-        parser = parent_parser.add_argument_group("PointCloudLoader")
+        parser = parent_parser.add_argument_group("PointCloudDataModule")
 
         # parser.add_argument()
 
@@ -92,7 +92,7 @@ class GridDataModule(pl.LightningDataModule):
 
     @staticmethod
     def add_args(parent_parser):
-        parser = parent_parser.add_argument_group("PointCloudLoader")
+        parser = parent_parser.add_argument_group("GridDataModule")
 
         parser.add_argument()
 
@@ -148,77 +148,97 @@ class GridDataModule(pl.LightningDataModule):
 
 ################################################################################
 
-def load_ignition_data(batch_size=16,
-                        time_chunk = 1,
-                        order = None,
-                        split = 0.8,
-                        size=25,
-                        stride=25,
-                        noise=False,
-                        normalize = True,
-                        dataloader = True,
-                        center_cut = False,
-                        tile = 1,
-                        use_all_channels = False
-                        ):
+class IgnitionDataModule(pl.LightningDataModule):
+    def __init__(self,
+                    batch_size = 16,
+                    time_chunk = 1,
+                    order = None,
+                    split = 0.8,
+                    size = 25,
+                    stride = 25,
+                    noise = False,
+                    normalize = True,
+                    center_cut = False,
+                    tile = 1,
+                    use_all_channels = False,
+                    num_workers = 4
+                    ):
+        super().__init__()
 
-    data_path = '/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv/data/ignition.npy'
+        self.batch_size = batch_size
+        self.time_chunk = time_chunk
+        self.order = order
+        self.split = split
+        self.size = size
+        self.stride = stride
+        self.noise = noise
+        self.normalize = normalize
+        self.center_cut = center_cut
+        self.tile = tile
+        self.use_all_channels = use_all_channels
+        self.num_workers = num_workers
 
-    if use_all_channels:
-        idx =  (0,1,2)
-    else:
-        idx = (0)
+    def setup(self, stage=None):
+        data_path = '/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv/data/ignition.npy'
 
-    mydata = np.load(data_path)
-    ignition_data = np.float32(mydata[:,74:174,0:100,idx])
-
-    if center_cut:
-        ignition_data = np.float32(mydata[:,99:149,0:50,idx])
-
-    if noise:
-        ignition_data += 0.0001*np.random.randn(*ignition_data.shape)
-
-    ignition_data = torch.from_numpy(ignition_data)
-
-    if use_all_channels:
-        ignition_data = torch.movedim(ignition_data, -1, 0)
-        ignition_data = ignition_data.reshape(-1, ignition_data.shape[-2], ignition_data.shape[-1] )
-
-    ignition_data = ignition_data.unfold(1,size,stride).unfold(2, size, stride)
-
-    ignition_data = ignition_data.reshape(-1,size,size).reshape(-1,1,size*size)
-
-    if normalize:
-
-        mean_ignition =  torch.mean(ignition_data, dim=(0,1,2), keepdim=True)
-        stddev_ignition = torch.sqrt(torch.var(ignition_data, dim=(0,1,2), keepdim=True))
-        stddev_ignition = torch.max(stddev_ignition, torch.tensor(1e-3))
-
-        ignition_data = (ignition_data - mean_ignition) / stddev_ignition
-
-        max_val = torch.max(torch.abs(ignition_data))
-
-        ignition_data = ignition_data / (max_val + 1e-4)
-
-    if order == 'random':
-        np.random.shuffle(ignition_data)
-
-    s = ignition_data.shape
-
-    split_num = int(np.floor(split * s[0]))
-
-    cutoff = int(np.floor((split_num/time_chunk)))
-
-    if dataloader:
-        train_dl = DataLoader(ignition_data[0:cutoff,:,:],batch_size=batch_size,shuffle=True)
-
-        if cutoff+1 >= s[0]:
-            test_dl = None
+        if self.use_all_channels:
+            idx =  (0,1,2)
         else:
-            test_dl = DataLoader(ignition_data[cutoff+1::,:,:],batch_size=batch_size,shuffle=True)
+            idx = (0)
 
-    else:
-        train_dl = ignition_data[0:cutoff,:,:]
-        test_dl = ignition_data[cutoff+1::,:,:]
+        mydata = np.load(data_path)
+        ignition_data = np.float32(mydata[:,74:174,0:100, idx])
 
-    return train_dl, test_dl, s[1::]
+        if self.center_cut:
+            ignition_data = np.float32(mydata[:,99:149,0:50, idx])
+
+        if self.noise:
+            ignition_data += 0.0001*np.random.randn(*ignition_data.shape)
+
+        ignition_data = torch.from_numpy(ignition_data)
+
+        if self.use_all_channels:
+            ignition_data = torch.movedim(ignition_data, -1, 0)
+            ignition_data = ignition_data.reshape(-1, ignition_data.shape[-2], ignition_data.shape[-1] )
+
+        ignition_data = ignition_data.unfold(1, self.size, self.stride).unfold(2, self.size, self.stride)
+
+        ignition_data = ignition_data.reshape(-1, self.size, self.size).reshape(-1, 1, self.size*self.size)
+
+        if self.normalize:
+            mean_ignition =  torch.mean(ignition_data, dim=(0,1,2), keepdim=True)
+            stddev_ignition = torch.sqrt(torch.var(ignition_data, dim=(0,1,2), keepdim=True))
+            stddev_ignition = torch.max(stddev_ignition, torch.tensor(1e-3))
+
+            ignition_data = (ignition_data - mean_ignition) / stddev_ignition
+
+            max_val = torch.max(torch.abs(ignition_data))
+
+            ignition_data = ignition_data / (max_val + 1e-4)
+
+        if self.order == 'random':
+            np.random.shuffle(ignition_data)
+
+        s = ignition_data.shape
+        split_num = int(np.floor(self.split * s[0]))
+        cutoff = int(np.floor((split_num/self.time_chunk)))
+
+        self.data_shape = s[1::]
+
+        if stage == "fit" or stage is None:
+            self.train = ignition_data[0:cutoff,:,:]
+
+        elif stage == "test" or stage is None:
+            self.test = ignition_data[cutoff+1::,:,:]
+
+        else:
+            raise ValueError("Stage is invalid.")
+
+    def train_dataloader(self):
+        return DataLoader(self.train, batch_size=self.batch_size, num_workers=self.num_workers)
+
+    def test_dataloader(self):
+        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.num_workers)
+
+    def get_data(self):
+        return self.train, self.test, self.data_shape

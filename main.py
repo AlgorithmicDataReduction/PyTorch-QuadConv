@@ -1,14 +1,14 @@
 from core.models import QCNN, CNN
-from core.data import PointCloudDataModule, load_ignition_data
-from core.utils import ProgressBar
+from core.data import PointCloudDataModule, IgnitionDataModule
+from core.utilities import ProgressBar
 
 from argparse import ArgumentParser
 import torch
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, LightningDataModule
 
 '''
 Example usage of this file:
-    python main.py --accelerator 'gpu' --devices 2 --dimension 2 <other arguments>
+    python main.py --model_type QCNN --accelerator 'gpu' --devices 1 --experiment 'ignition test' --max_epochs 1 --logger false
 '''
 
 '''
@@ -24,14 +24,12 @@ def main(trainer_args, model_args, data_args):
         model = CNN(**vars(model_args))
 
     #Setup data
-    # pc_module = PointCloudDataModule(data_argsargs)
-
-    train_loader, test_loader, _ = load_ignition_data()
+    # data_module = PointCloudDataModule(data_args)
+    data_module = IgnitionDataModule()
 
     #Train model
     trainer = Trainer.from_argparse_args(train_args, callbacks=[ProgressBar()])
-    # trainer.fit(model=model, datamodule=pc_module)
-    trainer.fit(model=model, train_dataloaders=train_loader)
+    trainer.fit(model=model, datamodule=data_module)
 
 '''
 
