@@ -8,6 +8,8 @@ import torch.nn.functional as F
 
 from scipy.integrate import newton_cotes
 
+from FastGL.glpair import glpair
+
 '''
 '''
 class QuadConvLayer(nn.Module):
