@@ -10,11 +10,11 @@ def glpair ( n, k ):
 #
 #    If N <= 100, GLPAIRTABULATED is called, otherwise GLPAIR is called.
 #
-#    Theta values of the zeros are in [0,pi], and monotonically increasing. 
+#    Theta values of the zeros are in [0,pi], and monotonically increasing.
 #
 #  Licensing:
 #
-#    This code is distributed under the GNU LGPL license. 
+#    This code is distributed under the GNU LGPL license.
 #
 #  Modified:
 #
@@ -40,11 +40,11 @@ def glpair ( n, k ):
 #    Input, integer K, the index of the point to be returned.
 #    1 <= K <= N.
 #
-#    Output, real THETA, WEIGHT, X, the theta coordinate, weight, 
+#    Output, real THETA, WEIGHT, X, the theta coordinate, weight,
 #    and x coordinate of the point.
 #
-  from FastGL.glpairs import glpairs
-  from FastGL.glpairtabulated import glpairtabulated
+  from .glpairs import glpairs
+  from .glpairtabulated import glpairtabulated
   from sys import exit
 
   if ( n < 1 ):
@@ -80,7 +80,7 @@ def glpair_test ( ):
 #
 #  Licensing:
 #
-#    This code is distributed under the GNU LGPL license. 
+#    This code is distributed under the GNU LGPL license.
 #
 #  Modified:
 #
@@ -132,5 +132,3 @@ if ( __name__ == '__main__' ):
   timestamp ( )
   glpair_test ( )
   timestamp ( )
-
-
