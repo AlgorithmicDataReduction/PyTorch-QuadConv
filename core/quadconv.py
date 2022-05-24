@@ -159,7 +159,7 @@ class QuadConvLayer(nn.Module):
                 self.quad_weights, self.quad_nodes = self.newton_cotes_quad(N)
 
         else:
-            raise RuntimeError('Number of quadrature points exceeds the user set limit')
+            raise RuntimeError('Number of quadrature points exceeds the user set limit.')
 
         self.quad_set_flag = True
 
@@ -170,7 +170,7 @@ class QuadConvLayer(nn.Module):
         quad_nodes = torch.zeros(N)
 
         for i in range(N):
-            _, quad_weights[i], quad_nodes[i] = glpair(N,i+1)
+            _, quad_weights[i], quad_nodes[i] = glpair(N, i+1)
 
         return quad_weights, quad_nodes
 
@@ -284,7 +284,7 @@ class QuadConvLayer(nn.Module):
                 this_coord = self.quad_nodes[i].expand(self.N, 1)
                 this_weight = self.quad_weights[i]
 
-                integral += self.rquad(features[:,:,(i*self.N):(i+1)*self.N], output_locs, level=level-1 ,
+                integral += self.rquad(features[:,:,(i*self.N):(i+1)*self.N], output_locs, level=level-1,
                                         nodes=torch.hstack([nodes,this_coord]), weights=this_weight*weights)
 
         return integral
@@ -381,16 +381,6 @@ class QuadConvBlock(nn.Module):
 
     '''
     '''
-    def forward(self, data):
-        if self.adjoint:
-            output = self.adjoint_op(data)
-        else:
-            output = self.forward_op(data)
-
-        return output
-
-    '''
-    '''
     def forward_op(self, data):
         x = data
 
@@ -416,3 +406,13 @@ class QuadConvBlock(nn.Module):
         x1 = x1 + x2
 
         return x1
+
+    '''
+    '''
+    def forward(self, data):
+        if self.adjoint:
+            output = self.adjoint_op(data)
+        else:
+            output = self.forward_op(data)
+
+        return output

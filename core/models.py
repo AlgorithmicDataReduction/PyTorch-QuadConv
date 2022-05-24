@@ -17,7 +17,6 @@ class Encoder(nn.Module):
 
         point_dim = kwargs['point_dim']
         latent_dim = kwargs['latent_dim']
-        feature_dim = kwargs['feature_dim']
         point_seq = kwargs['point_seq']
         channel_seq = kwargs['channel_seq']
         mlp_channels = kwargs['mlp_channels']
@@ -32,20 +31,19 @@ class Encoder(nn.Module):
         #build network
         self.cnn = nn.Sequential()
 
-        block_depth = len(point_seq)-1
-        for i in range(block_depth):
+        for i in range(len(point_seq)-1):
             self.cnn.append(QuadConvBlock(point_dim,
-                                        channel_seq[i],
-                                        channel_seq[i+1],
-                                        N_in = point_seq[i],
-                                        N_out = point_seq[i+1],
-                                        mlp_channels = mlp_channels,
-                                        quad_type = quad_type,
-                                        mlp_mode = mlp_mode,
-                                        use_bias = use_bias,
-                                        activation1 = self.forward_activation,
-                                        activation2 = self.forward_activation
-                                        ))
+                                            channel_seq[i],
+                                            channel_seq[i+1],
+                                            N_in = point_seq[i],
+                                            N_out = point_seq[i+1],
+                                            mlp_channels = mlp_channels,
+                                            quad_type = quad_type,
+                                            mlp_mode = mlp_mode,
+                                            use_bias = use_bias,
+                                            activation1 = self.forward_activation,
+                                            activation2 = self.forward_activation
+                                            ))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
         self.linear_down = spectral_norm(nn.Linear(channel_seq[-1]*(point_seq[-1]**point_dim), latent_dim))
@@ -68,7 +66,6 @@ class Decoder(nn.Module):
 
         point_dim = kwargs['point_dim']
         latent_dim = kwargs['latent_dim']
-        feature_dim = kwargs['feature_dim']
         point_seq = kwargs['point_seq']
         channel_seq = kwargs['channel_seq']
         mlp_channels = kwargs['mlp_channels']
@@ -82,27 +79,26 @@ class Decoder(nn.Module):
         self.output_activation = kwargs['output_activation']
 
         #build network
-        self.unflat = nn.Unflatten(1,[channel_seq[-1],point_seq[-1]**point_dim])
+        self.unflat = nn.Unflatten(1, [channel_seq[-1], point_seq[-1]**point_dim])
         self.linear_up = spectral_norm(nn.Linear(latent_dim, latent_dim))
         self.linear_up2 = spectral_norm(nn.Linear(latent_dim, (point_seq[-1]**point_dim)*channel_seq[-1]))
 
         self.cnn = nn.Sequential()
 
-        block_depth = len(point_seq) - 1
-        for i in range(block_depth-1, 0, -1):
+        for i in range(len(point_seq)-1, 0, -1):
             self.cnn.append(QuadConvBlock(point_dim,
-                                        channel_seq[i],
-                                        channel_seq[i-1],
-                                        N_in = point_seq[i],
-                                        N_out = point_seq[i-1],
-                                        adjoint = True,
-                                        mlp_channels = mlp_channels,
-                                        quad_type = quad_type,
-                                        mlp_mode = mlp_mode,
-                                        use_bias = use_bias,
-                                        activation1 = self.forward_activation if i!=1 else nn.Identity(),
-                                        activation2 = self.forward_activation
-                                        ))
+                                            channel_seq[i],
+                                            channel_seq[i-1],
+                                            N_in = point_seq[i],
+                                            N_out = point_seq[i-1],
+                                            adjoint = True,
+                                            mlp_channels = mlp_channels,
+                                            quad_type = quad_type,
+                                            mlp_mode = mlp_mode,
+                                            use_bias = use_bias,
+                                            activation1 = self.forward_activation if i!=1 else nn.Identity(),
+                                            activation2 = self.forward_activation
+                                            ))
 
     def forward(self, x):
         x = self.latent_activation(self.linear_up(x))
@@ -115,18 +111,16 @@ class Decoder(nn.Module):
 '''
 Quadrature convolution based autoencoder
 
-point_dim: space dimension (e.g. 3D)
-latent_dim:
-feature_dim: batch_size X input channels X point_seq[0]^point_dim
-point_seq: point_seq^point_dim is number of points
-channel_seq:
-mlp_channels: specifies mlp size length and width of each layer
+    point_dim : space dimension (e.g. 3D)
+    latent_dim : dimension of latent representation
+    point_seq : number of points along each dimension
+    channel_seq :
+    mlp_channels :
 '''
 class QCNN(pl.LightningModule):
     def __init__(self,
                     point_dim,
                     latent_dim,
-                    feature_dim,
                     point_seq,
                     channel_seq,
                     mlp_channels,
@@ -167,7 +161,6 @@ class QCNN(pl.LightningModule):
 
         parser.add_argument('--point_dim', type=int)
         parser.add_argument('--latent_dim', type=int)
-        parser.add_argument('--feature_dim', type=int, nargs='+')
         parser.add_argument('--point_seq', type=int, nargs='+')
         parser.add_argument('--channel_seq', type=int, nargs='+')
         parser.add_argument('--mlp_channels', type=int, nargs='+')

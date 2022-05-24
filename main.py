@@ -66,13 +66,12 @@ if __name__ == "__main__":
 
     elif train_args.experiment == 'ignition test':
         model_args.point_dim = 2
-        model_args.latent_dim = 100
-        model_args.feature_dim = [16, 1, 25*25]
+        model_args.latent_dim = 25
         model_args.point_seq = [25, 10, 5]
         model_args.channel_seq = [1, 8, 16]
-        model_args.mlp_channels = [4, 8, 4]
+        model_args.mlp_channels = [8, 8]
 
     else:
-        raise ValueError("Argument '--experiment' is not known.")
+        raise ValueError(f"Experiment {train_args.experiment} is invalid.")
 
     main(train_args, model_args, data_args)
