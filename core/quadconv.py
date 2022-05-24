@@ -249,7 +249,7 @@ class QuadConvLayer(nn.Module):
         ol =  output_locs.shape[0]
         il =  features.shape[2]
 
-        kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il).to('cuda')
+        kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il, device=features.device)
 
         kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).reshape(1, self.channels_out, self.channels_in, -1)
 
@@ -275,7 +275,8 @@ class QuadConvLayer(nn.Module):
             level = self.point_dim
 
         if level == 1:
-            integral = self.quad(features, output_locs.to('cuda'), nodes.to('cuda'), weights.to('cuda'))
+            device = features.device
+            integral = self.quad(features, output_locs.to(device), nodes.to(device), weights.to(device))
 
         elif level > 1:
             integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0]).to('cuda')

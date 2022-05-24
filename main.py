@@ -1,8 +1,9 @@
 from core.models import QCNN, CNN
-from core.data import PointCloudDataModule, IgnitionDataModule
+from core.data import PointCloudDataModule, GridDataModule
 from core.utilities import ProgressBar
 
 from argparse import ArgumentParser
+import yaml
 import torch
 from pytorch_lightning import Trainer, LightningDataModule
 
@@ -18,60 +19,69 @@ def main(trainer_args, model_args, data_args):
     torch.set_default_dtype(torch.float32)
 
     #Build model
-    if train_args.model_type == "QCNN":
-        model = QCNN(**vars(model_args))
-    elif train_args.model_type == "CNN":
-        model = CNN(**vars(model_args))
+    model_type = trainer_args.pop("model_type", None)
+
+    if model_type == "QCNN":
+        model = QCNN(**model_args)
+    elif model_type == "CNN":
+        model = CNN(**model_args)
+    else:
+        raise ValueError("Invalid model type.")
 
     #Setup data
-    # data_module = PointCloudDataModule(data_args)
-    data_module = IgnitionDataModule()
+    data_module = GridDataModule(**data_args)
 
     #Train model
-    trainer = Trainer.from_argparse_args(train_args, callbacks=[ProgressBar()])
+    trainer = Trainer(**train_args, callbacks=[ProgressBar()])
     trainer.fit(model=model, datamodule=data_module)
 
 '''
 
 '''
 if __name__ == "__main__":
-    train_parser = ArgumentParser()
-    model_parser = ArgumentParser()
-    data_parser = ArgumentParser()
+    parser = ArgumentParser()
+    parser.add_argument("--experiment", type=str, default=None, help="Named experiment")
+    args, _ = parser.parse_known_args()
 
-    #trainer args
-    train_parser.add_argument("--model_type", type=str, default='QCNN', help="QCNN or CNN")
-    train_parser.add_argument("--experiment", type=str, default=None, help="Named experiment")
-    train_parser = Trainer.add_argparse_args(train_parser)
+    #use CL arguments
+    if args.experiment == None:
+        train_parser = ArgumentParser()
+        model_parser = ArgumentParser()
+        data_parser = ArgumentParser()
 
-    #data specific args
-    data_parser = PointCloudDataModule.add_args(data_parser)
+        #trainer args
+        train_parser.add_argument("--model_type", type=str, default='QCNN', help="QCNN or CNN")
+        train_parser = Trainer.add_argparse_args(train_parser)
 
-    #parse trainin args
-    train_args, _ = train_parser.parse_known_args()
+        #parse training args
+        train_args, _ = train_parser.parse_known_args()
 
-    if train_args.model_type == "QCNN":
-        model_parser = QCNN.add_args(model_parser)
-    elif train_args.model_type == "CNN":
-        model_parser = CNN.add_args(model_parser)
+        #model specific args
+        if train_args.model_type == "QCNN":
+            model_parser = QCNN.add_args(model_parser)
+        elif train_args.model_type == "CNN":
+            model_parser = CNN.add_args(model_parser)
+        else:
+            train_parser.error("Argument '--model_type' must be one of 'QCNN' or 'CNN'.")
+
+        #data specific args
+        data_parser = PointCloudDataModule.add_args(data_parser)
+
+        #parse remaining args
+        model_args, _ = model_parser.parse_known_args()
+        data_args, _ = data_parser.parse_known_args()
+
+        #convert to dictionaries
+        train_args, model_args, data_args = vars(train_args), vars(model_args), vars(data_args)
+
     else:
-        train_parser.error("Argument '--model_type' must be one of 'QCNN' or 'CNN'.")
+        try:
+            with open(f"experiments/{args.experiment}.yaml", "r") as file:
+                config = yaml.safe_load(file)
 
-    #parse remaining args
-    model_args, _ = model_parser.parse_known_args()
-    data_args, _ = data_parser.parse_known_args()
+            train_args, model_args, data_args = config['train'], config['model'], config['data']
 
-    if train_args.experiment == None:
-        pass
-
-    elif train_args.experiment == 'ignition test':
-        model_args.point_dim = 2
-        model_args.latent_dim = 25
-        model_args.point_seq = [25, 10, 5]
-        model_args.channel_seq = [1, 8, 16]
-        model_args.mlp_channels = [8, 8]
-
-    else:
-        raise ValueError(f"Experiment {train_args.experiment} is invalid.")
+        except Exception as e:
+            raise ValueError(f"Experiment {args.experiment} is invalid.")
 
     main(train_args, model_args, data_args)

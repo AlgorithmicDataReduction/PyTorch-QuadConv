@@ -12,9 +12,9 @@ import pytorch_lightning as pl
 '''
 class PointCloudDataModule(pl.LightningDataModule):
     def __init__(self,
-                    data_dir:str,
-                    batch_size:int,
-                    dimension:int,
+                    data_dir,
+                    batch_size,
+                    dimension,
                     channels=(),
                     time_chunk=1,
                     normalize=True
@@ -75,172 +75,117 @@ class PointCloudDataModule(pl.LightningDataModule):
 '''
 class GridDataModule(pl.LightningDataModule):
     def __init__(self,
-                    data_dir:str,
-                    batch_size:int,
-                    dimension:int,
+                    data_dir,
+                    dimension,
+                    batch_size,
+                    size,
+                    stride,
                     channels=(),
                     time_chunk=1,
-                    normalize=True
+                    num_tiles=1,
+                    normalize=True,
+                    split=0.8,
+                    shuffle=False,
+                    num_workers=4
                     ):
         super().__init__()
 
         self.data_dir = data_dir
+        self.dimension = dimension
         self.batch_size = batch_size
+        self.size = size
+        self.stride = stride
         self.channels = channels
         self.time_chunk = time_chunk
+        self.num_tiles = num_tiles
         self.normalize = normalize
+        self.split = split
+        self.shuffle = shuffle
+        self.num_workers = num_workers
 
     @staticmethod
     def add_args(parent_parser):
         parser = parent_parser.add_argument_group("GridDataModule")
 
-        parser.add_argument()
+        parser.add_argument('--data_dir', type=str)
+        parser.add_argument('--dimension', type=int)
+        parser.add_argument('--batch_size', type=int)
+        parser.add_argument('--size', type=int)
+        parser.add_argument('--stride', type=int)
+        parser.add_argument('--channels', type=int, nargs='+')
 
         return parent_parser
 
-    def transform(data):
+    def transform(self, data):
         #extract channels
         if len(self.channels)==0:
             self.channels = tuple(range(data.shape[-1]))
 
         data = data[...,self.channels]
 
-        #normalize
-        if normalize:
-            pass
+        #reshape
+        if len(self.channels) > 1:
+            data = torch.movedim(data[...,self.channels], -1, 0)
+            data = data.reshape(-1, data.shape[-2], data.shape[-1])
 
+        for i in range(1, self.dimension+1):
+            data = data.unfold(i, self.size, self.stride)
+
+        data = data.reshape(-1, self.size, self.size, self.size).reshape(-1, 1, self.size**self.dimension)
+
+        #normalize
+        #NOTE: This might need to change for 3D data
+        if self.normalize:
+            mean =  torch.mean(data, dim=(0,1,2), keepdim=True)
+            std_dev = torch.sqrt(torch.var(data, dim=(0,1,2), keepdim=True))
+            std_dev = torch.max(std_dev, torch.tensor(1e-3))
+
+            data = (data-mean)/std_dev
+
+            max_val = torch.max(torch.abs(data))
+
+            data = data/(torch.max(torch.abs(data))+1e-4)
 
         return data
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
-            data = torch.from_numpy(np.load(os.path.join(self.data_dir, 'train.npy')))
+            data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
 
-            train_size = int(0.8*len(data))
-            val_size = len(data) - train_size
+            data = self.transform(data)
+            self.data_shape = data.shape[1:]
 
-            self.train, self.val = random_split(self.transform(data), [train_size, val_size])
+            if self.shuffle:
+                torch.shuffle(data)
+
+            cutoff = int(int(0.8*data.shape[0])/self.time_chunk)
+
+            self.train, self.val = data[0:cutoff,...], data[cutoff+1:,...]
 
         elif stage == "test" or stage is None:
-            data = torch.from_numpy(np.load(os.path.join(self.data_dir, 'train.npy')))
+            data = torch.from_numpy(np.load(os.path.join(self.data_dir, 'test.npy')))
             self.test = self.transform(data)
 
         elif stage == "predict" or stage is None:
             self.predict = None
 
         else:
-            raise ValueError("Stage must be one of 'fit', 'test', or 'predict'.")
-
-    def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.batch_size)
-
-    def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.batch_size)
-
-    def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.batch_size)
-
-    def predict_dataloader(self):
-        return DataLoader(self.predict, batch_size=self.batch_size)
-
-    def teardown(self, stage=None):
-        pass
-
-################################################################################
-'''
-For structured data this loading process is essentially the same, except center cut
-'''
-class IgnitionDataModule(pl.LightningDataModule):
-    def __init__(self,
-                    batch_size = 16,
-                    time_chunk = 1,
-                    order = None,
-                    split = 0.8,
-                    size = 25,
-                    stride = 25,
-                    noise = False,
-                    normalize = True,
-                    center_cut = False,
-                    tile = 1,
-                    use_all_channels = False,
-                    num_workers = 4
-                    ):
-        super().__init__()
-
-        self.batch_size = batch_size
-        self.time_chunk = time_chunk
-        self.order = order
-        self.split = split
-        self.size = size
-        self.stride = stride
-        self.noise = noise
-        self.normalize = normalize
-        self.center_cut = center_cut
-        self.tile = tile
-        self.use_all_channels = use_all_channels
-        self.num_workers = num_workers
-
-    def setup(self, stage=None):
-        data_path = '/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv/data/ignition.npy'
-
-        if self.use_all_channels:
-            idx =  (0,1,2)
-        else:
-            idx = (0)
-
-        mydata = np.load(data_path)
-        ignition_data = np.float32(mydata[:,74:174,0:100, idx])
-
-        if self.center_cut:
-            ignition_data = np.float32(mydata[:,99:149,0:50, idx])
-
-        if self.noise:
-            ignition_data += 0.0001*np.random.randn(*ignition_data.shape)
-
-        ignition_data = torch.from_numpy(ignition_data)
-
-        if self.use_all_channels:
-            ignition_data = torch.movedim(ignition_data, -1, 0)
-            ignition_data = ignition_data.reshape(-1, ignition_data.shape[-2], ignition_data.shape[-1] )
-
-        ignition_data = ignition_data.unfold(1, self.size, self.stride).unfold(2, self.size, self.stride) #for 3D data there needs to be another unfold op.
-
-        ignition_data = ignition_data.reshape(-1, self.size, self.size).reshape(-1, 1, self.size*self.size)
-
-        if self.normalize:
-            mean_ignition =  torch.mean(ignition_data, dim=(0,1,2), keepdim=True)
-            stddev_ignition = torch.sqrt(torch.var(ignition_data, dim=(0,1,2), keepdim=True))
-            stddev_ignition = torch.max(stddev_ignition, torch.tensor(1e-3))
-
-            ignition_data = (ignition_data - mean_ignition) / stddev_ignition
-
-            max_val = torch.max(torch.abs(ignition_data))
-
-            ignition_data = ignition_data / (max_val + 1e-4)
-
-        if self.order == 'random':
-            np.random.shuffle(ignition_data)
-
-        s = ignition_data.shape
-        split_num = int(np.floor(self.split * s[0]))
-        cutoff = int(np.floor((split_num/self.time_chunk)))
-
-        self.data_shape = s[1::]
-
-        if stage == "fit" or stage is None:
-            self.train = ignition_data[0:cutoff,:,:]
-
-        elif stage == "test" or stage is None:
-            self.test = ignition_data[cutoff+1::,:,:]
-
-        else:
-            raise ValueError("Stage is invalid.")
+            raise ValueError("Invalid stage.")
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.batch_size, num_workers=self.num_workers)
 
+    def val_dataloader(self):
+        return DataLoader(self.val, batch_size=self.batch_size, num_workers=self.num_workers)
+
     def test_dataloader(self):
         return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.num_workers)
 
+    def predict_dataloader(self):
+        return DataLoader(self.predict, batch_size=self.batch_size, num_workers=self.num_workers)
+
+    def teardown(self, stage=None):
+        pass
+
     def get_data(self):
-        return self.train, self.test, self.data_shape
+        return self.train, self.val, self.data_shape
