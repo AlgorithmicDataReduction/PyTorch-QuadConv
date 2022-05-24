@@ -251,7 +251,7 @@ class QuadConvLayer(nn.Module):
 
         kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il).to('cuda')
 
-        kf_dense[:,:,:,idx[0,:], idx[1,:]] = (kf.values()).reshape(1, self.channels_out, self.channels_in, -1)
+        kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).reshape(1, self.channels_out, self.channels_in, -1)
 
         integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.reshape(batch_size, 1, self.channels_in, il))
 

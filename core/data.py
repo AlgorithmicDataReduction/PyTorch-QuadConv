@@ -147,7 +147,9 @@ class GridDataModule(pl.LightningDataModule):
         pass
 
 ################################################################################
-
+'''
+For structured data this loading process is essentially the same, except center cut
+'''
 class IgnitionDataModule(pl.LightningDataModule):
     def __init__(self,
                     batch_size = 16,
@@ -201,7 +203,7 @@ class IgnitionDataModule(pl.LightningDataModule):
             ignition_data = torch.movedim(ignition_data, -1, 0)
             ignition_data = ignition_data.reshape(-1, ignition_data.shape[-2], ignition_data.shape[-1] )
 
-        ignition_data = ignition_data.unfold(1, self.size, self.stride).unfold(2, self.size, self.stride)
+        ignition_data = ignition_data.unfold(1, self.size, self.stride).unfold(2, self.size, self.stride) #for 3D data there needs to be another unfold op.
 
         ignition_data = ignition_data.reshape(-1, self.size, self.size).reshape(-1, 1, self.size*self.size)
 
