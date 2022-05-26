@@ -39,34 +39,30 @@ def sobolev_loss(pred, x, order=1, lambda_r=(0.25, 0.0625)):
 
 '''
 '''
-def make_gif(model, save_path, data_inputs):
-    size = data_inputs['size']
-    tile = data_inputs['tile']
-
-    data_inputs['use_all_channels'] = False
-
-    ignition_data_rs, test_dl, s = IgnitionDataModule(dataloader=False, **data_inputs).get_data()
-    ignition_data_rs = ignition_data_rs.to(device)
+def make_gif(model, data_module, save_path):
+    train, test, s = data_module.get_data()
+    size = data_module.size
+    tile = data_module.num_tiles
 
     model.eval()
     with torch.no_grad():
-        processed, compressed = model(ignition_data_rs)
+        processed = model(train)
 
-    processed_squares = processed.reshape(-1,size,size).reshape(-1,tile,tile,size,size)
+    processed_squares = processed.reshape(-1, size, size).reshape(-1, tile, tile, size, size)
 
-    processed_full = torch.zeros(450,size*tile,size*tile)
+    processed_full = torch.zeros(450, size*tile, size*tile)
 
     for i in range(450):
         for j in range(tile):
             for k in range(tile):
-                processed_full[i, size*j:size*(j+1), size*k:size*(k+1)] = processed_squares[i,j,k,:,:]
+                processed_full[i,size*j:size*(j+1),size*k:size*(k+1)] = processed_squares[i,j,k,:,:]
 
     filenames = []
-    fig1 , ax1 = plt.subplots()
+    fig1, ax1 = plt.subplots()
 
     with torch.no_grad():
         for i in range(450):
-            ax1.imshow(processed_full[i,:,:], vmin = -1, vmax = 1)
+            ax1.imshow(processed_full[i,:,:], vmin=-1, vmax=1)
             filename = f'{i}.png'
             filenames.append(filename)
             plt.savefig(filename)

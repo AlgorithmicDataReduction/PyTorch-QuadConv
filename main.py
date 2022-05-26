@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     else:
         try:
-            with open(f"experiments/{args.experiment}.yaml", "r") as file:
+            with open(f"experiments/{args.experiment}.yml", "r") as file:
                 config = yaml.safe_load(file)
 
             train_args, model_args, data_args = config['train'], config['model'], config['data']
