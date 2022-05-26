@@ -9,7 +9,7 @@ from pytorch_lightning import Trainer, LightningDataModule
 
 '''
 Example usage of this file:
-    python main.py --model_type QCNN --accelerator 'gpu' --devices 1 --experiment 'ignition test' --max_epochs 1 --logger false
+    python main.py --experiment ignition_test
 '''
 
 '''
