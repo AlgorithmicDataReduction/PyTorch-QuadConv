@@ -1,3 +1,13 @@
+'''
+Builds and trains a model based on input parameters, which can be specified via
+command line arguments or an experiment YAML file.
+
+Example usage:
+
+- Run the test found in experiments/ignition_test.yml
+    python main.py --experiment ignition_test
+'''
+
 from core.models import QCNN, CNN
 from core.data import PointCloudDataModule, GridDataModule
 from core.utilities import ProgressBar
@@ -8,12 +18,12 @@ import torch
 from pytorch_lightning import Trainer, LightningDataModule
 
 '''
-Example usage of this file:
-    python main.py --experiment ignition_test
-'''
+Build and train a model.
 
-'''
-
+Input:
+    trainer_args: PT Lightning Trainer arguments
+    model_args: QCNN or CNN model arguments
+    data_args: dataset arguments
 '''
 def main(trainer_args, model_args, data_args):
     torch.set_default_dtype(torch.float32)
@@ -36,14 +46,14 @@ def main(trainer_args, model_args, data_args):
     trainer.fit(model=model, datamodule=data_module)
 
 '''
-
+Parse arguments
 '''
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--experiment", type=str, default=None, help="Named experiment")
     args, _ = parser.parse_known_args()
 
-    #use CL arguments
+    #use CL config
     if args.experiment == None:
         train_parser = ArgumentParser()
         model_parser = ArgumentParser()
@@ -74,11 +84,14 @@ if __name__ == "__main__":
         #convert to dictionaries
         train_args, model_args, data_args = vars(train_args), vars(model_args), vars(data_args)
 
+    #use YAML config
     else:
         try:
+            #open YAML file
             with open(f"experiments/{args.experiment}.yml", "r") as file:
                 config = yaml.safe_load(file)
 
+            #extract args
             train_args, model_args, data_args = config['train'], config['model'], config['data']
 
         except Exception as e:

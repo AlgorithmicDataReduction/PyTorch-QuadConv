@@ -1,16 +1,19 @@
 '''
+Utility functions.
 '''
+
 import torch
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 
 '''
-Sobolev loss function
+Sobolev loss function, which computes the loss as a sum of the function l2 loss
+and derivative l2 losses.
 
 Input:
-    pred :
-    x :
-    order :
-    lambda_r :
+    pred: predictions
+    x: actual values
+    order: max derivative order
+    lambda_r: derivative error weighting
 '''
 def sobolev_loss(pred, x, order=1, lambda_r=(0.25, 0.0625)):
     #setup
@@ -38,6 +41,12 @@ def sobolev_loss(pred, x, order=1, lambda_r=(0.25, 0.0625)):
     return loss/bs
 
 '''
+Make a GIF.
+
+Input:
+    model: PyTorch model
+    data_module: dataset
+    save_path: location to save GIF
 '''
 def make_gif(model, data_module, save_path):
     train, test, s = data_module.get_data()
@@ -82,6 +91,7 @@ def make_gif(model, data_module, save_path):
     return
 
 '''
+Custom PT Lightning training progress bar.
 '''
 class ProgressBar(TQDMProgressBar):
     def __init__(self):

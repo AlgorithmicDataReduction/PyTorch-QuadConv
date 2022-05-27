@@ -1,5 +1,5 @@
 '''
-Quadrature based convolution
+Quadrature based convolutions.
 '''
 
 import numpy as np
@@ -12,6 +12,17 @@ from scipy.integrate import newton_cotes
 from core.FastGL.glpair import glpair
 
 '''
+Quadrature based convolution operator.
+
+Input:
+    point_dim: space dimension
+    channels_in: input feature channels
+    channels_out: output feature channels
+    mlp_channels: convolution kernel MLP feature sequence
+    kernel_mode: convolution kernel type
+    quad_type: quadrature type
+    mlp_mode: ?
+    use_bias: add bias term to output of layer
 '''
 class QuadConvLayer(nn.Module):
     def __init__(self,
@@ -84,6 +95,139 @@ class QuadConvLayer(nn.Module):
             raise RuntimeError('Point dimension must be less than 2')
 
     '''
+    Create convolution kernel MLP
+
+    Input:
+        mlp_channels: MLP feature sequence
+    '''
+    def create_mlp(self, mlp_channels):
+        #linear layer settings
+        activation = Sin()
+        bias = False
+
+        #build mlp
+        mlp = nn.Sequential()
+
+        for i in range(len(mlp_channels)-2):
+            mlp.append(nn.Linear(mlp_channels[i], mlp_channels[i+1], bias=bias))
+            mlp.append(activation)
+
+        mlp.append(nn.Linear(mlp_channels[-2], mlp_channels[-1], bias=bias))
+
+        return mlp
+
+    '''
+    Get Gaussian quadrature weights and nodes.
+
+    Input:
+        N: number of points
+    '''
+    def gauss_quad(self, N):
+        quad_weights = torch.zeros(N)
+        quad_nodes = torch.zeros(N)
+
+        for i in range(N):
+            _, quad_weights[i], quad_nodes[i] = glpair(N, i+1)
+
+        return quad_weights, quad_nodes
+
+    '''
+    Get Newton-Cotes quadrature weights and nodes.
+
+    Input:
+        N: number of points
+        x0: left end point
+        x1: right end point
+    '''
+    def newton_cotes_quad(self, N, x0=0, x1=1):
+        rep = int(N/self.composite_quad_order)
+
+        dx = (x1-x0)/(self.composite_quad_order-1)
+
+        weights, _ = newton_cotes(self.composite_quad_order-1, 1)
+        weights = torch.tile(dx*weights, rep)
+
+        return weights, torch.linspace(x0, x1, N)
+
+    '''
+    Set quadrature weigts and nodes
+
+    Input:
+        N: number of points
+    '''
+    def set_quad(self, N):
+        self.N = N
+
+        self.decay_param = (N/4)**4
+
+        if N < 1e3:
+            if self.quad_type == 'gauss':
+                self.quad_weights, self.quad_nodes = self.gauss_quad(N)
+
+            elif self.quad_type == 'newton_cotes':
+                self.quad_weights, self.quad_nodes = self.newton_cotes_quad(N)
+
+        else:
+            raise RuntimeError('Number of quadrature points exceeds the user set limit.')
+
+        self.quad_set_flag = True
+
+    '''
+    Set output locations.
+
+    Input:
+        locs: number of output points
+    '''
+    def set_output_locs(self, locs):
+        if isinstance(locs, int):
+            if self.quad_type == 'gauss':
+                _, self.output_locs = self.gauss_quad(locs)
+
+            elif self.quad_type == 'newton_cotes':
+                _, self.output_locs = self.newton_cotes_quad(locs)
+
+        else:
+            self.output_locs = locs
+
+    '''
+    Get output locations
+    '''
+    def get_output_locs(self):
+        node_list = [self.output_locs]*self.point_dim
+
+        mesh_nodes = torch.meshgrid(*node_list, indexing='xy')
+
+        mesh_nodes = torch.dstack(mesh_nodes).reshape(-1, self.point_dim)
+
+        return mesh_nodes
+
+    '''
+    Get quadrature nodes and weights
+    '''
+    def get_quad_mesh(self):
+        if self.quad_set_flag:
+            node_list = [self.quad_nodes]*self.point_dim
+
+            mesh_nodes = torch.meshgrid(*node_list, indexing='xy')
+
+            mesh_nodes = torch.dstack(mesh_nodes).reshape(-1, self.point_dim)
+
+            weight_list = [self.quad_weights]*self.point_dim
+
+            mesh_weights =  torch.meshgrid(*weight_list, indexing='xy')
+
+            mesh_weights = torch.dstack(mesh_weights).reshape(-1, self.point_dim)
+
+        else:
+            raise RuntimeError('Mesh not yet set')
+
+        return mesh_nodes, mesh_weights
+
+    '''
+    Evaluate the convolution kernel MLPs
+
+    Input:
+        x: ?
     '''
     def eval_MLPs(self, x):
         if self.mlp_mode == 'single':
@@ -104,6 +248,11 @@ class QuadConvLayer(nn.Module):
         return weights.reshape(self.channels_out, self.channels_in, -1)
 
     '''
+    Evaluate the convolution kernel.
+
+    Input:
+        x: ?
+        mesh_weights: ?
     '''
     def kernel_func(self, x, mesh_weights):
         bump_arg = torch.linalg.vector_norm(x, dim=(2), keepdims = True)**4
@@ -127,111 +276,13 @@ class QuadConvLayer(nn.Module):
         return weights
 
     '''
-    '''
-    def create_mlp(self, mlp_channels):
-        #linear layer settings
-        activation = Sin()
-        bias = False
+    Compute 1D quadrature
 
-        #build mlp
-        mlp = nn.Sequential()
-
-        for i in range(len(mlp_channels)-2):
-            mlp.append(nn.Linear(mlp_channels[i], mlp_channels[i+1], bias=bias))
-            mlp.append(activation)
-
-        mlp.append(nn.Linear(mlp_channels[-2], mlp_channels[-1], bias=bias))
-
-        return mlp
-
-    '''
-    '''
-    def set_quad(self, N):
-        self.N = N
-
-        self.decay_param = (N/4)**4
-
-        if N < 1e3:
-            if self.quad_type == 'gauss':
-                self.quad_weights, self.quad_nodes = self.gauss_quad(N)
-
-            elif self.quad_type == 'newton_cotes':
-                self.quad_weights, self.quad_nodes = self.newton_cotes_quad(N)
-
-        else:
-            raise RuntimeError('Number of quadrature points exceeds the user set limit.')
-
-        self.quad_set_flag = True
-
-    '''
-    '''
-    def gauss_quad(self, N):
-        quad_weights = torch.zeros(N)
-        quad_nodes = torch.zeros(N)
-
-        for i in range(N):
-            _, quad_weights[i], quad_nodes[i] = glpair(N, i+1)
-
-        return quad_weights, quad_nodes
-
-    '''
-    '''
-    def newton_cotes_quad(self, N, x0=0, x1=1):
-        rep = int(N/self.composite_quad_order)
-
-        dx = (x1-x0)/(self.composite_quad_order-1)
-
-        weights, _ = newton_cotes(self.composite_quad_order-1, 1)
-        weights = torch.tile(dx*weights, rep)
-
-        return weights, torch.linspace(x0, x1, N)
-
-    '''
-    '''
-    def set_output_locs(self, locs):
-        if isinstance(locs, int):
-            if self.quad_type == 'gauss':
-                _, self.output_locs = self.gauss_quad(locs)
-
-            elif self.quad_type == 'newton_cotes':
-                _, self.output_locs = self.newton_cotes_quad(locs)
-
-        else:
-            self.output_locs = locs
-
-    '''
-    '''
-    def get_output_locs(self):
-        node_list = [self.output_locs]*self.point_dim
-
-        mesh_nodes = torch.meshgrid(*node_list, indexing='xy')
-
-        mesh_nodes = torch.dstack(mesh_nodes).reshape(-1, self.point_dim)
-
-        return mesh_nodes
-
-    '''
-    '''
-    def get_quad_mesh(self):
-        if self.quad_set_flag:
-            node_list = [self.quad_nodes]*self.point_dim
-
-            mesh_nodes = torch.meshgrid(*node_list, indexing='xy')
-
-            mesh_nodes = torch.dstack(mesh_nodes).reshape(-1, self.point_dim)
-
-            weight_list = [self.quad_weights]*self.point_dim
-
-            mesh_weights =  torch.meshgrid(*weight_list, indexing='xy')
-
-            mesh_weights = torch.dstack(mesh_weights).reshape(-1, self.point_dim)
-
-        else:
-            raise RuntimeError('Mesh not yet set')
-
-        return mesh_nodes, mesh_weights
-
-    '''
+    Input:
+        features:
+        output_locs:
+        nodes:
+        mesh_weights:
     '''
     def quad(self, features, output_locs, nodes, mesh_weights):
         eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).reshape(output_locs.shape[0], nodes.shape[0], self.point_dim)
@@ -258,6 +309,11 @@ class QuadConvLayer(nn.Module):
         return integral
 
     '''
+    Compute enitre domain integral
+
+    Input:
+        features:
+        output_locs:
     '''
     def tensor_prod_quad(self, features, output_locs):
         mesh_nodes, mesh_weights = self.get_quad_mesh()
@@ -267,6 +323,14 @@ class QuadConvLayer(nn.Module):
         return integral
 
     '''
+    Compute entire domain integral via recursive quadrature
+
+    Input:
+        features:
+        output_locs:
+        level:
+        nodes:
+        weights:
     '''
     def rquad(self, features, output_locs, level=(), nodes=(), weights=()):
         if level == self.point_dim or not level:
@@ -291,6 +355,11 @@ class QuadConvLayer(nn.Module):
         return integral
 
     '''
+    Apply operator
+
+    Input:
+        features:
+        output_locs:
     '''
     def forward(self, features, output_locs=False):
         if isinstance(output_locs, bool) and not output_locs:
@@ -310,6 +379,7 @@ class QuadConvLayer(nn.Module):
         return integral
 
 '''
+Module wrapper around sin function; allows it to operate as a layer.
 '''
 class Sin(nn.Module):
     def __init__(self):
@@ -321,6 +391,21 @@ class Sin(nn.Module):
 ################################################################################
 
 '''
+QuadConvLayer block
+
+Input:
+    point_dim: space dimension
+    channels_in: input feature channels
+    channels_out: output feature channels
+    N_in: number of input points
+    N_out: number of output points
+    mlp_channels: convolution kernel MLP feature sequence
+    adjoint: downsample or upsample
+    quad_type: quadrature type
+    mlp_mode: ?
+    use_bias: add bias term to output of layer
+    activation1:
+    activation2:
 '''
 class QuadConvBlock(nn.Module):
     def __init__(self,
@@ -381,6 +466,7 @@ class QuadConvBlock(nn.Module):
             self.conv2.set_output_locs(N_out)
 
     '''
+    Forward mode
     '''
     def forward_op(self, data):
         x = data
@@ -395,8 +481,9 @@ class QuadConvBlock(nn.Module):
         return x2
 
     '''
+    Adjoint mode
     '''
-    def adjoint_op(self,data):
+    def adjoint_op(self, data):
         x = data
 
         x2 = self.conv2(x)
@@ -409,6 +496,7 @@ class QuadConvBlock(nn.Module):
         return x1
 
     '''
+    Apply operator
     '''
     def forward(self, data):
         if self.adjoint:

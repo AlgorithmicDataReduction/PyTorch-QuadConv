@@ -111,11 +111,11 @@ class Decoder(nn.Module):
 '''
 Quadrature convolution based autoencoder
 
-    point_dim : space dimension (e.g. 3D)
-    latent_dim : dimension of latent representation
-    point_seq : number of points along each dimension
-    channel_seq :
-    mlp_channels :
+    point_dim: space dimension (e.g. 3D)
+    latent_dim: dimension of latent representation
+    point_seq: number of points along each dimension
+    channel_seq:
+    mlp_channels:
 '''
 class QCNN(pl.LightningModule):
     def __init__(self,
