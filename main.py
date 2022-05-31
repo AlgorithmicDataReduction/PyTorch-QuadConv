@@ -4,8 +4,8 @@ command line arguments or an experiment YAML file.
 
 Example usage:
 
-- Run the test found in experiments/ignition_test.yml
-    python main.py --experiment ignition_test
+- Run the test found in experiments/ignition.yml
+    python main.py --experiment ignition
 '''
 
 from core.models import QCNN, CNN
