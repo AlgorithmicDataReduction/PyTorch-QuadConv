@@ -7,6 +7,7 @@ from torch.nn.utils.parametrizations import spectral_norm
 import pytorch_lightning as pl
 
 from .quadconv import QuadConvBlock
+from .conv import ConvBlock
 
 '''
 Encoder module
@@ -15,35 +16,36 @@ class Encoder(nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
 
-        point_dim = kwargs['point_dim']
-        latent_dim = kwargs['latent_dim']
-        point_seq = kwargs['point_seq']
-        channel_seq = kwargs['channel_seq']
-        mlp_channels = kwargs['mlp_channels']
-        quad_type = kwargs['quad_type']
-        mlp_mode = kwargs['mlp_mode']
-        use_bias = kwargs['use_bias']
+        #establish block type
+        conv_type = kwargs.pop('conv_type')
+        if conv_type == 'standard':
+            Block = ConvBlock
+        elif conv_type == 'quadrature':
+            Block = QuadConvBlock
+
+        #specific args
+        point_dim = kwargs.pop('point_dim')
+        latent_dim = kwargs.pop('latent_dim')
+        point_seq = kwargs.pop('point_seq')
+        channel_seq = kwargs.pop('channel_seq')
 
         #activations
-        self.forward_activation = kwargs['forward_activation']
-        self.latent_activation = kwargs['latent_activation']
+        forward_activation = kwargs.pop('forward_activation')
+        self.latent_activation = kwargs.pop('latent_activation')
 
         #build network
         self.cnn = nn.Sequential()
 
         for i in range(len(point_seq)-1):
-            self.cnn.append(QuadConvBlock(point_dim,
-                                            channel_seq[i],
-                                            channel_seq[i+1],
-                                            N_in = point_seq[i],
-                                            N_out = point_seq[i+1],
-                                            mlp_channels = mlp_channels,
-                                            quad_type = quad_type,
-                                            mlp_mode = mlp_mode,
-                                            use_bias = use_bias,
-                                            activation1 = self.forward_activation,
-                                            activation2 = self.forward_activation
-                                            ))
+            self.cnn.append(Block(point_dim,
+                                        channel_seq[i],
+                                        channel_seq[i+1],
+                                        N_in = point_seq[i],
+                                        N_out = point_seq[i+1],
+                                        activation1 = forward_activation,
+                                        activation2 = forward_activation,
+                                        **kwargs
+                                        ))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
         self.linear_down = spectral_norm(nn.Linear(channel_seq[-1]*(point_seq[-1]**point_dim), latent_dim))
@@ -64,19 +66,23 @@ class Decoder(nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
 
-        point_dim = kwargs['point_dim']
-        latent_dim = kwargs['latent_dim']
-        point_seq = kwargs['point_seq']
-        channel_seq = kwargs['channel_seq']
-        mlp_channels = kwargs['mlp_channels']
-        quad_type = kwargs['quad_type']
-        mlp_mode = kwargs['mlp_mode']
-        use_bias = kwargs['use_bias']
+        #establish block type
+        conv_type = kwargs.pop('conv_type')
+        if conv_type == 'standard':
+            Block = ConvBlock
+        elif conv_type == 'quadrature':
+            Block = QuadConvBlock
+
+        #specific args
+        point_dim = kwargs.pop('point_dim')
+        latent_dim = kwargs.pop('latent_dim')
+        point_seq = kwargs.pop('point_seq')
+        channel_seq = kwargs.pop('channel_seq')
 
         #activations
-        self.forward_activation = kwargs['forward_activation']
-        self.latent_activation = kwargs['latent_activation']
-        self.output_activation = kwargs['output_activation']
+        forward_activation = kwargs.pop('forward_activation')
+        self.latent_activation = kwargs.pop('latent_activation')
+        self.output_activation = kwargs.pop('output_activation')
 
         #build network
         self.unflat = nn.Unflatten(1, [channel_seq[-1], point_seq[-1]**point_dim])
@@ -86,19 +92,15 @@ class Decoder(nn.Module):
         self.cnn = nn.Sequential()
 
         for i in range(len(point_seq)-1, 0, -1):
-            self.cnn.append(QuadConvBlock(point_dim,
-                                            channel_seq[i],
-                                            channel_seq[i-1],
-                                            N_in = point_seq[i],
-                                            N_out = point_seq[i-1],
-                                            adjoint = True,
-                                            mlp_channels = mlp_channels,
-                                            quad_type = quad_type,
-                                            mlp_mode = mlp_mode,
-                                            use_bias = use_bias,
-                                            activation1 = self.forward_activation if i!=1 else nn.Identity(),
-                                            activation2 = self.forward_activation
-                                            ))
+            self.cnn.append(Block(point_dim,
+                                        channel_seq[i],
+                                        channel_seq[i-1],
+                                        N_in = point_seq[i],
+                                        N_out = point_seq[i-1],
+                                        activation1 = forward_activation if i!=1 else nn.Identity(),
+                                        activation2 = forward_activation,
+                                        **kwargs
+                                        ))
 
     def forward(self, x):
         x = self.latent_activation(self.linear_up(x))
@@ -117,8 +119,9 @@ Quadrature convolution based autoencoder
     channel_seq:
     mlp_channels:
 '''
-class QCNN(pl.LightningModule):
+class AutoEncoder(pl.LightningModule):
     def __init__(self,
+                    conv_type,
                     point_dim,
                     latent_dim,
                     point_seq,
@@ -157,8 +160,9 @@ class QCNN(pl.LightningModule):
 
     @staticmethod
     def add_args(parent_parser):
-        parser = parent_parser.add_argument_group("QCNN")
+        parser = parent_parser.add_argument_group("AutoEncoder")
 
+        parser.add_argument('--conv_type', type=str)
         parser.add_argument('--point_dim', type=int)
         parser.add_argument('--latent_dim', type=int)
         parser.add_argument('--point_seq', type=int, nargs='+')
@@ -203,31 +207,3 @@ class QCNN(pl.LightningModule):
         # lr_scheduler = torch.optim.lr_scheduler.
         return optimizer
         # return [optimizer], [lr_scheduler]
-
-'''
-Standard convolutional autoencoder
-'''
-class CNN(pl.LightningModule):
-    def __init__(self, **kwargs):
-        super().__init__()
-
-        #Save model hyperparameters under self.hparams
-        self.save_hyperparameters(ignore=[])
-
-    @staticmethod
-    def add_args(parent_parser):
-        parser = parent_parser.add_argument_group("CNN")
-
-        parser.add_argument()
-
-        return parent_parser
-
-    def forward(self, x):
-        pass
-
-    def training_step(self, batch, idx):
-        pass
-
-    def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters())
-        return optimizer

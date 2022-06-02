@@ -125,8 +125,8 @@ class GridDataModule(pl.LightningDataModule):
 
         #reshape
         if len(self.channels) > 1:
-            data = torch.movedim(data[...,self.channels], -1, 0)
-            data = data.reshape(-1, data.shape[-2], data.shape[-1])
+            data = torch.movedim(data, -1, 0)
+            data = data.reshape(-1, **data.shape[-self.dimension:])
 
         for i in range(1, self.dimension+1):
             data = data.unfold(i, self.size, self.stride)

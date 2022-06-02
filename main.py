@@ -8,7 +8,7 @@ Example usage:
     python main.py --experiment ignition
 '''
 
-from core.models import QCNN, CNN
+from core.models import AutoEncoder
 from core.data import PointCloudDataModule, GridDataModule
 from core.utilities import ProgressBar
 
@@ -29,14 +29,7 @@ def main(trainer_args, model_args, data_args):
     torch.set_default_dtype(torch.float32)
 
     #Build model
-    model_type = trainer_args.pop("model_type", None)
-
-    if model_type == "QCNN":
-        model = QCNN(**model_args)
-    elif model_type == "CNN":
-        model = CNN(**model_args)
-    else:
-        raise ValueError("Invalid model type.")
+    model = AutoEncoder(**model_args)
 
     #Setup data
     data_module = GridDataModule(**data_args)
@@ -60,24 +53,16 @@ if __name__ == "__main__":
         data_parser = ArgumentParser()
 
         #trainer args
-        train_parser.add_argument("--model_type", type=str, default='QCNN', help="QCNN or CNN")
         train_parser = Trainer.add_argparse_args(train_parser)
 
-        #parse training args
-        train_args, _ = train_parser.parse_known_args()
-
         #model specific args
-        if train_args.model_type == "QCNN":
-            model_parser = QCNN.add_args(model_parser)
-        elif train_args.model_type == "CNN":
-            model_parser = CNN.add_args(model_parser)
-        else:
-            train_parser.error("Argument '--model_type' must be one of 'QCNN' or 'CNN'.")
+        model_parser = AutoEncoder.add_args(model_parser)
 
         #data specific args
         data_parser = PointCloudDataModule.add_args(data_parser)
 
         #parse remaining args
+        train_args, _ = train_parser.parse_known_args()
         model_args, _ = model_parser.parse_known_args()
         data_args, _ = data_parser.parse_known_args()
 
