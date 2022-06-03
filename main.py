@@ -16,6 +16,7 @@ from argparse import ArgumentParser
 import yaml
 import torch
 from pytorch_lightning import Trainer, LightningDataModule
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 '''
 Build and train a model.
@@ -35,8 +36,12 @@ def main(trainer_args, model_args, data_args):
     data_module = GridDataModule(**data_args)
 
     #Train model
-    trainer = Trainer(**train_args, callbacks=[ProgressBar()])
-    trainer.fit(model=model, datamodule=data_module)
+    callbacks=[ProgressBar(),
+                ModelCheckpoint(monitor="val_loss", save_last=True, save_top_k=1, mode='min'),
+                EarlyStopping(monitor="val_loss", patience=3, strict=False)]
+
+    trainer = Trainer(**train_args, callbacks=callbacks)
+    trainer.fit(model=model, datamodule=data_module, ckpt_path=None)
 
 '''
 Parse arguments

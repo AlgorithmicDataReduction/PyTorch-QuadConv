@@ -1,0 +1,34 @@
+#PT Lightning trainer arguments
+train:
+  accelerator: #str e.g. "gpu"
+  devices: #int
+  num_nodes: #int
+  auto_scale_batch_size: #bool
+  auto_select_gpus: #bool
+  enable_checkpointing: #bool
+  check_val_every_n_epoch: #int
+  default_root_dir: #str
+  log_every_n_steps: #int
+  enable_progress_bar: #bool
+  profiler: #str
+  max_epochs: #int
+  max_steps: #int
+  logger: #bool
+
+#Model building arguments
+model:
+  conv_type: #str "standard" or "quadrature"
+  point_dim: #int
+  latent_dim: #int
+  point_seq : #list
+  channel_seq : #list
+  mlp_channels : #list
+
+#Data loader arguments
+data:
+  data_dir: #str
+  dimension: #int
+  batch_size: #int
+  size: #int
+  stride: #int
+  channels: #list
