@@ -31,4 +31,5 @@ data:
   batch_size: #int
   size: #int
   stride: #int
+  flatten: #bool, flatten for quadrature
   channels: #list

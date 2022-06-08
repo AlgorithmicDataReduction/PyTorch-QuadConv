@@ -80,6 +80,7 @@ class GridDataModule(pl.LightningDataModule):
                     batch_size,
                     size,
                     stride,
+                    flatten=True,
                     channels=(),
                     time_chunk=1,
                     num_tiles=1,
@@ -95,6 +96,7 @@ class GridDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.size = size
         self.stride = stride
+        self.flatten = flatten
         self.channels = channels
         self.time_chunk = time_chunk
         self.num_tiles = num_tiles
@@ -131,7 +133,7 @@ class GridDataModule(pl.LightningDataModule):
         for i in range(1, self.dimension+1):
             data = data.unfold(i, self.size, self.stride)
 
-        data = data.reshape(-1, self.size, self.size, self.size).reshape(-1, 1, self.size**self.dimension)
+        data = data.reshape(tuple([-1]+[self.size for i in range(self.dimension)])).reshape(-1, 1, self.size**self.dimension)
 
         #normalize
         #NOTE: This might need to change for 3D data
@@ -145,6 +147,10 @@ class GridDataModule(pl.LightningDataModule):
             max_val = torch.max(torch.abs(data))
 
             data = data/(torch.max(torch.abs(data))+1e-4)
+
+        if not self.flatten:
+            data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)]))
+            print(data.shape)
 
         return data
 
@@ -189,3 +195,9 @@ class GridDataModule(pl.LightningDataModule):
 
     def get_data(self):
         return self.train, self.val, self.data_shape
+
+    def get_shape(self):
+        if self.flatten:
+            return (1, 1, self.size**self.dimension)
+        else:
+            return (tuple([1, 1]+[self.size for i in range(self.dimension)]))

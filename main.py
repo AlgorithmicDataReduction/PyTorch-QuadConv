@@ -8,7 +8,7 @@ Example usage:
     python main.py --experiment ignition
 '''
 
-from core.models import AutoEncoder
+from core.model import AutoEncoder
 from core.data import PointCloudDataModule, GridDataModule
 from core.utilities import ProgressBar
 
@@ -29,16 +29,18 @@ Input:
 def main(trainer_args, model_args, data_args):
     torch.set_default_dtype(torch.float32)
 
+    #Setup data
+    data_module = GridDataModule(**data_args)
+    model_args['input_shape'] = data_module.get_shape()
+
     #Build model
     model = AutoEncoder(**model_args)
 
-    #Setup data
-    data_module = GridDataModule(**data_args)
-
     #Train model
     callbacks=[ProgressBar(),
-                ModelCheckpoint(monitor="val_loss", save_last=True, save_top_k=1, mode='min'),
                 EarlyStopping(monitor="val_loss", patience=3, strict=False)]
+    if train_args['enable_checkpointing']:
+        callbacks.append(ModelCheckpoint(monitor="val_loss", save_last=True, save_top_k=1, mode='min'))
 
     trainer = Trainer(**train_args, callbacks=callbacks)
     trainer.fit(model=model, datamodule=data_module, ckpt_path=None)

@@ -2,6 +2,7 @@
 
 '''
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,9 +29,6 @@ class ConvBlock(nn.Module):
                     N_in,
                     N_out,
                     kernel_size = 3,
-                    stride = 1,
-                    padding = 0,
-                    dilation = 1,
                     adjoint = False,
                     use_bias = False,
                     activation1 = nn.CELU(alpha=1),
@@ -43,36 +41,52 @@ class ConvBlock(nn.Module):
         self.activation2 = activation2
 
         if point_dim == 2:
+            Conv1 = nn.Conv2d
+
             if self.adjoint:
-                Conv = nn.ConvTranspose2d
+                Conv2 = nn.ConvTranspose2d
             else:
-                Conv = nn.Conv2d
+                Conv2 = nn.Conv2d
+
+            Norm = nn.InstanceNorm2d
+
         elif point_dim == 3:
+            Conv1 = nn.Conv3d
+
             if self.adjoint:
-                Conv = nn.ConvTranspose3d
+                Conv2 = nn.ConvTranspose3d
             else:
-                Conv = nn.Conv3d
+                Conv2 = nn.Conv3d
+
+            Norm = nn.InstanceNorm3d
 
         if self.adjoint:
             conv1_channel_num = channels_out
+            stride = int(np.floor((N_out-1-(kernel_size-1))/(N_in-1)))
+            self.conv2 = Conv2(channels_in,
+                                channels_out,
+                                kernel_size,
+                                stride=stride,
+                                output_padding=0
+                                )
         else:
             conv1_channel_num = channels_in
+            stride = int(np.floor((N_in-1-(kernel_size-1))/(N_out-1)))
+            self.conv2 = Conv2(channels_in,
+                                channels_out,
+                                kernel_size,
+                                stride=stride
+                                )
 
-        self.conv1 = Conv(conv1_channel_num,
+        self.conv1 = Conv1(conv1_channel_num,
                             conv1_channel_num,
                             kernel_size,
-                            stride=stride,
-                            padding=padding
+                            padding='same'
                             )
-        self.batchnorm1 = torch.nn.InstanceNorm1d(conv1_channel_num)
 
-        self.conv2 = Conv(channels_in,
-                            channels_out,
-                            kernel_size,
-                            stride=stride,
-                            padding=padding
-                            )
-        self.batchnorm2 = torch.nn.InstanceNorm1d(channels_out)
+        self.batchnorm1 = Norm(conv1_channel_num)
+
+        self.batchnorm2 = Norm(channels_out)
 
     '''
     Forward mode

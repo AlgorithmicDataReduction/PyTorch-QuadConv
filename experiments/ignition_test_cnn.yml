@@ -5,10 +5,10 @@ train:
   # num_nodes: #int
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
-  enable_checkpointing: True #bool
+  enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv" #str
-  logger: True #bool
+  logger: False #bool
   log_every_n_steps: 1 #int
   enable_progress_bar: True #bool
   # profiler: #str
@@ -17,12 +17,11 @@ train:
 
 #Model building arguments
 model:
-  conv_type: "quadrature" #str "standard" or "quadrature"
+  conv_type: "standard" #str "standard" or "quadrature"
   point_dim: 2 #int
   latent_dim: 25 #int
   point_seq: [25, 10, 5] #list
   channel_seq: [1, 8, 16] #list
-  mlp_channels: [8, 8] #list
 
 #Data loader arguments
 data:
@@ -31,4 +30,5 @@ data:
   batch_size: 128 #int
   size: 25 #int
   stride: 25 #int
+  flatten: False
   channels: [0] #list

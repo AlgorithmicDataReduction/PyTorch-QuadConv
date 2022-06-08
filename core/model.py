@@ -1,6 +1,8 @@
 '''
 
 '''
+
+import numpy as np
 import torch
 from torch import nn, optim
 from torch.nn.utils.parametrizations import spectral_norm
@@ -28,6 +30,7 @@ class Encoder(nn.Module):
         latent_dim = kwargs.pop('latent_dim')
         point_seq = kwargs.pop('point_seq')
         channel_seq = kwargs.pop('channel_seq')
+        input_shape = kwargs.pop('input_shape')
 
         #activations
         forward_activation = kwargs.pop('forward_activation')
@@ -38,17 +41,22 @@ class Encoder(nn.Module):
 
         for i in range(len(point_seq)-1):
             self.cnn.append(Block(point_dim,
-                                        channel_seq[i],
-                                        channel_seq[i+1],
-                                        N_in = point_seq[i],
-                                        N_out = point_seq[i+1],
-                                        activation1 = forward_activation,
-                                        activation2 = forward_activation,
-                                        **kwargs
-                                        ))
+                                    channel_seq[i],
+                                    channel_seq[i+1],
+                                    N_in = point_seq[i],
+                                    N_out = point_seq[i+1],
+                                    activation1 = forward_activation,
+                                    activation2 = forward_activation,
+                                    **kwargs
+                                    ))
+
+        if conv_type == 'standard':
+            self.cnn_out_shape = self.cnn(torch.ones(input_shape)).shape
+        else:
+            self.cnn_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]**point_dim))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
-        self.linear_down = spectral_norm(nn.Linear(channel_seq[-1]*(point_seq[-1]**point_dim), latent_dim))
+        self.linear_down = spectral_norm(nn.Linear(self.cnn_out_shape.numel(), latent_dim))
         self.linear_down2 = spectral_norm(nn.Linear(latent_dim, latent_dim))
 
     def forward(self, x):
@@ -78,35 +86,36 @@ class Decoder(nn.Module):
         latent_dim = kwargs.pop('latent_dim')
         point_seq = kwargs.pop('point_seq')
         channel_seq = kwargs.pop('channel_seq')
+        input_shape = kwargs.pop('input_shape')
 
         #activations
         forward_activation = kwargs.pop('forward_activation')
         self.latent_activation = kwargs.pop('latent_activation')
-        self.output_activation = kwargs.pop('output_activation')
 
         #build network
-        self.unflat = nn.Unflatten(1, [channel_seq[-1], point_seq[-1]**point_dim])
+        self.unflat = nn.Unflatten(1, input_shape[1:])
         self.linear_up = spectral_norm(nn.Linear(latent_dim, latent_dim))
-        self.linear_up2 = spectral_norm(nn.Linear(latent_dim, (point_seq[-1]**point_dim)*channel_seq[-1]))
+        self.linear_up2 = spectral_norm(nn.Linear(latent_dim, input_shape.numel()))
 
         self.cnn = nn.Sequential()
 
         for i in range(len(point_seq)-1, 0, -1):
             self.cnn.append(Block(point_dim,
-                                        channel_seq[i],
-                                        channel_seq[i-1],
-                                        N_in = point_seq[i],
-                                        N_out = point_seq[i-1],
-                                        activation1 = forward_activation if i!=1 else nn.Identity(),
-                                        activation2 = forward_activation,
-                                        **kwargs
-                                        ))
+                                    channel_seq[i],
+                                    channel_seq[i-1],
+                                    N_in = point_seq[i],
+                                    N_out = point_seq[i-1],
+                                    activation1 = forward_activation if i!=1 else nn.Identity(),
+                                    activation2 = forward_activation,
+                                    adjoint = True,
+                                    **kwargs
+                                    ))
 
     def forward(self, x):
         x = self.latent_activation(self.linear_up(x))
         x = self.latent_activation(self.linear_up2(x))
         x = self.unflat(x)
-        output = self.output_activation(self.cnn(x))
+        output = self.cnn(x)
 
         return output
 
@@ -126,37 +135,38 @@ class AutoEncoder(pl.LightningModule):
                     latent_dim,
                     point_seq,
                     channel_seq,
-                    mlp_channels,
-                    quad_type = 'gauss',
-                    mlp_mode = 'single',
-                    use_bias = False,
                     forward_activation = nn.CELU(alpha=1),
                     latent_activation = nn.CELU(alpha=1),
                     output_activation = nn.Tanh(),
                     loss_fn = nn.MSELoss(),
-                    noise_scale = 0.0
+                    noise_scale = 0.0,
+                    input_shape = None,
+                    **kwargs
                     ):
         super().__init__()
 
         #save model hyperparameters under self.hparams
-        self.save_hyperparameters(ignore=['noise_scale',
-                                            'loss_fn',
+        self.save_hyperparameters(ignore=['loss_fn',
+                                            'noise_scale',
                                             'forward_activation',
                                             'latent_activation',
-                                            'output_activation'])
+                                            'output_activation',
+                                            'input_shape'])
 
         #model pieces
         self.encoder = Encoder(**self.hparams,
                                 forward_activation=forward_activation,
-                                latent_activation=latent_activation)
+                                latent_activation=latent_activation,
+                                input_shape=input_shape)
         self.decoder = Decoder(**self.hparams,
                                 forward_activation=forward_activation,
                                 latent_activation=latent_activation,
-                                output_activation=output_activation)
+                                input_shape=self.encoder.cnn_out_shape)
 
         #training hyperparameters
         self.loss_fn = loss_fn
         self.noise_scale = noise_scale
+        self.output_activation = output_activation
 
     @staticmethod
     def add_args(parent_parser):
@@ -172,7 +182,7 @@ class AutoEncoder(pl.LightningModule):
         return parent_parser
 
     def forward(self, x):
-        return self.decoder(self.encoder(x))
+        return self.output_activation(self.decoder(self.encoder(x)))
 
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
@@ -180,7 +190,7 @@ class AutoEncoder(pl.LightningModule):
         latent += self.noise_scale*torch.randn_like(latent[0,:])
 
         #decode
-        pred = self.decoder(latent)
+        pred = self.output_activation(self.decoder(latent))
 
         #compute loss
         loss = self.loss_fn(pred, batch)
