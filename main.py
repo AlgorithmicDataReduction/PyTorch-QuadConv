@@ -10,7 +10,7 @@ Example usage:
 
 from core.model import AutoEncoder
 from core.data import PointCloudDataModule, GridDataModule
-from core.utilities import ProgressBar
+from core.utilities import ProgressBar, make_gif
 
 from argparse import ArgumentParser
 import yaml
@@ -44,6 +44,9 @@ def main(trainer_args, model_args, data_args):
 
     trainer = Trainer(**train_args, callbacks=callbacks)
     trainer.fit(model=model, datamodule=data_module, ckpt_path=None)
+
+    #Make GIF
+    make_gif(model, data_module, trainer.default_root_dir+'/lightning_logs/version_0')
 
 '''
 Parse arguments

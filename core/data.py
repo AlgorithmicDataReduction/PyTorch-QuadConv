@@ -150,7 +150,6 @@ class GridDataModule(pl.LightningDataModule):
 
         if not self.flatten:
             data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)]))
-            print(data.shape)
 
         return data
 

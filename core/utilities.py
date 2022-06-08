@@ -4,6 +4,9 @@ Utility functions.
 
 import torch
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
+import matplotlib.pyplot as plt
+import imageio
+import os
 
 '''
 Sobolev loss function, which computes the loss as a sum of the function l2 loss
@@ -49,19 +52,21 @@ Input:
     save_path: location to save GIF
 '''
 def make_gif(model, data_module, save_path):
-    train, test, s = data_module.get_data()
+    _, test, s = data_module.get_data()
     size = data_module.size
     tile = data_module.num_tiles
 
     model.eval()
     with torch.no_grad():
-        processed = model(train)
+        processed = model(test)
 
     processed_squares = processed.reshape(-1, size, size).reshape(-1, tile, tile, size, size)
 
-    processed_full = torch.zeros(450, size*tile, size*tile)
+    dim0 = processed_squares.shape[0]
 
-    for i in range(450):
+    processed_full = torch.zeros(dim0, size*tile, size*tile)
+
+    for i in range(dim0):
         for j in range(tile):
             for k in range(tile):
                 processed_full[i,size*j:size*(j+1),size*k:size*(k+1)] = processed_squares[i,j,k,:,:]
@@ -70,9 +75,9 @@ def make_gif(model, data_module, save_path):
     fig1, ax1 = plt.subplots()
 
     with torch.no_grad():
-        for i in range(450):
+        for i in range(dim0):
             ax1.imshow(processed_full[i,:,:], vmin=-1, vmax=1)
-            filename = f'{i}.png'
+            filename = f'{save_path}/{i}.png'
             filenames.append(filename)
             plt.savefig(filename)
             plt.cla()
