@@ -50,6 +50,38 @@ class QuadConvLayer(nn.Module):
 
         self.output_locs = []
 
+        '''
+        Kernel modes:
+
+        MLP: This encompasses most use cases for the code, and is meant to be used whenever training a QConv on data. 
+
+        MLP::Single : This generates a single MLP for every incoming and outgoing channel.
+                      Using for example a 1D Conv operator, this corresponds to: 
+        
+                        .. math::
+                            \text{out}(N_i, C_{\text{out}_j}) = \text{bias}(C_{\text{out}_j}) +
+                            \sum_{k = 0}^{C_{in} - 1} \text{weight}(C_{\text{out}_j}, k)
+                            \star \text{input}(N_i, k)
+
+                    If :math:'\text{weight}(i,j)' is each a single MLP with a domain in :math:'\mathbb{R}^3' and range :math:'\mathbb{R}'
+
+        MLP::Share-in : Borrowing the example in MLP::Single, this corresponds to:
+
+                        :math:'\text{weight}(i,:)' being a single MLP with domain in  :math:'\mathbb{R}^3' and range :math:'\mathbb{R}^{C_in}'
+
+        MLP::Half-share : This is currently non-functional
+
+
+        Sinc: This MLP mode was generated specifically for testing the action of the quadrature portion of the code.
+                One can use the Sinc mode if attempting to verify a new quadrature method since the Sinc function implements
+                the low-pass filter kernel and can then be used with known data to produce the low-passed version of the data
+                should the quadrature functionality be an accurate approximation of the integral.
+
+                TODO: This should really be a mode that ingests a kernel function of choice and checks the quadrature function
+                that way.
+        
+        '''
+
         if kernel_mode == 'MLP':
             self.weight_func = torch.nn.ModuleList()
 
@@ -132,7 +164,8 @@ class QuadConvLayer(nn.Module):
         return quad_weights, quad_nodes
 
     '''
-    Get Newton-Cotes quadrature weights and nodes.
+    Get Newton-Cotes quadrature weights and nodes. 
+    This function returns the composite rule, so its required that the order of the quadrature rule divides evenly into N.
 
     Input:
         N: number of points
@@ -151,6 +184,9 @@ class QuadConvLayer(nn.Module):
 
     '''
     Set quadrature weigts and nodes
+
+    The decay parameter here is used to ensure that the MLP decays to 0 as the norm of the input goes to \infty. 
+    This parameter should likely be set / controlled elsewhere in the code. 
 
     Input:
         N: number of points
