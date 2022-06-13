@@ -227,6 +227,12 @@ class QuadConvLayer(nn.Module):
 
     '''
     Get output locations
+
+    This function should be much more flexible in the future since changing the quadrature evaluation scheme may be favorable
+
+    Currently this always returns a mesh that corresponds to the (number of points in the 1D scheme) ** (the dimension of the problem)
+
+    i.e. this is always a tensor product schema
     '''
     def get_output_locs(self):
         node_list = [self.output_locs]*self.point_dim
@@ -262,8 +268,15 @@ class QuadConvLayer(nn.Module):
     '''
     Evaluate the convolution kernel MLPs
 
+    See the init function more a more detailed description of the MLP modes.
+
+    The essential component of this function is that it returns an array of shape:
+            (self.channels_out, self.channels_in, -1)
+
+    Otherwise any method for generating these weights is acceptable (consider test functions etc)
+
     Input:
-        x: ?
+        x: the location in \mathbb{R}^dim that you are evaluating each MLP at
     '''
     def eval_MLPs(self, x):
         if self.mlp_mode == 'single':
@@ -286,9 +299,18 @@ class QuadConvLayer(nn.Module):
     '''
     Evaluate the convolution kernel.
 
+    The mesh_weights array is passed into this function for the sake of computational efficiency, but the main purpose
+    of this function is to evaluate the convolution kernel which includes the MLPs and the decay function (AKA the Bump function)
+
+    This function uses the sparse_coo_tensor format since the bump function enforces the compact support of the MLP. Further computation 
+    does not take advantage of this sparsity but should do so in the future.
+
+    The compact support is a function of the self.decay_param
+
     Input:
-        x: ?
-        mesh_weights: ?
+        x: the location in \mathbb{R}^dim that you are evaluating each MLP at
+        mesh_weights: this function is derived from the self.get_quad_mesh() call and corresponds to the quadrature weights
+
     '''
     def kernel_func(self, x, mesh_weights):
         bump_arg = torch.linalg.vector_norm(x, dim=(2), keepdims = True)**4
@@ -361,6 +383,11 @@ class QuadConvLayer(nn.Module):
     '''
     Compute entire domain integral via recursive quadrature
 
+    The idea here is that each of the 1D integrals is computed for all output locations and 
+    summed into the 2D integral or 3D integral.
+
+    TODO: This function is moving things around to a specific device which probably isn't right for PyTorch Lightning code
+
     Input:
         features:
         output_locs:
@@ -392,6 +419,8 @@ class QuadConvLayer(nn.Module):
 
     '''
     Apply operator
+
+    TODO: This is a specific and possibly bad way of initializing the self.bias parameter
 
     Input:
         features:
