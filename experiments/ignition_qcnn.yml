@@ -8,7 +8,7 @@ train:
   enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv" #str
-  logger: False #bool
+  logger: True #bool
   log_every_n_steps: 1 #int
   enable_progress_bar: True #bool
   # profiler: #str
@@ -31,4 +31,10 @@ data:
   batch_size: 128 #int
   size: 25 #int
   stride: 25 #int
+  flatten: True #bool, flatten for quadrature
   channels: [0] #list
+
+#Extra arguments
+extra:
+  make_gif: True #bool
+  early_stopping: True #bool

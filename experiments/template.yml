@@ -33,3 +33,8 @@ data:
   stride: #int
   flatten: #bool, flatten for quadrature
   channels: #list
+
+#Extra arguments
+extra:
+  make_gif: #bool
+  early_stopping: #bool

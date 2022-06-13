@@ -12,3 +12,6 @@ dependencies:
   - pytorch-lightning=1.6
   - scipy
   - yaml
+  - matplotlib
+  - pip:
+    - gif

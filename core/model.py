@@ -205,8 +205,8 @@ class AutoEncoder(pl.LightningModule):
 
     def test_step(self, batch, idx):
         pred = self(batch)
-        loss = self.loss_fn(pred, batch)
 
+        loss = self.loss_fn(pred, batch)
         self.log('test_loss', loss)
 
     def predict_step(self, batch, idx):

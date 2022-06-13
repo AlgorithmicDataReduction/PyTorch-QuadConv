@@ -82,8 +82,6 @@ class GridDataModule(pl.LightningDataModule):
                     stride,
                     flatten=True,
                     channels=(),
-                    time_chunk=1,
-                    num_tiles=1,
                     normalize=True,
                     split=0.8,
                     shuffle=False,
@@ -98,8 +96,6 @@ class GridDataModule(pl.LightningDataModule):
         self.stride = stride
         self.flatten = flatten
         self.channels = channels
-        self.time_chunk = time_chunk
-        self.num_tiles = num_tiles
         self.normalize = normalize
         self.split = split
         self.shuffle = shuffle
@@ -120,13 +116,13 @@ class GridDataModule(pl.LightningDataModule):
 
     def transform(self, data):
         #extract channels
-        if len(self.channels)==0:
-            self.channels = tuple(range(data.shape[-1]))
+        if len(self.channels) != 0:
+            data = data[...,self.channels]
 
-        data = data[...,self.channels]
+        shape = data.shape
 
         #reshape
-        if len(self.channels) > 1:
+        if len(self.channels) != 1:
             data = torch.movedim(data, -1, 0)
             data = data.reshape(-1, **data.shape[-self.dimension:])
 
@@ -148,31 +144,35 @@ class GridDataModule(pl.LightningDataModule):
 
             data = data/(torch.max(torch.abs(data))+1e-4)
 
+        #NOTE: It would be better if we normalized before flattening
         if not self.flatten:
             data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)]))
 
-        return data
+        return data, shape
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
+            self.train_shape = data.shape
 
-            data = self.transform(data)
-            self.data_shape = data.shape[1:]
+            data, _ = self.transform(data)
 
             if self.shuffle:
                 torch.shuffle(data)
 
-            cutoff = int(int(0.8*data.shape[0])/self.time_chunk)
+            cutoff = int(0.8*data.shape[0])
 
-            self.train, self.val = data[0:cutoff,...], data[cutoff+1:,...]
+            self.train = data[0:cutoff,...]
+            self.val = None if self.split==1.0 else data[cutoff+1:,...]
 
         elif stage == "test" or stage is None:
             data = torch.from_numpy(np.load(os.path.join(self.data_dir, 'test.npy')))
             self.test = self.transform(data)
 
         elif stage == "predict" or stage is None:
-            self.predict = None
+            data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
+
+            self.predict, self.predict_shape = self.transform(data)
 
         else:
             raise ValueError("Invalid stage.")
@@ -192,11 +192,18 @@ class GridDataModule(pl.LightningDataModule):
     def teardown(self, stage=None):
         pass
 
-    def get_data(self):
-        return self.train, self.val, self.data_shape
-
     def get_shape(self):
         if self.flatten:
             return (1, 1, self.size**self.dimension)
         else:
-            return (tuple([1, 1]+[self.size for i in range(self.dimension)]))
+            return tuple([1, 1]+[self.size for i in range(self.dimension)])
+
+    def aglomerate(self, data):
+        if self.flatten:
+            data = [t.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)])) for t in data]
+
+        #first, concatenate all the batches
+        data = torch.cat(data)
+
+        #reshape to time X space X channels
+        return data.reshape(self.predict_shape)

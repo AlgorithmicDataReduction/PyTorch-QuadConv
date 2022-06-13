@@ -25,8 +25,9 @@ Input:
     trainer_args: PT Lightning Trainer arguments
     model_args: QCNN or CNN model arguments
     data_args: dataset arguments
+    extra_args: other arguments that don't fit in groups above
 '''
-def main(trainer_args, model_args, data_args):
+def main(trainer_args, model_args, data_args, extra_args):
     torch.set_default_dtype(torch.float32)
 
     #Setup data
@@ -36,17 +37,21 @@ def main(trainer_args, model_args, data_args):
     #Build model
     model = AutoEncoder(**model_args)
 
-    #Train model
-    callbacks=[ProgressBar(),
-                EarlyStopping(monitor="val_loss", patience=3, strict=False)]
+    #callbacks
+    callbacks=[ProgressBar()]
+    if extra_args['early_stopping']:
+        callbacks.append(EarlyStopping(monitor="val_loss", patience=3, strict=False))
     if train_args['enable_checkpointing']:
         callbacks.append(ModelCheckpoint(monitor="val_loss", save_last=True, save_top_k=1, mode='min'))
 
+    #train model
     trainer = Trainer(**train_args, callbacks=callbacks)
     trainer.fit(model=model, datamodule=data_module, ckpt_path=None)
 
-    #Make GIF
-    make_gif(model, data_module, trainer.default_root_dir+'/lightning_logs/version_0')
+    #make GIF
+    if extra_args['make_gif']:
+        m = None if train_args['enable_checkpointing'] else model
+        make_gif(trainer, data_module, m)
 
 '''
 Parse arguments
@@ -61,6 +66,7 @@ if __name__ == "__main__":
         train_parser = ArgumentParser()
         model_parser = ArgumentParser()
         data_parser = ArgumentParser()
+        extra_parser = ArgumentParser()
 
         #trainer args
         train_parser = Trainer.add_argparse_args(train_parser)
@@ -71,13 +77,18 @@ if __name__ == "__main__":
         #data specific args
         data_parser = PointCloudDataModule.add_args(data_parser)
 
+        #extra args
+        extra_parser.add_argument("--make_gif", type=bool, default=False)
+        extra_parser.add_argument("--early_stopping", type=bool, default=False)
+
         #parse remaining args
         train_args, _ = train_parser.parse_known_args()
         model_args, _ = model_parser.parse_known_args()
         data_args, _ = data_parser.parse_known_args()
+        extra_args, _ = extra_parser.parse_known_args()
 
         #convert to dictionaries
-        train_args, model_args, data_args = vars(train_args), vars(model_args), vars(data_args)
+        train_args, model_args, data_args, extra_args = vars(train_args), vars(model_args), vars(data_args), vars(extra_args)
 
     #use YAML config
     else:
@@ -87,9 +98,9 @@ if __name__ == "__main__":
                 config = yaml.safe_load(file)
 
             #extract args
-            train_args, model_args, data_args = config['train'], config['model'], config['data']
+            train_args, model_args, data_args, extra_args = config['train'], config['model'], config['data'], config['extra']
 
         except Exception as e:
             raise ValueError(f"Experiment {args.experiment} is invalid.")
 
-    main(train_args, model_args, data_args)
+    main(train_args, model_args, data_args, extra_args)
