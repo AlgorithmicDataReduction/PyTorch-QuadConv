@@ -32,7 +32,7 @@ data:
   size: 25 #int
   stride: 25 #int
   flatten: True #bool, flatten for quadrature
-  channels: [0] #list
+  channels: [1] #list
 
 #Extra arguments
 extra:

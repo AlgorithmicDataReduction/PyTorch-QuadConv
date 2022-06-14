@@ -15,7 +15,7 @@ from core.utilities import ProgressBar, make_gif
 from argparse import ArgumentParser
 import yaml
 import torch
-from pytorch_lightning import Trainer, LightningDataModule
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 '''
@@ -37,28 +37,27 @@ def main(trainer_args, model_args, data_args, extra_args):
     #Build model
     model = AutoEncoder(**model_args)
 
-    #callbacks
+    #Callbacks
     callbacks=[ProgressBar()]
     if extra_args['early_stopping']:
         callbacks.append(EarlyStopping(monitor="val_loss", patience=3, strict=False))
     if train_args['enable_checkpointing']:
         callbacks.append(ModelCheckpoint(monitor="val_loss", save_last=True, save_top_k=1, mode='min'))
 
-    #train model
+    #Train model
     trainer = Trainer(**train_args, callbacks=callbacks)
     trainer.fit(model=model, datamodule=data_module, ckpt_path=None)
 
-    #make GIF
+    #Make GIF
     if extra_args['make_gif']:
-        m = None if train_args['enable_checkpointing'] else model
-        make_gif(trainer, data_module, m)
+        make_gif(trainer, data_module, None if train_args['enable_checkpointing'] else model)
 
 '''
 Parse arguments
 '''
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--experiment", type=str, default=None, help="Named experiment")
+    parser.add_argument("--experiment", type=str, default=None)
     args, _ = parser.parse_known_args()
 
     #use CL config

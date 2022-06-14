@@ -25,9 +25,6 @@ class PointCloudDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.channels = channels
         self.time_chunk = time_chunk
-        # self.transforms =
-        # if normalize:
-        #     self.transforms =
 
     @staticmethod
     def add_args(parent_parser):
@@ -119,7 +116,8 @@ class GridDataModule(pl.LightningDataModule):
         if len(self.channels) != 0:
             data = data[...,self.channels]
 
-        shape = data.shape
+        #NOTE: This makes a lot of assumptions
+        self.num_tiles = int((data.shape[1]/self.size))
 
         #reshape
         if len(self.channels) != 1:
@@ -134,7 +132,7 @@ class GridDataModule(pl.LightningDataModule):
         #normalize
         #NOTE: This might need to change for 3D data
         if self.normalize:
-            mean =  torch.mean(data, dim=(0,1,2), keepdim=True)
+            mean = torch.mean(data, dim=(0,1,2), keepdim=True)
             std_dev = torch.sqrt(torch.var(data, dim=(0,1,2), keepdim=True))
             std_dev = torch.max(std_dev, torch.tensor(1e-3))
 
@@ -148,22 +146,19 @@ class GridDataModule(pl.LightningDataModule):
         if not self.flatten:
             data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)]))
 
-        return data, shape
+        return data
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
             self.train_shape = data.shape
 
-            data, _ = self.transform(data)
+            data = self.transform(data)
 
-            if self.shuffle:
-                torch.shuffle(data)
+            train_size = int(self.split*data.shape[0])
+            val_size = data.shape[0]-train_size
 
-            cutoff = int(0.8*data.shape[0])
-
-            self.train = data[0:cutoff,...]
-            self.val = None if self.split==1.0 else data[cutoff+1:,...]
+            self.train, self.val = random_split(data, [train_size, val_size])
 
         elif stage == "test" or stage is None:
             data = torch.from_numpy(np.load(os.path.join(self.data_dir, 'test.npy')))
@@ -172,22 +167,34 @@ class GridDataModule(pl.LightningDataModule):
         elif stage == "predict" or stage is None:
             data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
 
-            self.predict, self.predict_shape = self.transform(data)
+            self.predict = self.transform(data)
 
         else:
             raise ValueError("Invalid stage.")
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.train,
+                            batch_size=self.batch_size,
+                            num_workers=self.num_workers,
+                            shuffle=self.shuffle)
 
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.val,
+                            batch_size=self.batch_size,
+                            num_workers=self.num_workers,
+                            shuffle=self.shuffle)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.test,
+                            batch_size=self.batch_size,
+                            num_workers=self.num_workers,
+                            shuffle=self.shuffle)
 
     def predict_dataloader(self):
-        return DataLoader(self.predict, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.predict,
+                            batch_size=self.batch_size,
+                            num_workers=self.num_workers,
+                            shuffle=self.shuffle)
 
     def teardown(self, stage=None):
         pass
@@ -198,12 +205,21 @@ class GridDataModule(pl.LightningDataModule):
         else:
             return tuple([1, 1]+[self.size for i in range(self.dimension)])
 
-    def aglomerate(self, data):
+    def agglomerate(self, data):
         if self.flatten:
             data = [t.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)])) for t in data]
 
         #first, concatenate all the batches
         data = torch.cat(data)
 
+        #do some other stuff
+        data = data.reshape(-1, self.num_tiles, self.num_tiles, self.size, self.size)
+
         #reshape to time X space X channels
-        return data.reshape(self.predict_shape)
+        processed = torch.zeros(450, self.size*self.num_tiles, self.size*self.num_tiles)
+        for i in range(450):
+            for j in range(self.num_tiles):
+                for k in range(self.num_tiles):
+                    processed[i,self.size*j:self.size*(j+1),self.size*k:self.size*(k+1)] = data[i,j,k,:,:]
+
+        return processed

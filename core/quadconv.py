@@ -53,11 +53,11 @@ class QuadConvLayer(nn.Module):
         '''
         Kernel modes:
 
-        MLP: This encompasses most use cases for the code, and is meant to be used whenever training a QConv on data. 
+        MLP: This encompasses most use cases for the code, and is meant to be used whenever training a QConv on data.
 
         MLP::Single : This generates a single MLP for every incoming and outgoing channel.
-                      Using for example a 1D Conv operator, this corresponds to: 
-        
+                      Using for example a 1D Conv operator, this corresponds to:
+
                         .. math::
                             \text{out}(N_i, C_{\text{out}_j}) = \text{bias}(C_{\text{out}_j}) +
                             \sum_{k = 0}^{C_{in} - 1} \text{weight}(C_{\text{out}_j}, k)
@@ -79,7 +79,7 @@ class QuadConvLayer(nn.Module):
 
                 TODO: This should really be a mode that ingests a kernel function of choice and checks the quadrature function
                 that way.
-        
+
         '''
 
         if kernel_mode == 'MLP':
@@ -164,7 +164,7 @@ class QuadConvLayer(nn.Module):
         return quad_weights, quad_nodes
 
     '''
-    Get Newton-Cotes quadrature weights and nodes. 
+    Get Newton-Cotes quadrature weights and nodes.
     This function returns the composite rule, so its required that the order of the quadrature rule divides evenly into N.
 
     Input:
@@ -183,10 +183,10 @@ class QuadConvLayer(nn.Module):
         return weights, torch.linspace(x0, x1, N)
 
     '''
-    Set quadrature weigts and nodes
+    Set quadrature weights and nodes
 
-    The decay parameter here is used to ensure that the MLP decays to 0 as the norm of the input goes to \infty. 
-    This parameter should likely be set / controlled elsewhere in the code. 
+    The decay parameter here is used to ensure that the MLP decays to 0 as the norm of the input goes to \infty.
+    This parameter should likely be set / controlled elsewhere in the code.
 
     Input:
         N: number of points
@@ -302,7 +302,7 @@ class QuadConvLayer(nn.Module):
     The mesh_weights array is passed into this function for the sake of computational efficiency, but the main purpose
     of this function is to evaluate the convolution kernel which includes the MLPs and the decay function (AKA the Bump function)
 
-    This function uses the sparse_coo_tensor format since the bump function enforces the compact support of the MLP. Further computation 
+    This function uses the sparse_coo_tensor format since the bump function enforces the compact support of the MLP. Further computation
     does not take advantage of this sparsity but should do so in the future.
 
     The compact support is a function of the self.decay_param
@@ -383,7 +383,7 @@ class QuadConvLayer(nn.Module):
     '''
     Compute entire domain integral via recursive quadrature
 
-    The idea here is that each of the 1D integrals is computed for all output locations and 
+    The idea here is that each of the 1D integrals is computed for all output locations and
     summed into the 2D integral or 3D integral.
 
     TODO: This function is moving things around to a specific device which probably isn't right for PyTorch Lightning code
@@ -406,7 +406,7 @@ class QuadConvLayer(nn.Module):
             integral = self.quad(features, output_locs.to(device), nodes.to(device), weights.to(device))
 
         elif level > 1:
-            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0]).to('cuda')
+            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0]).to(features.device)
 
             for i in range(self.N):
                 this_coord = self.quad_nodes[i].expand(self.N, 1)

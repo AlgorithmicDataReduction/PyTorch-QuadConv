@@ -53,10 +53,13 @@ Input:
 '''
 def make_gif(trainer, data_module, model=None):
     #run on test data
-    results = trainer.predict(model, datamodule=data_module)
+    if model:
+        results = trainer.predict(model=model, datamodule=data_module)
+    else:
+        results = trainer.predict(ckpt_path='best', datamodule=data_module)
 
     #transform data back to regular form
-    data = data_module.aglomerate(results)
+    data = data_module.agglomerate(results)
 
     #if multichannel then just take first channel
     if data.dim() > data_module.dimension+1:
@@ -69,7 +72,7 @@ def make_gif(trainer, data_module, model=None):
         plt.colorbar(location='top')
 
     #build frames
-    frames = [plot(i) for i in range()]
+    frames = [plot(i) for i in range(data.shape[0])]
 
     #save gif
     gif.save(frames, f'{trainer.logger.log_dir}/train.gif', duration=50)

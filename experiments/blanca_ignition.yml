@@ -31,7 +31,7 @@ data:
   batch_size: 128 #int
   size: 25 #int
   stride: 25 #int
-  channels: [0] #list
+  channels: [1] #list
 
 #Extra arguments
 extra:

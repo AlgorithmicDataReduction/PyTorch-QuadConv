@@ -1,4 +1,13 @@
-#PT Lightning trainer arguments
+'''
+Experiment configuration file.
+'''
+
+'''
+PT Lightning trainer arguments.
+
+Documentation:
+  https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html
+'''
 train:
   accelerator: #str e.g. "gpu"
   devices: #int
@@ -15,7 +24,9 @@ train:
   max_steps: #int
   logger: #bool
 
-#Model building arguments
+'''
+Model arguments
+'''
 model:
   conv_type: #str "standard" or "quadrature"
   point_dim: #int
@@ -24,7 +35,9 @@ model:
   channel_seq : #list
   mlp_channels : #list
 
-#Data loader arguments
+'''
+PT LightningDataModule arguments
+'''
 data:
   data_dir: #str
   dimension: #int
@@ -34,7 +47,9 @@ data:
   flatten: #bool, flatten for quadrature
   channels: #list
 
-#Extra arguments
+'''
+Extra arguments
+'''
 extra:
   make_gif: #bool
   early_stopping: #bool

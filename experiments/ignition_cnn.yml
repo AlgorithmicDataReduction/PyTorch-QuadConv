@@ -31,9 +31,9 @@ data:
   size: 25 #int
   stride: 25 #int
   flatten: False
-  channels: [0] #list
+  channels: [1] #list
 
 #Extra arguments
 extra:
-  make_gif: True #bool
-  early_stopping: True #bool
+  make_gif: False #bool
+  early_stopping: False #bool
