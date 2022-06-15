@@ -4,6 +4,9 @@ Utility functions.
 
 import torch
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
+from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.utilities import rank_zero_only
+
 import matplotlib.pyplot as plt
 import gif
 
@@ -83,3 +86,15 @@ Custom PT Lightning training progress bar.
 class ProgressBar(TQDMProgressBar):
     def __init__(self):
         super().__init__()
+
+'''
+Custom Tensorboard logger.
+'''
+class Logger(TensorBoardLogger):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @rank_zero_only
+    def log_metrics(self, metrics, step):
+        metrics.pop('epoch', None)
+        return super().log_metrics(metrics, step)

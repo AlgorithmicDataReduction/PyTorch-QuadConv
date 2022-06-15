@@ -10,14 +10,13 @@ Example usage:
 
 from core.model import AutoEncoder
 from core.data import PointCloudDataModule, GridDataModule
-from core.utilities import ProgressBar, make_gif
+from core.utilities import ProgressBar, Logger, make_gif
 
 import argparse
 import yaml
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from pytorch_lightning.loggers import TensorBoardLogger
 
 '''
 Build and train a model.
@@ -47,11 +46,16 @@ def main(args, trainer_args, model_args, data_args):
 
     #Logger
     if train_args['logger']:
-        train_args['logger'] = TensorBoardLogger(save_dir=train_args['default_root_dir'],
-                                                    version=args['experiment'])
+        train_args['logger'] = Logger(save_dir=train_args['default_root_dir'],
+                                        version=args['experiment'],
+                                        default_hp_metric=False)
 
     #Train model
     trainer = Trainer(**train_args, callbacks=callbacks)
+
+    if train_args['auto_scale_batch_size']:
+        trainer.tune(model, datamodule=data_module)
+
     trainer.fit(model=model, datamodule=data_module, ckpt_path=None)
 
     #Make GIF
