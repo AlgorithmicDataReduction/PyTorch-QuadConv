@@ -8,8 +8,8 @@ train:
   enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv" #str
-  logger: False #bool
-  log_every_n_steps: 1 #int
+  logger: True #bool
+  # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
   max_epochs: 1 #int
@@ -25,7 +25,7 @@ model:
 
 #Data loader arguments
 data:
-  data_dir: "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv/data/ignition_center_cut" #str
+  data_dir: "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv/data/ignition_square" #str
   dimension: 2 #int
   batch_size: 128 #int
   size: 25 #int

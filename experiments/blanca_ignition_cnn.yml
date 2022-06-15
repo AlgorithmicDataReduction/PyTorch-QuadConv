@@ -10,7 +10,7 @@ train:
   # default_root_dir: #str
   logger: True #bool
   # log_every_n_steps: #int
-  enable_progress_bar: True #bool
+  enable_progress_bar: False #bool
   # profiler: #str
   # max_epochs: #int
   # max_steps: #int
