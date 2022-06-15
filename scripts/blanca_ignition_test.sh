@@ -16,7 +16,7 @@ conda activate compression
 #copy dataset to scratch
 cp $ROOT/data/ignition_square/train.npy $SLURM_SCRATCH/
 
-python $ROOT/main.py --experiment $TEST
+python $ROOT/main.py --experiment $TEST --default_root_dir $SLURM_SCRATCH --data_dir $SLURM_SCRATCH
 
 #copy logs from scratch
 cp -R $SLURM_SCRATCH/lightning_logs/version_0 $ROOT/lightning_logs/$TEST

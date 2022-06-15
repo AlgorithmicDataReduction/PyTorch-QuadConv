@@ -7,7 +7,7 @@ train:
   # auto_select_gpus: #bool
   enable_checkpointing: True #bool
   check_val_every_n_epoch: 1 #int
-  default_root_dir: ${SLURM_SCRATCH} #str
+  default_root_dir: #str
   logger: True #bool
   # log_every_n_steps: #int
   enable_progress_bar: True #bool

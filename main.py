@@ -12,7 +12,7 @@ from core.model import AutoEncoder
 from core.data import PointCloudDataModule, GridDataModule
 from core.utilities import ProgressBar, make_gif
 
-from argparse import ArgumentParser
+import argparse
 import yaml
 import torch
 from pytorch_lightning import Trainer
@@ -56,48 +56,47 @@ def main(trainer_args, model_args, data_args, extra_args):
 Parse arguments
 '''
 if __name__ == "__main__":
-    parser = ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", type=str, default=None)
     args, _ = parser.parse_known_args()
 
-    #use CL config
-    if args.experiment == None:
-        train_parser = ArgumentParser()
-        model_parser = ArgumentParser()
-        data_parser = ArgumentParser()
-        extra_parser = ArgumentParser()
+    #Look for CL arguments
+    train_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    model_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    data_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    extra_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
 
-        #trainer args
-        train_parser = Trainer.add_argparse_args(train_parser)
+    #trainer args
+    train_parser = Trainer.add_argparse_args(train_parser)
 
-        #model specific args
-        model_parser = AutoEncoder.add_args(model_parser)
+    #model specific args
+    model_parser = AutoEncoder.add_args(model_parser)
 
-        #data specific args
-        data_parser = PointCloudDataModule.add_args(data_parser)
+    #data specific args
+    data_parser = GridDataModule.add_args(data_parser)
 
-        #extra args
-        extra_parser.add_argument("--make_gif", type=bool, default=False)
-        extra_parser.add_argument("--early_stopping", type=bool, default=False)
+    #extra args
+    extra_parser.add_argument("--make_gif", type=bool, default=False)
+    extra_parser.add_argument("--early_stopping", type=bool, default=False)
 
-        #parse remaining args
-        train_args, _ = train_parser.parse_known_args()
-        model_args, _ = model_parser.parse_known_args()
-        data_args, _ = data_parser.parse_known_args()
-        extra_args, _ = extra_parser.parse_known_args()
+    #parse remaining args
+    train_args = vars(train_parser.parse_known_args()[0])
+    model_args = vars(model_parser.parse_known_args()[0])
+    data_args = vars(data_parser.parse_known_args()[0])
+    extra_args = vars(extra_parser.parse_known_args()[0])
 
-        #convert to dictionaries
-        train_args, model_args, data_args, extra_args = vars(train_args), vars(model_args), vars(data_args), vars(extra_args)
-
-    #use YAML config
-    else:
+    #Load YAML config
+    if args.experiment != None:
         try:
             #open YAML file
             with open(f"experiments/{args.experiment}.yml", "r") as file:
                 config = yaml.safe_load(file)
 
             #extract args
-            train_args, model_args, data_args, extra_args = config['train'], config['model'], config['data'], config['extra']
+            train_args.update(config['train'])
+            model_args.update(config['model'])
+            data_args.update(config['data'])
+            extra_args.update(config['extra'])
 
         except Exception as e:
             raise ValueError(f"Experiment {args.experiment} is invalid.")
