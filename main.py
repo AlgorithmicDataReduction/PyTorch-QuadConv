@@ -14,6 +14,7 @@ from core.utilities import ProgressBar, Logger, make_gif
 
 import argparse
 import yaml
+
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping

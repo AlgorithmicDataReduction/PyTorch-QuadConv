@@ -2,7 +2,7 @@
 #SBATCH --time=01:00:00
 #SBATCH --qos=preemptable
 #SBATCH --job-name=ignition_test
-#SBATCH --gres=gpu
+#SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 
@@ -22,5 +22,8 @@ mkdir $SLURM_SCRATCH/lightning_logs
 
 python $ROOT/main.py --experiment $TEST --default_root_dir $SLURM_SCRATCH --data_dir $SLURM_SCRATCH
 
+#remove old logs
+rm -r $ROOT/lightning_logs/$TEST
+
 #copy logs from scratch
-cp -R $SLURM_SCRATCH/lightning_logs/$TEST $ROOT/lightning_logs/
+cp -r $SLURM_SCRATCH/lightning_logs/$TEST $ROOT/lightning_logs/
