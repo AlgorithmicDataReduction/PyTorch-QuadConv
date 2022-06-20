@@ -26,8 +26,8 @@ model:
 #Data loader arguments
 data:
   data_dir: "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv/data/ignition_square" #str
-  dimension: 32 #int
-  batch_size: 1 #int
+  dimension: 2 #int
+  batch_size: 32 #int
   size: 50 #int
   stride: 50 #int
   flatten: False

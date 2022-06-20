@@ -14,6 +14,7 @@ from core.utilities import ProgressBar, Logger, make_gif
 
 import argparse
 import yaml
+import os
 
 import torch
 from pytorch_lightning import Trainer
@@ -47,6 +48,9 @@ def main(args, trainer_args, model_args, data_args):
 
     #Logger
     if train_args['logger']:
+        if train_args['default_root_dir'] is None:
+            train_args['default_root_dir'] = os.getcwd()
+            
         train_args['logger'] = Logger(save_dir=train_args['default_root_dir'],
                                         version=args['experiment'],
                                         default_hp_metric=False)

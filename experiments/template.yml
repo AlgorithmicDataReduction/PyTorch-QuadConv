@@ -31,9 +31,9 @@ model:
   conv_type: #str "standard" or "quadrature"
   point_dim: #int
   latent_dim: #int
-  point_seq : #list
-  channel_seq : #list
-  mlp_channels : #list
+  point_seq: #list
+  channel_seq: #list
+  mlp_channels: #list, delete this for standard conv
 
 '''
 PT LightningDataModule arguments
