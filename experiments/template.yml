@@ -1,13 +1,8 @@
-'''
-Experiment configuration file.
-'''
+#Experiment configuration file.
 
-'''
-PT Lightning trainer arguments.
-
-Documentation:
-  https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html
-'''
+#PT Lightning trainer arguments.
+#Documentation: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html
+#Comment out options you aren't using
 train:
   accelerator: #str e.g. "gpu"
   devices: #int
@@ -17,16 +12,14 @@ train:
   enable_checkpointing: #bool
   check_val_every_n_epoch: #int
   default_root_dir: #str
+  logger: #bool
   log_every_n_steps: #int
   enable_progress_bar: #bool
   profiler: #str
   max_epochs: #int
   max_steps: #int
-  logger: #bool
 
-'''
-Model arguments
-'''
+#Model arguments
 model:
   conv_type: #str "standard" or "quadrature"
   point_dim: #int
@@ -34,10 +27,9 @@ model:
   point_seq: #list
   channel_seq: #list
   mlp_channels: #list, delete this for standard conv
+  learning_rate: #foat
 
-'''
-PT LightningDataModule arguments
-'''
+#PT LightningDataModule arguments
 data:
   data_dir: #str
   dimension: #int
@@ -47,9 +39,7 @@ data:
   flatten: #bool, flatten for quadrature
   channels: #list
 
-'''
-Extra arguments
-'''
+#Extra arguments
 extra:
   make_gif: #bool
   early_stopping: #bool

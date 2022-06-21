@@ -7,8 +7,8 @@ train:
   # auto_select_gpus: #bool
   enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
-  default_root_dir: "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv" #str
-  logger: True #bool
+  # default_root_dir: #str
+  logger: False #bool
   log_every_n_steps: 1 #int
   enable_progress_bar: True #bool
   # profiler: #str
@@ -23,6 +23,7 @@ model:
   point_seq: [25, 10, 5] #list
   channel_seq: [1, 8, 16] #list
   mlp_channels: [8, 8] #list
+  use_bias: False #bool
 
 #Data loader arguments
 data:
@@ -36,5 +37,5 @@ data:
 
 #Extra arguments
 extra:
-  make_gif: True #bool
-  early_stopping: True #bool
+  make_gif: False #bool
+  early_stopping: False #bool

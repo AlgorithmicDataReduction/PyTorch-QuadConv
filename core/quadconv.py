@@ -41,14 +41,11 @@ class QuadConvLayer(nn.Module):
         self.center = torch.zeros(1, point_dim)
         self.inv_covar_cholesky = torch.diag(torch.ones(point_dim))
 
-        self.bias = []
         self.use_bias = use_bias
         self.mlp_mode = mlp_mode
 
         self.quad_type = quad_type
         self.composite_quad_order = 5
-
-        self.output_locs = []
 
         '''
         Kernel modes:
@@ -114,9 +111,6 @@ class QuadConvLayer(nn.Module):
             self.weight_func = [[]] * channels_out
             self.weight_func[0] = lambda x : (25.3*torch.sinc(8*x[:,0])*torch.sinc(4*x[:,1])).unsqueeze(-1)
 
-        self.quad_weights = []
-        self.quad_nodes = []
-        self.N = []
         self.channels_out = channels_out
         self.channels_in = channels_in
         self.point_dim = point_dim
@@ -198,10 +192,13 @@ class QuadConvLayer(nn.Module):
 
         if N < 1e3:
             if self.quad_type == 'gauss':
-                self.quad_weights, self.quad_nodes = self.gauss_quad(N)
+                quad_weights, quad_nodes = self.gauss_quad(N)
 
             elif self.quad_type == 'newton_cotes':
-                self.quad_weights, self.quad_nodes = self.newton_cotes_quad(N)
+                quad_weights, quad_nodes = self.newton_cotes_quad(N)
+
+            self.quad_weights = nn.Parameter(quad_weights, requires_grad=False)
+            self.quad_nodes = nn.Parameter(quad_nodes, requires_grad=False)
 
         else:
             raise RuntimeError('Number of quadrature points exceeds the user set limit.')
@@ -217,13 +214,22 @@ class QuadConvLayer(nn.Module):
     def set_output_locs(self, locs):
         if isinstance(locs, int):
             if self.quad_type == 'gauss':
-                _, self.output_locs = self.gauss_quad(locs)
+                _, mesh_nodes = self.gauss_quad(locs)
 
             elif self.quad_type == 'newton_cotes':
-                _, self.output_locs = self.newton_cotes_quad(locs)
+                _, mesh_nodes = self.newton_cotes_quad(locs)
 
         else:
-            self.output_locs = locs
+            mesh_nodes = locs
+
+        node_list = [mesh_nodes]*self.point_dim
+
+        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).reshape(-1, self.point_dim)
+
+        self.output_locs = nn.Parameter(output_locs, requires_grad=False)
+
+        if self.use_bias:
+            self.bias = torch.nn.Parameter(torch.zeros(1, self.channels_out, output_locs.shape[0]))
 
     '''
     Get output locations
@@ -233,15 +239,17 @@ class QuadConvLayer(nn.Module):
     Currently this always returns a mesh that corresponds to the (number of points in the 1D scheme) ** (the dimension of the problem)
 
     i.e. this is always a tensor product schema
+
+    NOTE: Deprecated for now, instead set_output_locs carries out this functionality as well
     '''
-    def get_output_locs(self):
-        node_list = [self.output_locs]*self.point_dim
-
-        mesh_nodes = torch.meshgrid(*node_list, indexing='xy')
-
-        mesh_nodes = torch.dstack(mesh_nodes).reshape(-1, self.point_dim)
-
-        return mesh_nodes
+    # def get_output_locs(self):
+    #     node_list = [self.output_locs]*self.point_dim
+    #
+    #     mesh_nodes = torch.meshgrid(*node_list, indexing='xy')
+    #
+    #     mesh_nodes = torch.dstack(mesh_nodes).reshape(-1, self.point_dim)
+    #
+    #     return mesh_nodes
 
     '''
     Get quadrature nodes and weights
@@ -386,8 +394,6 @@ class QuadConvLayer(nn.Module):
     The idea here is that each of the 1D integrals is computed for all output locations and
     summed into the 2D integral or 3D integral.
 
-    TODO: This function is moving things around to a specific device which probably isn't right for PyTorch Lightning code
-
     Input:
         features:
         output_locs:
@@ -403,10 +409,13 @@ class QuadConvLayer(nn.Module):
 
         if level == 1:
             device = features.device
-            integral = self.quad(features, output_locs.to(device), nodes.to(device), weights.to(device))
+            integral = self.quad(features, output_locs, nodes, weights)
 
         elif level > 1:
-            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0]).to(features.device)
+            '''
+            Not sure there is a better way to do this.
+            '''
+            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0], device=features.device)
 
             for i in range(self.N):
                 this_coord = self.quad_nodes[i].expand(self.N, 1)
@@ -426,19 +435,17 @@ class QuadConvLayer(nn.Module):
         features:
         output_locs:
     '''
-    def forward(self, features, output_locs=False):
-        if isinstance(output_locs, bool) and not output_locs:
-            output_locs = self.get_output_locs()
+    def forward(self, features, output_locs=None):
+        if output_locs is None:
+            output_locs = self.output_locs
 
         if output_locs.shape[1] != self.point_dim:
             raise RuntimeError('dimension mismatch')
 
         integral =  self.rquad(features, output_locs)
+        # integral = self.tensor_prod_quad(features, output_locs)
 
         if self.use_bias:
-            if not torch.is_tensor(self.bias) and not self.bias:
-                self.bias = torch.nn.Parameter(torch.zeros(1, integral.shape[1], integral.shape[2]))
-
             integral += self.bias
 
         return integral
@@ -450,7 +457,7 @@ class Sin(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self,x):
+    def forward(self, x):
         return torch.sin(x)
 
 ################################################################################

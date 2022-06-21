@@ -42,15 +42,15 @@ def main(args, trainer_args, model_args, data_args):
     #Callbacks
     callbacks=[]
     if args['early_stopping']:
-        callbacks.append(EarlyStopping(monitor="val_loss", patience=5, strict=False))
+        callbacks.append(EarlyStopping(monitor="val_err", patience=5, strict=False))
     if train_args['enable_checkpointing']:
-        callbacks.append(ModelCheckpoint(monitor="val_loss", save_last=True, save_top_k=1, mode='min'))
+        callbacks.append(ModelCheckpoint(monitor="val_err", save_last=True, save_top_k=1, mode='min'))
 
     #Logger
     if train_args['logger']:
         if train_args['default_root_dir'] is None:
             train_args['default_root_dir'] = os.getcwd()
-            
+
         train_args['logger'] = Logger(save_dir=train_args['default_root_dir'],
                                         version=args['experiment'],
                                         default_hp_metric=False)

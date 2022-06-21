@@ -5,6 +5,7 @@
 import numpy as np
 import torch
 from torch import nn, optim
+from torch.linalg import matrix_norm as mat_norm
 from torch.nn.utils.parametrizations import spectral_norm
 import pytorch_lightning as pl
 
@@ -141,6 +142,7 @@ class AutoEncoder(pl.LightningModule):
                     loss_fn = nn.MSELoss(),
                     noise_scale = 0.0,
                     input_shape = None,
+                    learning_rate = 1e-2,
                     **kwargs
                     ):
         super().__init__()
@@ -151,7 +153,8 @@ class AutoEncoder(pl.LightningModule):
                                             'forward_activation',
                                             'latent_activation',
                                             'output_activation',
-                                            'input_shape'])
+                                            'input_shape',
+                                            'learning_rate'])
 
         #model pieces
         self.encoder = Encoder(**self.hparams,
@@ -167,6 +170,7 @@ class AutoEncoder(pl.LightningModule):
         self.loss_fn = loss_fn
         self.noise_scale = noise_scale
         self.output_activation = output_activation
+        self.learning_rate = learning_rate
 
     @staticmethod
     def add_args(parent_parser):
@@ -199,21 +203,22 @@ class AutoEncoder(pl.LightningModule):
 
     def validation_step(self, batch, idx):
         pred = self(batch)
-        loss = self.loss_fn(pred, batch)
 
-        self.log('val_loss', loss)
+        n = mat_norm(pred-batch, ord='fro', dim=(1,-1))
+        d = mat_norm(batch, ord='fro', dim=(1,-1))
+
+        error = torch.sum(n/d)/pred.shape[0]
+
+        self.log('val_err', error)
 
     def test_step(self, batch, idx):
-        pred = self(batch)
-
-        loss = self.loss_fn(pred, batch)
-        self.log('test_loss', loss)
+        pass
 
     def predict_step(self, batch, idx):
         return self(batch)
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=1e-2)
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
         # lr_scheduler = torch.optim.lr_scheduler.
         return optimizer
         # return [optimizer], [lr_scheduler]
