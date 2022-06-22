@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --time=01:00:00
+#SBATCH --time=03:00:00
 #SBATCH --qos=preemptable
-#SBATCH --job-name=ignition_test
+#SBATCH --job-name=ignition_qcnn
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 
 ROOT=/projects/cosi1728/QuadConv
-TEST=blanca_ignition_cnn
+TEST=blanca_ignition_qcnn
 DATA=data/ignition_square/train.npy
 
 module purge
