@@ -191,7 +191,7 @@ class AutoEncoder(pl.LightningModule):
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
         latent = self.encoder(batch)
-        latent += self.noise_scale*torch.randn_like(latent[0,:])
+        latent += self.noise_scale*torch.randn(latent.shape, device=self.device)
 
         #decode
         pred = self.output_activation(self.decoder(latent))

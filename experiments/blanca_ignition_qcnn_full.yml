@@ -1,7 +1,7 @@
 #PT Lightning trainer arguments
 train:
   accelerator: "gpu" #str e.g. "gpu"
-  devices: 1
+  devices: -1
   # num_nodes: #int
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
