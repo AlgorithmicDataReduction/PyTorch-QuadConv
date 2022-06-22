@@ -12,7 +12,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 500 #int
+  max_epochs: 1000 #int
   # max_steps: #int
 
 #Model building arguments
@@ -27,7 +27,7 @@ model:
 data:
   # data_dir: #str
   dimension: 2 #int
-  batch_size: 6 #int
+  batch_size: 8 #int
   size: 250 #int
   stride: 250 #int
   flatten: False #bool, flatten for quadrature

@@ -12,7 +12,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 500 #int
+  max_epochs: 1000 #int
   # max_steps: #int
 
 #Model building arguments
@@ -20,7 +20,7 @@ model:
   conv_type: "quadrature" #str "standard" or "quadrature"
   point_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [250, 20, 15, 10, 5] #list
+  point_seq: [250, 125, 50, 25, 10] #list
   channel_seq: [1, 2, 4, 8, 16] #list
   mlp_channels: [8, 8, 8] #list
   use_bias: False #bool

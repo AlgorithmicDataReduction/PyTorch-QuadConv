@@ -58,8 +58,8 @@ def main(args, trainer_args, model_args, data_args):
     #Train model
     trainer = Trainer(**train_args, callbacks=callbacks)
 
-    if train_args['auto_scale_batch_size']:
-        trainer.tune(model, datamodule=data_module)
+    # if train_args['auto_scale_batch_size']:
+    #     trainer.tune(model, datamodule=data_module)
 
     trainer.fit(model=model, datamodule=data_module, ckpt_path=None)
 

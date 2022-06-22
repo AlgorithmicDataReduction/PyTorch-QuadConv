@@ -20,7 +20,7 @@ model:
   conv_type: "quadrature" #str "standard" or "quadrature"
   point_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [250, 20, 15, 10, 5] #list
+  point_seq: [50, 25, 15, 10, 5] #list
   channel_seq: [1, 2, 4, 8, 16] #list
   mlp_channels: [8, 8, 8] #list
   use_bias: False #bool
@@ -29,9 +29,9 @@ model:
 data:
   # data_dir: #str
   dimension: 2 #int
-  batch_size: 8 #int
-  size: 250 #int
-  stride: 250 #int
+  batch_size: 512 #int
+  size: 50 #int
+  stride: 25 #int
   flatten: True #bool, flatten for quadrature
   channels: [1] #list
 

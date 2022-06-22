@@ -3,7 +3,7 @@ train:
   accelerator: "gpu" #str e.g. "gpu"
   devices: 1
   # num_nodes: #int
-  auto_scale_batch_size: False #bool
+  # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
   enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
@@ -12,24 +12,24 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
-  # max_epochs: #int
-  max_steps: 1 #int
+  max_epochs: 1 #int
+  # max_steps: 1 #int
 
 #Model building arguments
 model:
   conv_type: "standard" #str "standard" or "quadrature"
   point_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [25, 20, 15, 10, 5] #list
-  channel_seq: [1, 4, 8, 16, 32] #list
+  point_seq: [50, 25, 15, 10, 5] #list
+  channel_seq: [1, 2, 4, 8, 16] #list
 
 #Data loader arguments
 data:
   data_dir: "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv/data/ignition_square" #str
   dimension: 2 #int
-  batch_size: 32 #int
+  batch_size: 512 #int
   size: 50 #int
-  stride: 50 #int
+  stride: 25 #int
   flatten: False
   channels: [1] #list
 
