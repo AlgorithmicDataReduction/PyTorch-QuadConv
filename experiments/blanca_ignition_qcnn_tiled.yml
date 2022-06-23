@@ -12,7 +12,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 500 #int
+  max_epochs: 1000 #int
   # max_steps: #int
 
 #Model building arguments

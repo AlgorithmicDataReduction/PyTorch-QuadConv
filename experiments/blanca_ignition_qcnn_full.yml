@@ -20,7 +20,7 @@ model:
   conv_type: "quadrature" #str "standard" or "quadrature"
   point_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [250, 125, 50, 25, 10] #list
+  point_seq: [250, 200, 150, 100, 50] #list
   channel_seq: [1, 2, 4, 8, 16] #list
   mlp_channels: [8, 8, 8] #list
   use_bias: False #bool

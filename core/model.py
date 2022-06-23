@@ -57,8 +57,8 @@ class Encoder(nn.Module):
             self.cnn_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]**point_dim))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
-        self.linear_down = spectral_norm(nn.Linear(self.cnn_out_shape.numel(), latent_dim))
-        self.linear_down2 = spectral_norm(nn.Linear(latent_dim, latent_dim))
+        self.linear_down = nn.Linear(self.cnn_out_shape.numel(), latent_dim)
+        self.linear_down2 = nn.Linear(latent_dim, latent_dim)
 
     def forward(self, x):
         x = self.cnn(x)
@@ -95,8 +95,8 @@ class Decoder(nn.Module):
 
         #build network
         self.unflat = nn.Unflatten(1, input_shape[1:])
-        self.linear_up = spectral_norm(nn.Linear(latent_dim, latent_dim))
-        self.linear_up2 = spectral_norm(nn.Linear(latent_dim, input_shape.numel()))
+        self.linear_up = nn.Linear(latent_dim, latent_dim)
+        self.linear_up2 = nn.Linear(latent_dim, input_shape.numel())
 
         self.cnn = nn.Sequential()
 
@@ -209,7 +209,7 @@ class AutoEncoder(pl.LightningModule):
 
         error = torch.sum(n/d)/pred.shape[0]
 
-        self.log('val_err', error)
+        self.log('val_err', error, on_step=False, on_epoch=True, prog_bar=True)
 
     def test_step(self, batch, idx):
         pass
