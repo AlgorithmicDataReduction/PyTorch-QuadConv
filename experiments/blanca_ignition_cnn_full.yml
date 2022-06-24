@@ -27,7 +27,7 @@ model:
 data:
   # data_dir: #str
   dimension: 2 #int
-  batch_size: 8 #int
+  batch_size: 16 #int
   size: 250 #int
   stride: 250 #int
   flatten: False #bool, flatten for quadrature

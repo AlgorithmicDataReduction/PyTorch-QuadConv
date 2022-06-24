@@ -5,6 +5,7 @@
 import numpy as np
 import torch
 from torch import nn, optim
+from torch.nn.utils.parametrizations import spectral_norm as spn
 import pytorch_lightning as pl
 
 from .quadconv import QuadConvBlock
@@ -55,8 +56,8 @@ class Encoder(nn.Module):
             self.cnn_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]**point_dim))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
-        self.linear_down = nn.Linear(self.cnn_out_shape.numel(), latent_dim)
-        self.linear_down2 = nn.Linear(latent_dim, latent_dim)
+        self.linear_down = spn(nn.Linear(self.cnn_out_shape.numel(), latent_dim))
+        self.linear_down2 = spn(nn.Linear(latent_dim, latent_dim))
 
     def forward(self, x):
         x = self.cnn(x)
@@ -93,8 +94,8 @@ class Decoder(nn.Module):
 
         #build network
         self.unflat = nn.Unflatten(1, input_shape[1:])
-        self.linear_up = nn.Linear(latent_dim, latent_dim)
-        self.linear_up2 = nn.Linear(latent_dim, input_shape.numel())
+        self.linear_up = spn(nn.Linear(latent_dim, latent_dim))
+        self.linear_up2 = spn(nn.Linear(latent_dim, input_shape.numel()))
 
         self.cnn = nn.Sequential()
 
@@ -212,7 +213,16 @@ class AutoEncoder(pl.LightningModule):
         self.log('val_err', error, on_step=False, on_epoch=True)
 
     def test_step(self, batch, idx):
-        pass
+        pred = self(batch)
+
+        dim = tuple([i for i in range(1, pred.ndim)])
+
+        n = torch.sqrt(torch.sum((pred-batch)**2, dim=dim))
+        d = torch.sqrt(torch.sum((batch)**2, dim=dim))
+
+        error = torch.sum(n/d)/pred.shape[0]
+
+        self.log('val_err', error, on_step=False, on_epoch=True)
 
     def predict_step(self, batch, idx):
         return self(batch)

@@ -165,7 +165,9 @@ class GridDataModule(pl.LightningDataModule):
             self.train, self.val = random_split(data, [train_size, val_size])
 
         elif stage == "test" or stage is None:
-            data = torch.from_numpy(np.load(os.path.join(self.data_dir, 'test.npy')))
+            data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
+            self.train_shape = data.shape
+
             self.test = self.transform(data)
 
         elif stage == "predict" or stage is None:
