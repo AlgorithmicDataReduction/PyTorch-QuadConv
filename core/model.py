@@ -5,8 +5,6 @@
 import numpy as np
 import torch
 from torch import nn, optim
-from torch.linalg import matrix_norm as mat_norm
-from torch.nn.utils.parametrizations import spectral_norm
 import pytorch_lightning as pl
 
 from .quadconv import QuadConvBlock
@@ -198,18 +196,20 @@ class AutoEncoder(pl.LightningModule):
 
         #compute loss
         loss = self.loss_fn(pred, batch)
-        self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log('train_loss', loss, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, idx):
         pred = self(batch)
 
-        n = mat_norm(pred-batch, ord='fro', dim=(1,-1))
-        d = mat_norm(batch, ord='fro', dim=(1,-1))
+        dim = tuple([i for i in range(1, pred.ndim)])
+
+        n = torch.sqrt(torch.sum((pred-batch)**2, dim=dim))
+        d = torch.sqrt(torch.sum((batch)**2, dim=dim))
 
         error = torch.sum(n/d)/pred.shape[0]
 
-        self.log('val_err', error, on_step=False, on_epoch=True, prog_bar=True)
+        self.log('val_err', error, on_step=False, on_epoch=True)
 
     def test_step(self, batch, idx):
         pass

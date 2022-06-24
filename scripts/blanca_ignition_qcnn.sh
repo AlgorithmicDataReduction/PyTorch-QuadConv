@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node=4
 
 ROOT=/projects/cosi1728/QuadConv
-TEST=blanca_ignition_qcnn
+TEST=blanca_ignition_qcnn_full
 DATA=data/ignition_square/train.npy
 
 module purge

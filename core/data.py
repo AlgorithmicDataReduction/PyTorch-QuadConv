@@ -82,7 +82,9 @@ class GridDataModule(pl.LightningDataModule):
                     normalize=True,
                     split=0.8,
                     shuffle=False,
-                    num_workers=4
+                    num_workers=4,
+                    persistent_workers=True,
+                    pin_memory=True
                     ):
         super().__init__()
 
@@ -97,6 +99,8 @@ class GridDataModule(pl.LightningDataModule):
         self.split = split
         self.shuffle = shuffle
         self.num_workers = num_workers
+        self.persistent_workers = persistent_workers
+        self.pin_memory = pin_memory
 
     @staticmethod
     def add_args(parent_parser):
@@ -175,26 +179,34 @@ class GridDataModule(pl.LightningDataModule):
     def train_dataloader(self):
         return DataLoader(self.train,
                             batch_size=self.batch_size,
-                            num_workers=self.num_workers,
-                            shuffle=self.shuffle)
+                            num_workers=self.num_workers*self.trainer.num_devices,
+                            shuffle=self.shuffle,
+                            pin_memory=self.pin_memory,
+                            persistent_workers=self.persistent_workers)
 
     def val_dataloader(self):
         return DataLoader(self.val,
                             batch_size=self.batch_size,
                             num_workers=self.num_workers,
-                            shuffle=self.shuffle)
+                            shuffle=self.shuffle,
+                            pin_memory=self.pin_memory,
+                            persistent_workers=self.persistent_workers)
 
     def test_dataloader(self):
         return DataLoader(self.test,
                             batch_size=self.batch_size,
                             num_workers=self.num_workers,
-                            shuffle=self.shuffle)
+                            shuffle=self.shuffle,
+                            pin_memory=self.pin_memory,
+                            persistent_workers=self.persistent_workers)
 
     def predict_dataloader(self):
         return DataLoader(self.predict,
                             batch_size=self.batch_size,
                             num_workers=self.num_workers,
-                            shuffle=self.shuffle)
+                            shuffle=self.shuffle,
+                            pin_memory=self.pin_memory,
+                            persistent_workers=self.persistent_workers)
 
     def teardown(self, stage=None):
         pass
