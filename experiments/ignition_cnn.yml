@@ -8,7 +8,7 @@ train:
   enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv" #str
-  logger: True #bool
+  logger: False #bool
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
@@ -22,6 +22,8 @@ model:
   latent_dim: 10 #int
   point_seq: [50, 25, 15, 10, 5] #list
   channel_seq: [1, 2, 4, 8, 16] #list
+  learning_rate: 0.001
+  noise_scale: 0.001
 
 #Data loader arguments
 data:
@@ -32,6 +34,7 @@ data:
   stride: 50 #int
   flatten: False
   channels: [1] #list
+  shuffle: True
 
 #Extra arguments
 extra:

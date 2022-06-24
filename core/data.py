@@ -190,7 +190,6 @@ class GridDataModule(pl.LightningDataModule):
         return DataLoader(self.val,
                             batch_size=self.batch_size,
                             num_workers=self.num_workers,
-                            shuffle=self.shuffle,
                             pin_memory=self.pin_memory,
                             persistent_workers=self.persistent_workers)
 
@@ -198,7 +197,6 @@ class GridDataModule(pl.LightningDataModule):
         return DataLoader(self.test,
                             batch_size=self.batch_size,
                             num_workers=self.num_workers,
-                            shuffle=self.shuffle,
                             pin_memory=self.pin_memory,
                             persistent_workers=self.persistent_workers)
 
@@ -206,7 +204,6 @@ class GridDataModule(pl.LightningDataModule):
         return DataLoader(self.predict,
                             batch_size=self.batch_size,
                             num_workers=self.num_workers,
-                            shuffle=self.shuffle,
                             pin_memory=self.pin_memory,
                             persistent_workers=self.persistent_workers)
 

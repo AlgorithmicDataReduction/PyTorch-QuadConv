@@ -34,7 +34,9 @@ class Encoder(nn.Module):
 
         #activations
         forward_activation = kwargs.pop('forward_activation')
-        self.latent_activation = kwargs.pop('latent_activation')
+        latent_activation = kwargs.pop('latent_activation')
+        self.activation1 = latent_activation()
+        self.activation2 = latent_activation()
 
         #build network
         self.cnn = nn.Sequential()
@@ -45,8 +47,8 @@ class Encoder(nn.Module):
                                     channel_seq[i+1],
                                     N_in = point_seq[i],
                                     N_out = point_seq[i+1],
-                                    activation1 = forward_activation,
-                                    activation2 = forward_activation,
+                                    activation1 = forward_activation(),
+                                    activation2 = forward_activation(),
                                     **kwargs
                                     ))
 
@@ -62,8 +64,8 @@ class Encoder(nn.Module):
     def forward(self, x):
         x = self.cnn(x)
         x = self.flat(x)
-        x = self.latent_activation(self.linear_down(x))
-        output = self.latent_activation(self.linear_down2(x))
+        x = self.activation1(self.linear_down(x))
+        output = self.activation2(self.linear_down2(x))
 
         return output
 
@@ -90,7 +92,9 @@ class Decoder(nn.Module):
 
         #activations
         forward_activation = kwargs.pop('forward_activation')
-        self.latent_activation = kwargs.pop('latent_activation')
+        latent_activation = kwargs.pop('latent_activation')
+        self.activation1 = latent_activation()
+        self.activation2 = latent_activation()
 
         #build network
         self.unflat = nn.Unflatten(1, input_shape[1:])
@@ -105,15 +109,15 @@ class Decoder(nn.Module):
                                     channel_seq[i-1],
                                     N_in = point_seq[i],
                                     N_out = point_seq[i-1],
-                                    activation1 = forward_activation if i!=1 else nn.Identity(),
-                                    activation2 = forward_activation,
+                                    activation1 = forward_activation() if i!=1 else nn.Identity(),
+                                    activation2 = forward_activation(),
                                     adjoint = True,
                                     **kwargs
                                     ))
 
     def forward(self, x):
-        x = self.latent_activation(self.linear_up(x))
-        x = self.latent_activation(self.linear_up2(x))
+        x = self.activation1(self.linear_up(x))
+        x = self.activation2(self.linear_up2(x))
         x = self.unflat(x)
         output = self.cnn(x)
 
@@ -135,9 +139,9 @@ class AutoEncoder(pl.LightningModule):
                     latent_dim,
                     point_seq,
                     channel_seq,
-                    forward_activation = nn.CELU(alpha=1),
-                    latent_activation = nn.CELU(alpha=1),
-                    output_activation = nn.Tanh(),
+                    forward_activation = nn.Tanh,
+                    latent_activation = nn.Tanh,
+                    output_activation = nn.Tanh,
                     loss_fn = nn.MSELoss(),
                     noise_scale = 0.0,
                     input_shape = None,
@@ -168,7 +172,7 @@ class AutoEncoder(pl.LightningModule):
         #training hyperparameters
         self.loss_fn = loss_fn
         self.noise_scale = noise_scale
-        self.output_activation = output_activation
+        self.output_activation = output_activation()
         self.learning_rate = learning_rate
 
     @staticmethod
@@ -190,7 +194,8 @@ class AutoEncoder(pl.LightningModule):
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
         latent = self.encoder(batch)
-        latent += self.noise_scale*torch.randn(latent.shape, device=self.device)
+        if self.noise_scale != 0.0:
+            latent = latent + self.noise_scale*torch.randn(latent.shape, device=self.device)
 
         #decode
         pred = self.output_activation(self.decoder(latent))
