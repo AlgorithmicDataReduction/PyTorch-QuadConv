@@ -53,19 +53,25 @@ class Encoder(nn.Module):
                                     ))
 
         if conv_type == 'standard':
-            self.cnn_out_shape = self.cnn(torch.ones(input_shape)).shape
+            self.cnn_out_shape = self.cnn(torch.zeros(input_shape)).shape
         else:
             self.cnn_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]**point_dim))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
-        self.linear_down = spn(nn.Linear(self.cnn_out_shape.numel(), latent_dim))
-        self.linear_down2 = spn(nn.Linear(latent_dim, latent_dim))
+
+        self.linear = nn.Sequential()
+
+        self.linear.append(spn(nn.Linear(self.cnn_out_shape.numel(), latent_dim)))
+        self.linear.append(self.activation1)
+        self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
+        self.linear.append(self.activation2)
+
+        self.linear(self.flat(torch.zeros(self.cnn_out_shape)))
 
     def forward(self, x):
         x = self.cnn(x)
         x = self.flat(x)
-        x = self.activation1(self.linear_down(x))
-        output = self.activation2(self.linear_down2(x))
+        output = self.linear(x)
 
         return output
 
@@ -98,8 +104,15 @@ class Decoder(nn.Module):
 
         #build network
         self.unflat = nn.Unflatten(1, input_shape[1:])
-        self.linear_up = spn(nn.Linear(latent_dim, latent_dim))
-        self.linear_up2 = spn(nn.Linear(latent_dim, input_shape.numel()))
+
+        self.linear = nn.Sequential()
+
+        self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
+        self.linear.append(self.activation1)
+        self.linear.append(spn(nn.Linear(latent_dim, input_shape.numel())))
+        self.linear.append(self.activation2)
+
+        self.linear(torch.zeros(latent_dim))
 
         self.cnn = nn.Sequential()
 
@@ -116,8 +129,7 @@ class Decoder(nn.Module):
                                     ))
 
     def forward(self, x):
-        x = self.activation1(self.linear_up(x))
-        x = self.activation2(self.linear_up2(x))
+        x = self.linear(x)
         x = self.unflat(x)
         output = self.cnn(x)
 
@@ -139,8 +151,8 @@ class AutoEncoder(pl.LightningModule):
                     latent_dim,
                     point_seq,
                     channel_seq,
-                    forward_activation = nn.Tanh,
-                    latent_activation = nn.Tanh,
+                    forward_activation = nn.CELU,
+                    latent_activation = nn.CELU,
                     output_activation = nn.Tanh,
                     loss_fn = nn.MSELoss(),
                     noise_scale = 0.0,
@@ -227,7 +239,7 @@ class AutoEncoder(pl.LightningModule):
 
         error = torch.sum(n/d)/pred.shape[0]
 
-        self.log('val_err', error, on_step=False, on_epoch=True)
+        self.log('test_err', error, on_step=True, on_epoch=True)
 
     def predict_step(self, batch, idx):
         return self(batch)

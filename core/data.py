@@ -155,7 +155,6 @@ class GridDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
-            self.train_shape = data.shape
 
             data = self.transform(data)
 
@@ -166,7 +165,6 @@ class GridDataModule(pl.LightningDataModule):
 
         elif stage == "test" or stage is None:
             data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
-            self.train_shape = data.shape
 
             self.test = self.transform(data)
 

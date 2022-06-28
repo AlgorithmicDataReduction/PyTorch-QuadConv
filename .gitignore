@@ -39,3 +39,6 @@ venv.bak/
 
 # SLURM
 slurm-*.out
+
+# GIFS
+figures/

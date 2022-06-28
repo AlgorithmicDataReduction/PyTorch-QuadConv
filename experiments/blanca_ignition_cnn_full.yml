@@ -12,7 +12,7 @@ train:
   # log_every_n_steps: 1 #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 1500 #int
+  max_epochs: 2000 #int
   # max_steps: #int
 
 #Model building arguments
@@ -21,20 +21,18 @@ model:
   point_dim: 2 #int
   latent_dim: 10 #int
   point_seq: [250, 200, 150, 100, 50] #list
-  channel_seq: [1, 2, 4, 8, 16] #list
-  learning_rate: 0.001
-  noise_scale: 0.001
+  channel_seq: [1, 4, 8, 16, 16] #list
 
 #Data loader arguments
 data:
   # data_dir: #str
   dimension: 2 #int
-  batch_size: 16 #int
+  batch_size: 8 #int
   size: 250 #int
   stride: 250 #int
   flatten: False #bool, flatten for quadrature
   channels: [1] #list
-  shuffle: True
+  shuffle: False
 
 #Extra arguments
 extra:
