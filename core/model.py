@@ -227,7 +227,7 @@ class AutoEncoder(pl.LightningModule):
 
         error = torch.sum(n/d)/pred.shape[0]
 
-        self.log('val_err', error, on_step=False, on_epoch=True)
+        self.log('val_err', error, on_step=False, on_epoch=True, sync_dist=True)
 
     def test_step(self, batch, idx):
         pred = self(batch)
@@ -239,7 +239,7 @@ class AutoEncoder(pl.LightningModule):
 
         error = torch.sum(n/d)/pred.shape[0]
 
-        self.log('test_err', error, on_step=True, on_epoch=True)
+        self.log('test_err', error, on_step=True, on_epoch=True, sync_dist=True)
 
     def predict_step(self, batch, idx):
         return self(batch)
