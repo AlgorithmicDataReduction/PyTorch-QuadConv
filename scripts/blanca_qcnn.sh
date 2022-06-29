@@ -1,10 +1,12 @@
 #!/bin/bash
-#SBATCH --time=03:00:00
+#SBATCH --time=06:00:00
 #SBATCH --qos=preemptable
 #SBATCH --job-name=ignition_qcnn
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:a100:2
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=8
+
+#ntasks per node should be num_workers*num_gpus
 
 ROOT=/projects/cosi1728/QuadConv
 TEST=blanca_ignition_qcnn_full

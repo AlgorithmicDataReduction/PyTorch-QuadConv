@@ -67,7 +67,7 @@ class ConvBlock(nn.Module):
                                 channels_out,
                                 kernel_size,
                                 stride=stride,
-                                output_padding=0
+                                output_padding=stride-1
                                 )
         else:
             conv1_channel_num = channels_in

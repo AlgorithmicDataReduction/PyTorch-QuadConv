@@ -2,7 +2,7 @@
 train:
   accelerator: "gpu" #str e.g. "gpu"
   devices: -1
-  strategy: "ddp" #str
+  strategy: "ddp_find_unused_parameters_false" #str
   # num_nodes: #int
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
@@ -21,8 +21,8 @@ model:
   conv_type: "standard" #str "standard" or "quadrature"
   point_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [250, 200, 150, 100, 50] #list
-  channel_seq: [1, 4, 8, 16, 16] #list
+  point_seq: [250, 100, 50, 25, 10] #list
+  channel_seq: [1, 4, 8, 16, 32] #list
 
 #Data loader arguments
 data:
