@@ -2,7 +2,8 @@
 train:
   accelerator: "gpu" #str e.g. "gpu"
   devices: -1
-  strategy: "ddp_find_unused_parameters_false" #str
+  strategy: "ddp_sharded" #str
+  # precision: #str
   # num_nodes: #int
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool

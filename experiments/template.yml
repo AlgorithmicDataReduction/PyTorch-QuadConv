@@ -8,6 +8,7 @@ train:
   devices: #int
   num_nodes: #int
   strategy: #str
+  precision: #str
   auto_scale_batch_size: #bool
   auto_select_gpus: #bool
   enable_checkpointing: #bool

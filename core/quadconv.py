@@ -351,7 +351,7 @@ class QuadConvLayer(nn.Module):
         mesh_weights:
     '''
     def quad(self, features, output_locs, nodes, mesh_weights):
-        eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).reshape(output_locs.shape[0], nodes.shape[0], self.point_dim)
+        eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
 
         kf = self.kernel_func(eval_locs, mesh_weights)
 
@@ -368,9 +368,9 @@ class QuadConvLayer(nn.Module):
 
         kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il, device=features.device)
 
-        kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).reshape(1, self.channels_out, self.channels_in, -1)
+        kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).view(1, self.channels_out, self.channels_in, -1)
 
-        integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.reshape(batch_size, 1, self.channels_in, il))
+        integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.view(batch_size, 1, self.channels_in, il))
 
         return integral
 

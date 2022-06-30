@@ -30,8 +30,6 @@ Input:
     extra_args: other arguments that don't fit in groups above
 '''
 def main(args, trainer_args, model_args, data_args):
-    torch.set_default_dtype(torch.float32)
-
     #Setup data
     data_module = GridDataModule(**data_args)
     model_args['input_shape'] = data_module.get_shape()
