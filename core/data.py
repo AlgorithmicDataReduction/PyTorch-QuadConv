@@ -120,8 +120,8 @@ class GridDataModule(pl.LightningDataModule):
         if len(self.channels) != 0:
             data = data[...,self.channels]
 
-        #NOTE: This makes a lot of assumptions
-        self.num_tiles = int((data.shape[1]/self.size))
+        #per dimension
+        self.num_tiles = int(np.floor(((data.shape[1]-self.size)/self.stride)+1))
 
         #reshape
         if len(self.channels) != 1:
@@ -155,6 +155,8 @@ class GridDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
+
+            self.data_shape = data.shape[1:-1]
 
             data = self.transform(data)
 
@@ -214,6 +216,18 @@ class GridDataModule(pl.LightningDataModule):
         else:
             return tuple([1, 1]+[self.size for i in range(self.dimension)])
 
+    def _stitch(self, data):
+        #reshape to time X space X channels
+        time_steps = data.shape[0]
+
+        processed = torch.zeros([time_steps]+[d for d in self.data_shape])
+        for i in range(time_steps):
+            for j in range(self.num_tiles):
+                for k in range(self.num_tiles):
+                    processed[i,self.stride*j:self.stride*j+self.size,self.stride*k:self.stride*k+self.size] += data[i,j,k,:,:]
+
+        return processed
+
     def agglomerate(self, data):
         if self.flatten:
             data = [t.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)])) for t in data]
@@ -224,11 +238,10 @@ class GridDataModule(pl.LightningDataModule):
         #do some other stuff
         data = data.reshape(-1, self.num_tiles, self.num_tiles, self.size, self.size)
 
-        #reshape to time X space X channels
-        processed = torch.zeros(450, self.size*self.num_tiles, self.size*self.num_tiles)
-        for i in range(450):
-            for j in range(self.num_tiles):
-                for k in range(self.num_tiles):
-                    processed[i,self.size*j:self.size*(j+1),self.size*k:self.size*(k+1)] = data[i,j,k,:,:]
+        #create mask
+        mask = self._stitch(torch.ones(1, self.num_tiles, self.num_tiles, self.size, self.size))
 
-        return processed
+        #
+        quilt = self._stitch(data)
+
+        return quilt/mask

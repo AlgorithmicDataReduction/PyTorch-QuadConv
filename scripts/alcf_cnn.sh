@@ -21,7 +21,7 @@ cp $ROOT/$DATA $SCRATCH
 mkdir $SCRATCH/lightning_logs
 
 #run experiment
-aprun -n $NPROC -N $NPROC_PER_NODE python $ROOT/main.py --experiment $TEST --default_root_dir $SCRATCH --data_dir $SCRATCH
+mpirun -n $NPROC -npernode $NPROC_PER_NODE python $ROOT/main.py --experiment $TEST --default_root_dir $SCRATCH --data_dir $SCRATCH
 
 #remove old logs and copy from scratch
 rm -r $ROOT/lightning_logs/$TEST
