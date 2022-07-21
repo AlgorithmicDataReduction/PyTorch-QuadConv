@@ -158,6 +158,7 @@ class AutoEncoder(pl.LightningModule):
                     noise_scale = 0.0,
                     input_shape = None,
                     learning_rate = 1e-2,
+                    profiler = None,
                     **kwargs
                     ):
         super().__init__()
@@ -169,7 +170,8 @@ class AutoEncoder(pl.LightningModule):
                                             'latent_activation',
                                             'output_activation',
                                             'input_shape',
-                                            'learning_rate'])
+                                            'learning_rate',
+                                            'profiler'])
 
         #model pieces
         self.encoder = Encoder(**self.hparams,
@@ -186,6 +188,8 @@ class AutoEncoder(pl.LightningModule):
         self.noise_scale = noise_scale
         self.output_activation = output_activation()
         self.learning_rate = learning_rate
+
+        self.profiler = profiler
 
     @staticmethod
     def add_args(parent_parser):
@@ -205,7 +209,8 @@ class AutoEncoder(pl.LightningModule):
 
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
-        latent = self.encoder(batch)
+        with self.profiler.profile("ENCODING"):
+            latent = self.encoder(batch)
         if self.noise_scale != 0.0:
             latent = latent + self.noise_scale*torch.randn(latent.shape, device=self.device)
 
@@ -215,6 +220,7 @@ class AutoEncoder(pl.LightningModule):
         #compute loss
         loss = self.loss_fn(pred, batch)
         self.log('train_loss', loss, on_step=False, on_epoch=True)
+
         return loss
 
     def validation_step(self, batch, idx):

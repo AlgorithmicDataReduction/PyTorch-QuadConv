@@ -22,6 +22,6 @@ conda activate compression
 cp $ROOT/$DATA $SLURM_SCRATCH/
 
 #remove old logs
-rm -r $ROOT/lightning_logs/$TEST
+rm -r $ROOT/lightning_logs/$TEST/*
 
 python $ROOT/main.py --experiment $TEST --default_root_dir $ROOT --data_dir $SLURM_SCRATCH
