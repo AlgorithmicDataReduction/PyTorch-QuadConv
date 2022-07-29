@@ -142,7 +142,7 @@ class QuadConvLayer(nn.Module):
     '''
     def get_quad_mesh(self):
 
-        if !self.quad_set_flag: raise RuntimeError('Mesh not yet set')
+        if not self.quad_set_flag: raise RuntimeError('Mesh not yet set')
 
         node_list = [self.quad_nodes]*self.point_dim
 
@@ -171,9 +171,9 @@ class QuadConvLayer(nn.Module):
     '''
     def eval_MLPs(self, x):
         weights = [module(x) for module in self.weight_func]
-        weights = torch.cat(weights).reshape(self.channels_out, self.channels_in, -1)
+        weights = torch.cat(weights).view(self.channels_out, self.channels_in, -1)
 
-        return weights.reshape(self.channels_out, self.channels_in, -1)
+        return weights
 
     '''
     Evaluate the convolution kernel.
@@ -192,25 +192,32 @@ class QuadConvLayer(nn.Module):
 
     '''
     def kernel_func(self, x, mesh_weights):
+        # bump_arg = torch.linalg.vector_norm(x, dim=(2), keepdims = True)**4
+        #
+        # tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
+        #
+        # x_eval = x[tf_vec,:]
+        #
+        # weights_sparse = self.eval_MLPs(x_eval)
+        #
+        # idx = torch.nonzero(tf_vec, as_tuple=False).transpose(0,1)
+        #
+        # mesh_weights_sparse = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1])[idx[0,:], idx[1,:]].view(1, 1, -1)
+        #
+        # bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg[tf_vec]))).view(1, 1, -1)
+        #
+        # temp = (weights_sparse*bump*mesh_weights_sparse).view(-1, self.channels_out, self.channels_in)
+        #
+        # weights = torch.sparse_coo_tensor(idx, temp, [x.shape[0], x.shape[1], self.channels_out, self.channels_in]).coalesce() #might not need this if we figure out sparsity
+        #
+        # return weights
+
+        weights = self.eval_MLPs(x)
         bump_arg = torch.linalg.vector_norm(x, dim=(2), keepdims = True)**4
+        bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg))).view(1, 1, -1)
+        mesh_weights = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1]).view(1, 1, -1)
 
-        tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
-
-        x_eval = x[tf_vec,:]
-
-        weights_sparse = self.eval_MLPs(x_eval)
-
-        idx = torch.nonzero(tf_vec, as_tuple=False).transpose(0,1)
-
-        mesh_weights_sparse = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1])[idx[0,:], idx[1,:]].reshape(1, 1, -1)
-
-        bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg[tf_vec]))).reshape(1, 1, -1)
-
-        temp = (weights_sparse*bump*mesh_weights_sparse).reshape(-1, self.channels_out, self.channels_in)
-
-        weights = torch.sparse_coo_tensor(idx, temp, [x.shape[0], x.shape[1], self.channels_out, self.channels_in]).coalesce()
-
-        return weights
+        return (weights*bump*mesh_weights)
 
     '''
     Compute 1D quadrature
@@ -222,6 +229,29 @@ class QuadConvLayer(nn.Module):
         mesh_weights:
     '''
     def quad(self, features, output_locs, nodes, mesh_weights):
+        # eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
+        #
+        # kf = self.kernel_func(eval_locs, mesh_weights)
+        #
+        # s = eval_locs.shape
+        #
+        # del(eval_locs)
+        #
+        # idx = kf.indices()
+        #
+        # batch_size = features.shape[0]
+        #
+        # ol =  output_locs.shape[0]
+        # il =  features.shape[2]
+        #
+        # kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il, device=features.device)
+        #
+        # kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).view(1, self.channels_out, self.channels_in, -1)
+        #
+        # integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.view(batch_size, 1, self.channels_in, il))
+        #
+        # return integral
+
         eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
 
         kf = self.kernel_func(eval_locs, mesh_weights)
@@ -230,20 +260,11 @@ class QuadConvLayer(nn.Module):
 
         del(eval_locs)
 
-        idx = kf.indices()
-
         batch_size = features.shape[0]
-
         ol =  output_locs.shape[0]
         il =  features.shape[2]
 
-        kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il, device=features.device)
-
-        kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).view(1, self.channels_out, self.channels_in, -1)
-
-        integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.view(batch_size, 1, self.channels_in, il))
-
-        return integral
+        return torch.einsum('b...dij, b...dj -> b...i', kf.view(1, self.channels_out, self.channels_in, ol, il), features.view(batch_size, 1, self.channels_in, il))
 
     '''
     Compute enitre domain integral
@@ -253,9 +274,9 @@ class QuadConvLayer(nn.Module):
         output_locs:
     '''
     def tensor_prod_quad(self, features, output_locs):
-        mesh_nodes, mesh_weights = self.get_quad_mesh()
+        nodes, weights = self.get_quad_mesh()
 
-        integral = self.quad(features, output_locs, mesh_nodes, mesh_weights)
+        integral = self.quad(features, output_locs, nodes, weights)
 
         return integral
 
@@ -279,7 +300,6 @@ class QuadConvLayer(nn.Module):
             level = self.point_dim
 
         if level == 1:
-            device = features.device
             integral = self.quad(features, output_locs, nodes, weights)
 
         elif level > 1:

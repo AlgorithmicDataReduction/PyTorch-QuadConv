@@ -6,8 +6,6 @@ channels:
 dependencies:
   - python=3.9
   - pytorch
-  - torchaudio
-  - torchvision
   - cudatoolkit=11.3
   - pytorch-lightning=1.6
   - fairscale

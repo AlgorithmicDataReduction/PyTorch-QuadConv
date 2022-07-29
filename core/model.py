@@ -154,7 +154,7 @@ class AutoEncoder(pl.LightningModule):
                     forward_activation = nn.CELU,
                     latent_activation = nn.CELU,
                     output_activation = nn.Tanh,
-                    loss_fn = nn.MSELoss(),
+                    loss_fn = nn.functional.mse_loss,
                     noise_scale = 0.0,
                     input_shape = None,
                     learning_rate = 1e-2,
@@ -209,8 +209,7 @@ class AutoEncoder(pl.LightningModule):
 
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
-        with self.profiler.profile("ENCODING"):
-            latent = self.encoder(batch)
+        latent = self.encoder(batch)
         if self.noise_scale != 0.0:
             latent = latent + self.noise_scale*torch.randn(latent.shape, device=self.device)
 
