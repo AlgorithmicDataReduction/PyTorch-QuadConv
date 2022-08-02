@@ -192,32 +192,33 @@ class QuadConvLayer(nn.Module):
 
     '''
     def kernel_func(self, x, mesh_weights):
-        # bump_arg = torch.linalg.vector_norm(x, dim=(2), keepdims = True)**4
-        #
-        # tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
-        #
-        # x_eval = x[tf_vec,:]
-        #
-        # weights_sparse = self.eval_MLPs(x_eval)
-        #
-        # idx = torch.nonzero(tf_vec, as_tuple=False).transpose(0,1)
-        #
-        # mesh_weights_sparse = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1])[idx[0,:], idx[1,:]].view(1, 1, -1)
-        #
-        # bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg[tf_vec]))).view(1, 1, -1)
-        #
-        # temp = (weights_sparse*bump*mesh_weights_sparse).view(-1, self.channels_out, self.channels_in)
-        #
-        # weights = torch.sparse_coo_tensor(idx, temp, [x.shape[0], x.shape[1], self.channels_out, self.channels_in]).coalesce() #might not need this if we figure out sparsity
-        #
-        # return weights
-
-        weights = self.eval_MLPs(x)
         bump_arg = torch.linalg.vector_norm(x, dim=(2), keepdims = True)**4
-        bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg))).view(1, 1, -1)
-        mesh_weights = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1]).view(1, 1, -1)
 
-        return (weights*bump*mesh_weights)
+        tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
+
+        x_eval = x[tf_vec,:]
+
+        weights_sparse = self.eval_MLPs(x_eval)
+
+        idx = torch.nonzero(tf_vec, as_tuple=False).transpose(0,1)
+
+        mesh_weights_sparse = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1])[idx[0,:], idx[1,:]].view(1, 1, -1)
+
+        bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg[tf_vec]))).view(1, 1, -1)
+
+        temp = (weights_sparse*bump*mesh_weights_sparse).view(-1, self.channels_out, self.channels_in)
+
+        weights = torch.sparse_coo_tensor(idx, temp, [x.shape[0], x.shape[1], self.channels_out, self.channels_in]).coalesce() #might not need this if we figure out sparsity
+
+        return weights
+
+        #DENSE VERSION
+        # weights = self.eval_MLPs(x)
+        # bump_arg = torch.linalg.vector_norm(x, dim=(2), keepdims = True)**4
+        # bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg))).view(1, 1, -1)
+        # mesh_weights = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1]).view(1, 1, -1)
+        #
+        # return (weights*bump*mesh_weights)
 
     '''
     Compute 1D quadrature
@@ -229,29 +230,6 @@ class QuadConvLayer(nn.Module):
         mesh_weights:
     '''
     def quad(self, features, output_locs, nodes, mesh_weights):
-        # eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
-        #
-        # kf = self.kernel_func(eval_locs, mesh_weights)
-        #
-        # s = eval_locs.shape
-        #
-        # del(eval_locs)
-        #
-        # idx = kf.indices()
-        #
-        # batch_size = features.shape[0]
-        #
-        # ol =  output_locs.shape[0]
-        # il =  features.shape[2]
-        #
-        # kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il, device=features.device)
-        #
-        # kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).view(1, self.channels_out, self.channels_in, -1)
-        #
-        # integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.view(batch_size, 1, self.channels_in, il))
-        #
-        # return integral
-
         eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
 
         kf = self.kernel_func(eval_locs, mesh_weights)
@@ -260,11 +238,35 @@ class QuadConvLayer(nn.Module):
 
         del(eval_locs)
 
+        idx = kf.indices()
+
         batch_size = features.shape[0]
+
         ol =  output_locs.shape[0]
         il =  features.shape[2]
 
-        return torch.einsum('b...dij, b...dj -> b...i', kf.view(1, self.channels_out, self.channels_in, ol, il), features.view(batch_size, 1, self.channels_in, il))
+        kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il, device=features.device)
+
+        kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).view(1, self.channels_out, self.channels_in, -1)
+
+        integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.view(batch_size, 1, self.channels_in, il))
+
+        return integral
+
+        # DENSE VERSION
+        # eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
+        #
+        # kf = self.kernel_func(eval_locs, mesh_weights)
+        #
+        # s = eval_locs.shape
+        #
+        # del(eval_locs)
+        #
+        # batch_size = features.shape[0]
+        # ol =  output_locs.shape[0]
+        # il =  features.shape[2]
+        #
+        # return torch.einsum('b...dij, b...dj -> b...i', kf.view(1, self.channels_out, self.channels_in, ol, il), features.view(batch_size, 1, self.channels_in, il))
 
     '''
     Compute enitre domain integral

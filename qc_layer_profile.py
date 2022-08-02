@@ -9,7 +9,7 @@ layer = QL(point_dim=2,
             channels_in=1,
             channels_out=4,
             mlp_channels=[4,4])
-N = 50
+N = 250
 
 layer.set_quad(N)
 layer.set_output_locs(N)
