@@ -40,6 +40,4 @@ conda/
 
 # SLURM
 slurm-*.out
-
-# GIFS
-figures/
+random/

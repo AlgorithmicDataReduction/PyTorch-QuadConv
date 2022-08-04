@@ -3,7 +3,6 @@ Utility functions.
 '''
 
 import torch
-from pytorch_lightning.callbacks.progress import TQDMProgressBar
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities import rank_zero_only
 
@@ -52,9 +51,9 @@ saves it to the appropriate lightning log.
 Input:
     trainer: lightning trainer
     data_module: data module
-    model: model to use, or if None then use best saved model
+    model: model to use
 '''
-def make_gif(trainer, data_module, model=None):
+def make_gif(trainer, data_module, model):
     #run on test data
     if model:
         results = trainer.predict(model=model, datamodule=data_module)
@@ -78,14 +77,7 @@ def make_gif(trainer, data_module, model=None):
     frames = [plot(i) for i in range(data.shape[0])]
 
     #save gif
-    gif.save(frames, f'{trainer.logger.log_dir}/train.gif', duration=50)
-
-'''
-Custom PT Lightning training progress bar.
-'''
-class ProgressBar(TQDMProgressBar):
-    def __init__(self):
-        super().__init__()
+    gif.save(frames, f'{trainer.logger.log_dir}/{'last' if model else 'best'}.gif', duration=50)
 
 '''
 Custom Tensorboard logger.

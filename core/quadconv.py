@@ -212,14 +212,6 @@ class QuadConvLayer(nn.Module):
 
         return weights
 
-        #DENSE VERSION
-        # weights = self.eval_MLPs(x)
-        # bump_arg = torch.linalg.vector_norm(x, dim=(2), keepdims = True)**4
-        # bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg))).view(1, 1, -1)
-        # mesh_weights = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1]).view(1, 1, -1)
-        #
-        # return (weights*bump*mesh_weights)
-
     '''
     Compute 1D quadrature
 
@@ -253,34 +245,19 @@ class QuadConvLayer(nn.Module):
 
         return integral
 
-        # DENSE VERSION
-        # eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
-        #
-        # kf = self.kernel_func(eval_locs, mesh_weights)
-        #
-        # s = eval_locs.shape
-        #
-        # del(eval_locs)
-        #
-        # batch_size = features.shape[0]
-        # ol =  output_locs.shape[0]
-        # il =  features.shape[2]
-        #
-        # return torch.einsum('b...dij, b...dj -> b...i', kf.view(1, self.channels_out, self.channels_in, ol, il), features.view(batch_size, 1, self.channels_in, il))
-
-    '''
-    Compute enitre domain integral
-
-    Input:
-        features:
-        output_locs:
-    '''
-    def tensor_prod_quad(self, features, output_locs):
-        nodes, weights = self.get_quad_mesh()
-
-        integral = self.quad(features, output_locs, nodes, weights)
-
-        return integral
+    # '''
+    # Compute enitre domain integral
+    #
+    # Input:
+    #     features:
+    #     output_locs:
+    # '''
+    # def tensor_prod_quad(self, features, output_locs):
+    #     nodes, weights = self.get_quad_mesh()
+    #
+    #     integral = self.quad(features, output_locs, nodes, weights)
+    #
+    #     return integral
 
     '''
     Compute entire domain integral via recursive quadrature
@@ -334,7 +311,6 @@ class QuadConvLayer(nn.Module):
             raise RuntimeError('dimension mismatch')
 
         integral =  self.rquad(features, output_locs)
-        # integral = self.tensor_prod_quad(features, output_locs)
 
         if self.use_bias:
             integral += self.bias

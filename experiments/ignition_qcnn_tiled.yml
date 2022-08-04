@@ -4,17 +4,14 @@ train:
   devices: -1
   strategy: "ddp_sharded" #str
   # num_nodes: #int
+  # precision: #str
   # auto_scale_batch_size: #bool
-  # auto_select_gpus: #bool
   enable_checkpointing: True #bool
   check_val_every_n_epoch: 1 #int
   # default_root_dir: #str
   logger: True #bool
-  # log_every_n_steps: 1 #int
   enable_progress_bar: False #bool
-  # profiler: #str
   max_epochs: 1000 #int
-  # max_steps: #int
 
 #Model building arguments
 model:
@@ -25,6 +22,7 @@ model:
   channel_seq: [1, 2, 4, 8, 16] #list
   mlp_channels: [8, 8, 8] #list
   use_bias: False #bool
+  learning_rate: 0.01
 
 #Data loader arguments
 data:

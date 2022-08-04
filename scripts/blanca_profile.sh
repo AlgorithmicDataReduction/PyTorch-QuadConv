@@ -2,7 +2,7 @@
 #SBATCH --time=01:00:00
 #SBATCH --qos=preemptable
 #SBATCH --job-name=qcnn_profile
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:a100:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --no-requeue
@@ -11,7 +11,7 @@
 
 ROOT=/projects/cosi1728/QuadConv
 TEST=ignition_qcnn_full_profile
-DATA=data/ignition_square/train.npy
+DATA=data/ignition_full/
 
 module purge
 module load anaconda

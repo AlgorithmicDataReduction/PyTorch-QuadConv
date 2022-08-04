@@ -10,7 +10,7 @@ Example usage:
 
 from core.model import AutoEncoder
 from core.data import PointCloudDataModule, GridDataModule
-from core.utilities import ProgressBar, Logger, make_gif
+from core.utilities import ProgressBar, Logger, GIFCallback
 
 import argparse
 import yaml
@@ -39,10 +39,16 @@ def main(args, trainer_args, model_args, data_args):
 
     #Callbacks
     callbacks=[]
-    if args['early_stopping']:
-        callbacks.append(EarlyStopping(monitor="val_err", patience=5, strict=False))
     if train_args['enable_checkpointing']:
-        callbacks.append(ModelCheckpoint(monitor="val_err", save_last=True, save_top_k=1, mode='min'))
+        callbacks.append(ModelCheckpoint(monitor="val_err",
+                                            save_last=True,
+                                            save_top_k=1,
+                                            mode='min',
+                                            filename='{epoch}'))
+    if args['early_stopping']:
+        callbacks.append(EarlyStopping(monitor="val_err",
+                                        patience=5,
+                                        strict=False))
 
     #Logger
     if train_args['logger']:
