@@ -2,16 +2,17 @@
 train:
   accelerator: "gpu" #str e.g. "gpu"
   devices: -1
-  strategy: "ddp_sharded" #str
+  # strategy: "ddp_sharded" #str
   # num_nodes: #int
   # precision: #str
   # auto_scale_batch_size: #bool
-  enable_checkpointing: True #bool
+  enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
   # default_root_dir: #str
-  logger: True #bool
+  logger: False #bool
   enable_progress_bar: False #bool
   max_epochs: 2000 #int
+  max_steps: 1
 
 #Model building arguments
 model:
@@ -20,14 +21,14 @@ model:
   latent_dim: 10 #int
   point_seq: [50, 25, 10, 5] #list
   channel_seq: [1, 4, 8, 16] #list
-  mlp_channels: [8, 8] #list
+  mlp_channels: [8, 8, 8] #list
   learning_rate: 0.01
 
 #Data loader arguments
 data:
   # data_dir: #str
   dimension: 2 #int
-  batch_size: 128 #int
+  batch_size: 64 #int
   size: 50 #int
   stride: 50 #int
   flatten: True #bool, flatten for quadrature
@@ -35,5 +36,5 @@ data:
 
 #Extra arguments
 extra:
-  make_gif: True #bool
+  make_gif: False #bool
   early_stopping: False #bool

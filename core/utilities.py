@@ -77,7 +77,7 @@ def make_gif(trainer, data_module, model):
     frames = [plot(i) for i in range(data.shape[0])]
 
     #save gif
-    gif.save(frames, f'{trainer.logger.log_dir}/{'last' if model else 'best'}.gif', duration=50)
+    gif.save(frames, f'{trainer.logger.log_dir}/{"last" if model else "best"}.gif', duration=50)
 
 '''
 Custom Tensorboard logger.

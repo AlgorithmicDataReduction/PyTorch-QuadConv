@@ -10,7 +10,7 @@ Example usage:
 
 from core.model import AutoEncoder
 from core.data import PointCloudDataModule, GridDataModule
-from core.utilities import ProgressBar, Logger, GIFCallback
+from core.utilities import Logger
 
 import argparse
 import yaml
