@@ -29,6 +29,7 @@ model:
   point_seq: #list
   channel_seq: #list
   mlp_channels: #list, delete this for standard conv
+  optimizer: #str
   learning_rate: #foat
 
 #PT LightningDataModule arguments

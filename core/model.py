@@ -7,6 +7,7 @@ import torch
 from torch import nn, optim
 from torch.nn.utils.parametrizations import spectral_norm as spn
 import pytorch_lightning as pl
+from deepspeed.ops.adam import DeepSpeedCPUAdam
 
 from .quadconv import QuadConvBlock
 from .conv import ConvBlock
@@ -157,6 +158,7 @@ class AutoEncoder(pl.LightningModule):
                     loss_fn = nn.functional.mse_loss,
                     noise_scale = 0.0,
                     input_shape = None,
+                    optimizer = "adam",
                     learning_rate = 1e-2,
                     profiler = None,
                     **kwargs
@@ -170,6 +172,7 @@ class AutoEncoder(pl.LightningModule):
                                             'latent_activation',
                                             'output_activation',
                                             'input_shape',
+                                            'optimizer',
                                             'learning_rate',
                                             'profiler'])
 
@@ -187,6 +190,7 @@ class AutoEncoder(pl.LightningModule):
         self.loss_fn = loss_fn
         self.noise_scale = noise_scale
         self.output_activation = output_activation()
+        self.optimizer = optimizer
         self.learning_rate = learning_rate
 
         self.profiler = profiler
@@ -250,7 +254,9 @@ class AutoEncoder(pl.LightningModule):
         return self(batch)
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
-        # lr_scheduler = torch.optim.lr_scheduler.
+        if self.optimizer == 'adam':
+            optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+        elif self.optimizer == 'adam_cpu':
+            optimizer = DeepSpeedCPUAdam(self.parameters(), lr=self.learning_rate)
+
         return optimizer
-        # return [optimizer], [lr_scheduler]

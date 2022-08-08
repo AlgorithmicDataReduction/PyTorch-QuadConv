@@ -2,9 +2,9 @@
 train:
   accelerator: "gpu" #str e.g. "gpu"
   devices: -1
-  # strategy: "ddp_sharded" #str
+  # strategy: "deepspeed" #str
   # num_nodes: #int
-  # precision: #str
+  # precision: 16 #str
   # auto_scale_batch_size: #bool
   enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
@@ -24,13 +24,14 @@ model:
   channel_seq: [1, 2, 4] #list
   mlp_channels: [4, 4] #list
   use_bias: False
+  # optimizer: "adam_cpu"
   learning_rate: 0.01
 
 #Data loader arguments
 data:
   # data_dir: #str
   dimension: 2 #int
-  batch_size: 8 #int
+  batch_size: 4 #int
   size: 250 #int
   stride: 250 #int
   flatten: True #bool, flatten for quadrature
