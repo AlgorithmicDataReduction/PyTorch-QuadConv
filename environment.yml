@@ -4,15 +4,15 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python
-  - pytorch
+  - python=3.9
+  - pytorch=1.12.1
   - cudatoolkit=11.3
-  - pytorch-lightning
-  - fairscale
+  - pytorch-lightning=1.7
+  - fairscale=0.4
   - scipy
   - yaml
   - matplotlib
   - pip
   - pip:
     - gif
-    - deepspeed
+    - torch_tb_profiler

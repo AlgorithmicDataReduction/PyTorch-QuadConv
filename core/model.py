@@ -7,7 +7,6 @@ import torch
 from torch import nn, optim
 from torch.nn.utils.parametrizations import spectral_norm as spn
 import pytorch_lightning as pl
-from deepspeed.ops.adam import DeepSpeedCPUAdam
 
 from .quadconv import QuadConvBlock
 from .conv import ConvBlock
@@ -256,7 +255,7 @@ class AutoEncoder(pl.LightningModule):
     def configure_optimizers(self):
         if self.optimizer == 'adam':
             optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
-        elif self.optimizer == 'adam_cpu':
-            optimizer = DeepSpeedCPUAdam(self.parameters(), lr=self.learning_rate)
+        else:
+            raise NotImplementedError("Optimizers besides Adam not currently supported.")
 
         return optimizer
