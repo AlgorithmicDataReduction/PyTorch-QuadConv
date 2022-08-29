@@ -10,8 +10,8 @@
 #ntasks per node should be num_workers*num_gpus
 
 ROOT=/projects/cosi1728/QuadConv
-TEST=ignition_qcnn_full_profile
-DATA=data/ignition_full/
+TEST=ignition_qcnn_profile
+DATA=data/ignition_center_cut/
 
 module purge
 module load anaconda

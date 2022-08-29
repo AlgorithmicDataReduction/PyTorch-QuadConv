@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from scipy.integrate import newton_cotes
+# from scipy.integrate import newton_cotes
 
 from core.FastGL.glpair import glpair
 

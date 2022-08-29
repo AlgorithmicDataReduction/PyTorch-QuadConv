@@ -4,7 +4,7 @@ train:
   devices: -1
   # strategy: "ddp_sharded" #string
   # num_nodes: #int
-  # precision: #str
+  precision: 16 #str
   # auto_scale_batch_size: #bool
   enable_checkpointing: True #bool
   check_val_every_n_epoch: 1 #int
@@ -18,8 +18,8 @@ model:
   conv_type: "standard" #str "standard" or "quadrature"
   point_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [50, 30, 20, 10, 5] #list
-  channel_seq: [1, 4, 8, 16, 32] #list
+  point_seq: [50, 25, 10, 5] #list
+  channel_seq: [1, 8, 16, 32] #list
   learning_rate: 0.01
 
 #Data loader arguments

@@ -7,5 +7,5 @@
         "allgather_bucket_size": 2e8,
         "reduce_bucket_size": 2e8
   },
-  "logging_batch_size_per_gpu": 4
+  "logging_batch_size_per_gpu": 8
 }
