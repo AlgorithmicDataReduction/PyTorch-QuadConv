@@ -10,6 +10,16 @@ import matplotlib.pyplot as plt
 import gif
 
 '''
+Module wrapper around sin function; allows it to operate as a layer.
+'''
+class Sin(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return torch.sin(x)
+
+'''
 Sobolev loss function, which computes the loss as a sum of the function l2 loss
 and derivative l2 losses.
 

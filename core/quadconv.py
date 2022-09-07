@@ -11,6 +11,8 @@ import torch.nn.functional as F
 
 from core.FastGL.glpair import glpair
 
+from core.utilities import Sin
+
 '''
 Quadrature based convolution operator.
 
@@ -33,7 +35,7 @@ class QuadConvLayer(nn.Module):
 
         #can only handle 2D right now
         if point_dim > 2:
-            raise RuntimeError('Point dimension must be less than 2')
+            raise RuntimeError('Point dimension must be no more than 2.')
 
         #set hyperparameters
         self.point_dim = point_dim
@@ -50,6 +52,15 @@ class QuadConvLayer(nn.Module):
         for i in range(channels_in):
             for j in range(channels_out):
                 self.weight_func.append(self.create_mlp(mlp_spec))
+
+        #saving stuff
+        self.x = None
+        self.tf_vec = None
+        self.idx = None
+        self.x_eval = None
+        self.bump = None
+        self.weights = None
+        self.saved = False
 
     '''
     Create convolution kernel MLP
@@ -191,24 +202,28 @@ class QuadConvLayer(nn.Module):
         mesh_weights: this function is derived from the self.get_quad_mesh() call and corresponds to the quadrature weights
 
     '''
-    def kernel_func(self, x, mesh_weights):
-        bump_arg = torch.linalg.vector_norm(x, dim=(2), keepdims = True)**4
+    def kernel_func(self, output_locs, nodes, mesh_weights):
+        if self.saved == False:
+            self.x = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
 
-        tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
+            bump_arg = torch.linalg.vector_norm(self.x, dim=(2), keepdims = True)**4
 
-        x_eval = x[tf_vec,:]
+            self.tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
+            self.idx = torch.nonzero(self.tf_vec, as_tuple=False).transpose(0,1)
 
-        weights_sparse = self.eval_MLPs(x_eval)
+            #These next two lines are the source of the most of the nonzero calls
+            self.x_eval = self.x[self.tf_vec,:]
+            self.bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg[self.tf_vec]))).view(1, 1, -1)
 
-        idx = torch.nonzero(tf_vec, as_tuple=False).transpose(0,1)
+            self.saved = True
 
-        mesh_weights_sparse = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1])[idx[0,:], idx[1,:]].view(1, 1, -1)
+        weights_sparse = self.eval_MLPs(self.x_eval)
 
-        bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg[tf_vec]))).view(1, 1, -1)
+        mesh_weights_sparse = mesh_weights.repeat(self.x.shape[0], 1).view(self.x.shape[0], self.x.shape[1])[self.idx[0,:], self.idx[1,:]].view(1, 1, -1)
 
-        temp = (weights_sparse*bump*mesh_weights_sparse).view(-1, self.channels_out, self.channels_in)
+        temp = (weights_sparse*self.bump*mesh_weights_sparse).view(-1, self.channels_out, self.channels_in)
 
-        weights = torch.sparse_coo_tensor(idx, temp, [x.shape[0], x.shape[1], self.channels_out, self.channels_in]).coalesce() #might not need this if we figure out sparsity
+        weights = torch.sparse_coo_tensor(self.idx, temp, [self.x.shape[0], self.x.shape[1], self.channels_out, self.channels_in]).coalesce() #might not need this if we figure out sparsity
 
         return weights
 
@@ -222,13 +237,7 @@ class QuadConvLayer(nn.Module):
         mesh_weights:
     '''
     def quad(self, features, output_locs, nodes, mesh_weights):
-        eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
-
-        kf = self.kernel_func(eval_locs, mesh_weights)
-
-        s = eval_locs.shape
-
-        del(eval_locs)
+        kf = self.kernel_func(output_locs, nodes, mesh_weights)
 
         idx = kf.indices()
 
@@ -316,16 +325,6 @@ class QuadConvLayer(nn.Module):
             integral += self.bias
 
         return integral
-
-'''
-Module wrapper around sin function; allows it to operate as a layer.
-'''
-class Sin(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        return torch.sin(x)
 
 ################################################################################
 
