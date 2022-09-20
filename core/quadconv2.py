@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch_scatter
 
 from core.FastGL.glpair import glpair
 
@@ -47,11 +48,11 @@ class QuadConvLayer(nn.Module):
         self.use_bias = use_bias
 
         #decay parameter
-        self.decay_param = (self.num_points_in/4)**4
+        self.decay_param = (self.num_points_in/16)**2
 
         #bias
         if self.use_bias:
-            self.bias = nn.Parameter(torch.zeros(1, self.channels_out, self.num_points_out**self.point_dim))
+            self.bias = nn.Parameter(torch.zeros(1, self.channels_out, self.num_points_out))
 
         #initialize filter
         # NOTE: This is just a placeholder
@@ -67,6 +68,8 @@ class QuadConvLayer(nn.Module):
         num_points: number of points
     '''
     def gauss_quad(self, num_points):
+        num_points = int(num_points)
+
         quad_weights = torch.zeros(num_points)
         quad_nodes = torch.zeros(num_points)
 
@@ -82,11 +85,11 @@ class QuadConvLayer(nn.Module):
         n_points: number of output points
     '''
     def output_locs(self):
-        _, mesh_nodes = self.gauss_quad(self.num_points_out)
+        _, mesh_nodes = self.gauss_quad(self.num_points_out**(1/self.point_dim))
 
         node_list = [mesh_nodes]*self.point_dim
 
-        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).reshape(-1, self.point_dim)
+        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).view(-1, self.point_dim)
 
         return output_locs
 
@@ -94,52 +97,33 @@ class QuadConvLayer(nn.Module):
     Compute indices associated with non-zero filters
     '''
     def cache(self):
-        _, quad_nodes = self.gauss_quad(self.num_points_in)
+        print('Caching nonzero evaluation indices.')
+
+        _, quad_nodes = self.gauss_quad(self.num_points_in**(1/self.point_dim))
         output_locs = self.output_locs()
 
         #create mesh
         node_list = [quad_nodes]*self.point_dim
         nodes = torch.meshgrid(*node_list, indexing='xy')
-        nodes = torch.dstack(nodes).reshape(-1, self.point_dim)
+        nodes = torch.dstack(nodes).view(-1, self.point_dim)
 
         #determine indices
-        eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
+        #NOTE: This seems to be the source of the memory issues
+        eval_locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
 
         bump_arg = torch.linalg.vector_norm(eval_locs, dim=(2), keepdims = True)**4
 
         tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
-        idx = torch.nonzero(tf_vec, as_tuple=False).T
+        idx = torch.nonzero(tf_vec, as_tuple=False)
 
         self.eval_indices = idx
 
-        # self.weights = torch.sparse_coo_tensor(idx, self.G.unsqueeze(0).repeat(idx.shape[1],1,1), [output_locs.shape[0], nodes.shape[0], self.channels_out, self.channels_in]).coalesce()
+        print('Evaluation indices cached.')
 
         return
 
     '''
-    Computes quadrature approximation of convolution with features and learned filter.
-
-    Input:
-        features: a tensor of shape (batch size X input channels X number of input points)
-
-    Output: tensor of shape (batch size X output channels X number of output points)
-    '''
-    def convolve(self, features):
-        output = torch.zeros(features.shape[0], self.channels_out, self.num_points_out**self.point_dim, device=features.device)
-
-        for index in self.eval_indices:
-            output[:,:,index[0]] += torch.matmul(self.G, features[:,:,index[1]].T).T
-
-        return output
-
-        # weights_dense = self.weights.to_dense().view(1, self.channels_out, self.channels_in, self.num_points_out**self.point_dim, self.num_points_in)
-        #
-        # return torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.view(batch_size, 1, self.channels_in, self.num_points_in))
-
-        # return dummy(features, self.channels_out, self.num_points_out, self.point_dim, self.eval_indices, self.G)
-
-    '''
-    Apply operator
+    Apply operator via quadrature approximation of convolution with features and learned filter.
 
     Input:
         features:  a tensor of shape (batch size X channels X number of points)
@@ -147,21 +131,37 @@ class QuadConvLayer(nn.Module):
     Output: tensor of shape (batch size X output channels X number of output points)
     '''
     def forward(self, features):
-        integral =  self.convolve(features)
+        integral = torch.zeros(features.shape[0], self.channels_out, self.num_points_out, device=features.device)
 
+        #compute convolutions
+
+        '''
+        For-loop approach.
+
+        Much too slow.
+        '''
+        # for index in self.eval_indices:
+        #     integral[:,:,index[0]] += torch.matmul(self.G, features[:,:,index[1]].T).T
+
+        '''
+        This approach uses the pytorch_scatter library.
+
+        segment_coo: 24,889 μs
+        scatter: 21,784 μs
+
+        segment_coo should be faster because the indices are ordered
+        '''
+        values = torch.matmul(self.G, features[:,:,self.eval_indices[:,1]])
+
+        #both of the following are valid
+        # torch_scatter.segment_coo(values, self.eval_indices[:,0].to(features.device).expand(features.shape[0], self.channels_out, -1), integral, reduce="sum")
+        torch_scatter.scatter(values, self.eval_indices[:,0].to(features.device), 2, integral, reduce="sum")
+
+        #add bias
         if self.use_bias:
             integral += self.bias
 
         return integral
-
-@torch.jit.script
-def dummy(features, channels_out, num_points_out, point_dim, eval_indices, G):
-    output = torch.zeros(features.shape[0], channels_out, num_points_out**point_dim, device=features.device)
-
-    for index in eval_indices:
-        output[:,:,index[0]] += torch.matmul(G, features[:,:,index[1]].T).T
-
-    return output
 
 ################################################################################
 
