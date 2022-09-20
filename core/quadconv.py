@@ -69,7 +69,12 @@ class QuadConvLayer(nn.Module):
 
                         :math:'\text{weight}(i,:)' being a single MLP with domain in  :math:'\mathbb{R}^3' and range :math:'\mathbb{R}^{C_in}'
 
-        MLP::Half-share : This is currently non-functional
+        MLP::ratio_share : This mode makes min(channels_in, channels_out) MLPs and sets the output dimension of the MLP such that:
+
+                        min(channels_in,channels_out) * share = max(channels_in, channels_out)
+                    
+                        This ensures that we can obtain (self.channels_in, self.channels_out, -1) during the evaluation of the MLPs in the 
+                        eval_MLP function.
 
 
         Sinc: This MLP mode was generated specifically for testing the action of the quadrature portion of the code.
@@ -98,16 +103,22 @@ class QuadConvLayer(nn.Module):
                 for j in range(channels_out):
                     self.weight_func.append(self.create_mlp(mlp_spec))
 
-            elif self.mlp_mode == 'half_share':
-                common = 4
+            elif self.mlp_mode =='share_out':
+                mlp_spec = (point_dim, *mlp_channels, channels_out)
 
-                loop = max(int(channels_out),1)
+                for j in range(channels_in):
+                    self.weight_func.append(self.create_mlp(mlp_spec))
 
-                share = max(int(channels_out/channels_in),1)
+            elif self.mlp_mode == 'ratio_share':
+                
+                share = max(channels_out/channels_in, channels_in/channels_out)
 
-                mlp_spec = (point_dim, *mlp_channels, share)
+                if (share) - int(share) > 0.001:
+                    RuntimeError('These channel ratios are not compatible with this MLP::ratio_share')
 
-                for j in range(loop):
+                mlp_spec = (point_dim, *mlp_channels, int(share))
+
+                for j in range(min(channels_in,channels_out)):
                     self.weight_func.append(self.create_mlp(mlp_spec))
 
         elif kernel_mode == 'sinc':
@@ -386,8 +397,6 @@ class QuadConvLayer(nn.Module):
     The idea here is that each of the 1D integrals is computed for all output locations and 
     summed into the 2D integral or 3D integral.
 
-    TODO: This function is moving things around to a specific device which probably isn't right for PyTorch Lightning code
-
     Input:
         features:
         output_locs:
@@ -402,11 +411,11 @@ class QuadConvLayer(nn.Module):
             level = self.point_dim
 
         if level == 1:
-            device = features.device
-            integral = self.quad(features, output_locs.to(device), nodes.to(device), weights.to(device))
+
+            integral = self.quad(features, output_locs, nodes, weights)
 
         elif level > 1:
-            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0]).to('cuda')
+            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0])
 
             for i in range(self.N):
                 this_coord = self.quad_nodes[i].expand(self.N, 1)
@@ -419,8 +428,6 @@ class QuadConvLayer(nn.Module):
 
     '''
     Apply operator
-
-    TODO: This is a specific and possibly bad way of initializing the self.bias parameter
 
     Input:
         features:
@@ -438,6 +445,7 @@ class QuadConvLayer(nn.Module):
         if self.use_bias:
             if not torch.is_tensor(self.bias) and not self.bias:
                 self.bias = torch.nn.Parameter(torch.zeros(1, integral.shape[1], integral.shape[2]))
+                torch.nn.init.xavier_uniform_(self.bias)
 
             integral += self.bias
 
