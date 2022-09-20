@@ -3,10 +3,11 @@ Utility functions.
 '''
 
 import torch
-from pytorch_lightning.callbacks.progress import TQDMProgressBar
+from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.utilities import rank_zero_only
+
 import matplotlib.pyplot as plt
-import imageio
-import os
+import gif
 
 '''
 Sobolev loss function, which computes the loss as a sum of the function l2 loss
@@ -44,60 +45,48 @@ def sobolev_loss(pred, x, order=1, lambda_r=(0.25, 0.0625)):
     return loss/bs
 
 '''
-Make a GIF.
+Makes a GIF of the model output on the test data provided by the data module and
+saves it to the appropriate lightning log.
 
 Input:
-    model: PyTorch model
-    data_module: dataset
-    save_path: location to save GIF
+    trainer: lightning trainer
+    data_module: data module
+    model: model to use
 '''
-def make_gif(model, data_module, save_path):
-    _, test, s = data_module.get_data()
-    size = data_module.size
-    tile = data_module.num_tiles
+def make_gif(trainer, data_module, model):
+    #run on test data
+    if model:
+        results = trainer.predict(model=model, datamodule=data_module)
+    else:
+        results = trainer.predict(ckpt_path='best', datamodule=data_module)
 
-    model.eval()
-    with torch.no_grad():
-        processed = model(test)
+    #transform data back to regular form
+    data = data_module.agglomerate(results)
 
-    processed_squares = processed.reshape(-1, size, size).reshape(-1, tile, tile, size, size)
+    #if multichannel then just take first channel
+    if data.dim() > data_module.dimension+1:
+        data = data[...,0]
 
-    dim0 = processed_squares.shape[0]
+    #gif frame closure
+    @gif.frame
+    def plot(i):
+        plt.imshow(data[i,:,:], vmin=-1, vmax=1, origin='lower')
+        plt.colorbar(location='top')
 
-    processed_full = torch.zeros(dim0, size*tile, size*tile)
+    #build frames
+    frames = [plot(i) for i in range(data.shape[0])]
 
-    for i in range(dim0):
-        for j in range(tile):
-            for k in range(tile):
-                processed_full[i,size*j:size*(j+1),size*k:size*(k+1)] = processed_squares[i,j,k,:,:]
-
-    filenames = []
-    fig1, ax1 = plt.subplots()
-
-    with torch.no_grad():
-        for i in range(dim0):
-            ax1.imshow(processed_full[i,:,:], vmin=-1, vmax=1)
-            filename = f'{save_path}/{i}.png'
-            filenames.append(filename)
-            plt.savefig(filename)
-            plt.cla()
-
-        plt.close('all')
-        image_list = []
-        for filename in filenames:
-            image = imageio.imread(filename)
-            image_list.append(image)
-
-        imageio.mimwrite(os.path.join(save_path , 'processed_quadconv_new.gif'), image_list)
-
-        for filename in set(filenames):
-            os.remove(filename)
-
-    return
+    #save gif
+    gif.save(frames, f'{trainer.logger.log_dir}/{"last" if model else "best"}.gif', duration=50)
 
 '''
-Custom PT Lightning training progress bar.
+Custom Tensorboard logger.
 '''
-class ProgressBar(TQDMProgressBar):
-    def __init__(self):
-        super().__init__()
+class Logger(TensorBoardLogger):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @rank_zero_only
+    def log_metrics(self, metrics, step):
+        metrics.pop('epoch', None)
+        return super().log_metrics(metrics, step)

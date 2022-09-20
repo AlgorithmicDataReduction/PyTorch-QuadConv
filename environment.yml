@@ -5,10 +5,14 @@ channels:
   - defaults
 dependencies:
   - python=3.9
-  - pytorch
-  - torchaudio
-  - torchvision
+  - pytorch=1.12.1
   - cudatoolkit=11.3
-  - pytorch-lightning=1.6
+  - pytorch-lightning=1.7
+  - fairscale=0.4
   - scipy
   - yaml
+  - matplotlib
+  - pip
+  - pip:
+    - gif
+    - torch_tb_profiler

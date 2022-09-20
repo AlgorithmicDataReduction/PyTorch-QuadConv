@@ -5,7 +5,7 @@
 import numpy as np
 import torch
 from torch import nn, optim
-from torch.nn.utils.parametrizations import spectral_norm
+from torch.nn.utils.parametrizations import spectral_norm as spn
 import pytorch_lightning as pl
 
 from .quadconv import QuadConvBlock
@@ -34,7 +34,9 @@ class Encoder(nn.Module):
 
         #activations
         forward_activation = kwargs.pop('forward_activation')
-        self.latent_activation = kwargs.pop('latent_activation')
+        latent_activation = kwargs.pop('latent_activation')
+        self.activation1 = latent_activation()
+        self.activation2 = latent_activation()
 
         #build network
         self.cnn = nn.Sequential()
@@ -45,25 +47,31 @@ class Encoder(nn.Module):
                                     channel_seq[i+1],
                                     N_in = point_seq[i],
                                     N_out = point_seq[i+1],
-                                    activation1 = forward_activation,
-                                    activation2 = forward_activation,
+                                    activation1 = forward_activation(),
+                                    activation2 = forward_activation(),
                                     **kwargs
                                     ))
 
         if conv_type == 'standard':
-            self.cnn_out_shape = self.cnn(torch.ones(input_shape)).shape
+            self.cnn_out_shape = self.cnn(torch.zeros(input_shape)).shape
         else:
             self.cnn_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]**point_dim))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
-        self.linear_down = spectral_norm(nn.Linear(self.cnn_out_shape.numel(), latent_dim))
-        self.linear_down2 = spectral_norm(nn.Linear(latent_dim, latent_dim))
+
+        self.linear = nn.Sequential()
+
+        self.linear.append(spn(nn.Linear(self.cnn_out_shape.numel(), latent_dim)))
+        self.linear.append(self.activation1)
+        self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
+        self.linear.append(self.activation2)
+
+        self.linear(self.flat(torch.zeros(self.cnn_out_shape)))
 
     def forward(self, x):
         x = self.cnn(x)
         x = self.flat(x)
-        x = self.latent_activation(self.linear_down(x))
-        output = self.latent_activation(self.linear_down2(x))
+        output = self.linear(x)
 
         return output
 
@@ -90,12 +98,21 @@ class Decoder(nn.Module):
 
         #activations
         forward_activation = kwargs.pop('forward_activation')
-        self.latent_activation = kwargs.pop('latent_activation')
+        latent_activation = kwargs.pop('latent_activation')
+        self.activation1 = latent_activation()
+        self.activation2 = latent_activation()
 
         #build network
         self.unflat = nn.Unflatten(1, input_shape[1:])
-        self.linear_up = spectral_norm(nn.Linear(latent_dim, latent_dim))
-        self.linear_up2 = spectral_norm(nn.Linear(latent_dim, input_shape.numel()))
+
+        self.linear = nn.Sequential()
+
+        self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
+        self.linear.append(self.activation1)
+        self.linear.append(spn(nn.Linear(latent_dim, input_shape.numel())))
+        self.linear.append(self.activation2)
+
+        self.linear(torch.zeros(latent_dim))
 
         self.cnn = nn.Sequential()
 
@@ -105,15 +122,14 @@ class Decoder(nn.Module):
                                     channel_seq[i-1],
                                     N_in = point_seq[i],
                                     N_out = point_seq[i-1],
-                                    activation1 = forward_activation if i!=1 else nn.Identity(),
-                                    activation2 = forward_activation,
+                                    activation1 = forward_activation() if i!=1 else nn.Identity(),
+                                    activation2 = forward_activation(),
                                     adjoint = True,
                                     **kwargs
                                     ))
 
     def forward(self, x):
-        x = self.latent_activation(self.linear_up(x))
-        x = self.latent_activation(self.linear_up2(x))
+        x = self.linear(x)
         x = self.unflat(x)
         output = self.cnn(x)
 
@@ -135,12 +151,15 @@ class AutoEncoder(pl.LightningModule):
                     latent_dim,
                     point_seq,
                     channel_seq,
-                    forward_activation = nn.CELU(alpha=1),
-                    latent_activation = nn.CELU(alpha=1),
-                    output_activation = nn.Tanh(),
-                    loss_fn = nn.MSELoss(),
+                    forward_activation = nn.CELU,
+                    latent_activation = nn.CELU,
+                    output_activation = nn.Tanh,
+                    loss_fn = nn.functional.mse_loss,
                     noise_scale = 0.0,
                     input_shape = None,
+                    optimizer = "adam",
+                    learning_rate = 1e-2,
+                    profiler = None,
                     **kwargs
                     ):
         super().__init__()
@@ -151,7 +170,10 @@ class AutoEncoder(pl.LightningModule):
                                             'forward_activation',
                                             'latent_activation',
                                             'output_activation',
-                                            'input_shape'])
+                                            'input_shape',
+                                            'optimizer',
+                                            'learning_rate',
+                                            'profiler'])
 
         #model pieces
         self.encoder = Encoder(**self.hparams,
@@ -166,7 +188,11 @@ class AutoEncoder(pl.LightningModule):
         #training hyperparameters
         self.loss_fn = loss_fn
         self.noise_scale = noise_scale
-        self.output_activation = output_activation
+        self.output_activation = output_activation()
+        self.optimizer = optimizer
+        self.learning_rate = learning_rate
+
+        self.profiler = profiler
 
     @staticmethod
     def add_args(parent_parser):
@@ -187,33 +213,49 @@ class AutoEncoder(pl.LightningModule):
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
         latent = self.encoder(batch)
-        latent += self.noise_scale*torch.randn_like(latent[0,:])
+        if self.noise_scale != 0.0:
+            latent = latent + self.noise_scale*torch.randn(latent.shape, device=self.device)
 
         #decode
         pred = self.output_activation(self.decoder(latent))
 
         #compute loss
         loss = self.loss_fn(pred, batch)
-        self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log('train_loss', loss, on_step=False, on_epoch=True)
+
         return loss
 
     def validation_step(self, batch, idx):
         pred = self(batch)
-        loss = self.loss_fn(pred, batch)
 
-        self.log('val_loss', loss)
+        dim = tuple([i for i in range(1, pred.ndim)])
+
+        n = torch.sqrt(torch.sum((pred-batch)**2, dim=dim))
+        d = torch.sqrt(torch.sum((batch)**2, dim=dim))
+
+        error = torch.sum(n/d)/pred.shape[0]
+
+        self.log('val_err', error, on_step=False, on_epoch=True, sync_dist=True)
 
     def test_step(self, batch, idx):
         pred = self(batch)
-        loss = self.loss_fn(pred, batch)
 
-        self.log('test_loss', loss)
+        dim = tuple([i for i in range(1, pred.ndim)])
+
+        n = torch.sqrt(torch.sum((pred-batch)**2, dim=dim))
+        d = torch.sqrt(torch.sum((batch)**2, dim=dim))
+
+        error = torch.sum(n/d)/pred.shape[0]
+
+        self.log('test_err', error, on_step=True, on_epoch=True, sync_dist=True)
 
     def predict_step(self, batch, idx):
         return self(batch)
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=1e-2)
-        # lr_scheduler = torch.optim.lr_scheduler.
+        if self.optimizer == 'adam':
+            optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+        else:
+            raise NotImplementedError("Optimizers besides Adam not currently supported.")
+
         return optimizer
-        # return [optimizer], [lr_scheduler]
