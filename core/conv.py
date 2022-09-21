@@ -41,7 +41,6 @@ class ConvBlock(nn.Module):
         self.activation2 = activation2
 
         if point_dim == 1:
-
             Conv1 = nn.Conv1d
 
             if self.adjoint:
