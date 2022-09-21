@@ -40,7 +40,18 @@ class ConvBlock(nn.Module):
         self.activation1 = activation1
         self.activation2 = activation2
 
-        if point_dim == 2:
+        if point_dim == 1:
+
+            Conv1 = nn.Conv1d
+
+            if self.adjoint:
+                Conv2 = nn.ConvTranspose1d
+            else:
+                Conv2 = nn.Conv1d
+
+            Norm = nn.InstanceNorm1d
+
+        elif point_dim == 2:
             Conv1 = nn.Conv2d
 
             if self.adjoint:

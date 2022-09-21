@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import random_split, DataLoader
 import pytorch_lightning as pl
+from pathlib import Path
 
 '''
 
@@ -153,8 +154,22 @@ class GridDataModule(pl.LightningDataModule):
         return data
 
     def setup(self, stage=None):
+
+        data_path = Path(self.data_dir)
+
+        data_files = data_path.glob('*.npy')
+
+        data_list = []
+
+        for df in data_files:
+            data_list.append( torch.from_numpy(np.float32(np.load(df))) )
+
+        if len(data_list) == 0:
+            raise Exception('No data has been found in the path given!')
+
+        data = torch.cat(data_list, 0)
+
         if stage == "fit" or stage is None:
-            data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
 
             self.data_shape = data.shape[1:-1]
 
@@ -166,12 +181,10 @@ class GridDataModule(pl.LightningDataModule):
             self.train, self.val = random_split(data, [train_size, val_size])
 
         elif stage == "test" or stage is None:
-            data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
 
             self.test = self.transform(data)
 
         elif stage == "predict" or stage is None:
-            data = torch.from_numpy(np.float32(np.load(os.path.join(self.data_dir, 'train.npy'))))
 
             self.predict = self.transform(data)
 

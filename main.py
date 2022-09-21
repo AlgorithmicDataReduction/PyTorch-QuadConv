@@ -30,7 +30,7 @@ Input:
     data_args: dataset arguments
     extra_args: other arguments that don't fit in groups above
 '''
-def main(args, trainer_args, model_args, data_args):
+def main(args, train_args, model_args, data_args):
     #Setup data
     data_module = GridDataModule(**data_args)
     model_args['input_shape'] = data_module.get_shape()
@@ -80,6 +80,7 @@ def main(args, trainer_args, model_args, data_args):
 Parse arguments
 '''
 if __name__ == "__main__":
+
     #Look for CL arguments
     parser = argparse.ArgumentParser()
     train_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)

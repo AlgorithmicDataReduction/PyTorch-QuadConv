@@ -52,7 +52,7 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
 
     x = np.linspace(start=-1, stop=1, num = args.xspan)
-    time = np.linspace(start=0, stop=1, num = args.tspan)
+    time = np.linspace(start=0, stop=10, num = args.tspan)
     aset = args.aspan
 
 
@@ -77,6 +77,8 @@ if __name__ == "__main__":
         tseries = generate_time_series(time, x, c, f_0, simple_transport)
 
         id_string = f'c_{c[0]}_xspan_{args.xspan}_tspan_{args.tspan}'
+
+        tseries = tseries.reshape(args.tspan, args.xspan, 1)
 
         np.save(save_path_folder / id_string, tseries)
 

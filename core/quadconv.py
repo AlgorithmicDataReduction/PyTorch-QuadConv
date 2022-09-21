@@ -133,7 +133,9 @@ class QuadConvLayer(nn.Module):
         self.output_locs = nn.Parameter(output_locs, requires_grad=False)
 
         if self.use_bias:
-            self.bias = nn.Parameter(torch.zeros(1, self.channels_out, output_locs.shape[0]))
+            self.bias = torch.zeros(1, self.channels_out, output_locs.shape[0])
+            
+            self.bias = nn.Parameter(torch.nn.init.xavier_uniform_(self.bias))
 
         return
 
@@ -204,7 +206,7 @@ class QuadConvLayer(nn.Module):
 
         mesh_weights_sparse = mesh_weights.repeat(x.shape[0], 1).reshape(x.shape[0], x.shape[1])[idx[0,:], idx[1,:]].view(1, 1, -1)
 
-        bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg[tf_vec]))).view(1, 1, -1)
+        bump = (torch.exp(1 + -1/(1-self.decay_param*bump_arg[tf_vec]))).view(1, 1, -1)
 
         temp = (weights_sparse*bump*mesh_weights_sparse).view(-1, self.channels_out, self.channels_in)
 
