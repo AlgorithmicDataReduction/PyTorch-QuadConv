@@ -1,18 +1,18 @@
 #!/bin/bash
-#SBATCH --time=20:00:00
+#SBATCH --time=10:00:00
 #SBATCH --qos=preemptable
 #SBATCH --job-name=ignition_qcnn
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=8
+#SBATCH --ntasks-per-node=4
 #SBATCH --no-requeue
 
 #ntasks per node should be num_workers*num_gpus
 
 ROOT=/projects/cosi1728/QuadConv
-TEST=ignition_qcnn_center
+TEST=ignition_qcnn_update
 DATA=data/ignition_center_cut
-TIME=00:19:45:00
+TIME=00:09:45:00
 
 module purge
 module load anaconda
