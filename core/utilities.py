@@ -60,18 +60,33 @@ def make_gif(trainer, data_module, model):
     else:
         results = trainer.predict(ckpt_path='best', datamodule=data_module)
 
-    #transform data back to regular form
-    data = data_module.agglomerate(results)
+    #check dimension of data
+    if data_module.dimension == 1:
+        data = torch.cat(results)[:,0,:]
+        print(data.shape)
 
-    #if multichannel then just take first channel
-    if data.dim() > data_module.dimension+1:
-        data = data[...,0]
+        #gif frame closure
+        @gif.frame
+        def plot(i):
+            plt.plot(data[i,:])
+            plt.ylim(-0.5, 1.5)
 
-    #gif frame closure
-    @gif.frame
-    def plot(i):
-        plt.imshow(data[i,:,:], vmin=-1, vmax=1, origin='lower')
-        plt.colorbar(location='top')
+    elif data_module.dimension == 2:
+        #transform data back to regular form
+        data = data_module.agglomerate(results)
+
+        #if multichannel then just take first channel
+        if data.dim() > data_module.dimension+1:
+            data = data[...,0]
+
+        #gif frame closure
+        @gif.frame
+        def plot(i):
+            plt.imshow(data[i,:,:], vmin=-1, vmax=1, origin='lower')
+            plt.colorbar(location='top')
+
+    elif data_module.dimension == 3:
+        print("GIFs for 3D data not supported.")
 
     #build frames
     frames = [plot(i) for i in range(data.shape[0])]
