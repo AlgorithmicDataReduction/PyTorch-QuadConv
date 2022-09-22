@@ -19,9 +19,9 @@ loss_fn = nn.functional.mse_loss
 data = torch.ones(batch_size, channels_in, N_in).cuda()
 ref = torch.ones(batch_size, channels_out, N_out).cuda()
 
-record_shapes=True
+record_shapes=False
 profile_memory=True
-with_stack=True
+with_stack=False
 
 ###############################################################################
 

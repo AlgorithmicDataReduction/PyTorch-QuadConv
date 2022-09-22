@@ -8,7 +8,7 @@ from torch import nn, optim
 from torch.nn.utils.parametrizations import spectral_norm as spn
 import pytorch_lightning as pl
 
-from .quadconv import QuadConvBlock
+from .quadconv2 import QuadConvBlock
 from .conv import ConvBlock
 
 '''
@@ -43,10 +43,10 @@ class Encoder(nn.Module):
 
         for i in range(len(point_seq)-1):
             self.cnn.append(Block(point_dim,
+                                    point_seq[i],
+                                    point_seq[i+1],
                                     channel_seq[i],
                                     channel_seq[i+1],
-                                    N_in = point_seq[i],
-                                    N_out = point_seq[i+1],
                                     activation1 = forward_activation(),
                                     activation2 = forward_activation(),
                                     **kwargs
@@ -55,7 +55,7 @@ class Encoder(nn.Module):
         if conv_type == 'standard':
             self.cnn_out_shape = self.cnn(torch.zeros(input_shape)).shape
         else:
-            self.cnn_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]**point_dim))
+            self.cnn_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
 
@@ -118,13 +118,13 @@ class Decoder(nn.Module):
 
         for i in range(len(point_seq)-1, 0, -1):
             self.cnn.append(Block(point_dim,
+                                    point_seq[i],
+                                    point_seq[i-1],
                                     channel_seq[i],
                                     channel_seq[i-1],
-                                    N_in = point_seq[i],
-                                    N_out = point_seq[i-1],
+                                    adjoint = True,
                                     activation1 = forward_activation() if i!=1 else nn.Identity(),
                                     activation2 = forward_activation(),
-                                    adjoint = True,
                                     **kwargs
                                     ))
 

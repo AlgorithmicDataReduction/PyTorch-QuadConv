@@ -34,7 +34,7 @@ class QuadConvLayer(nn.Module):
                     num_points_out,
                     channels_in,
                     channels_out,
-                    filter_size,
+                    filter_size = 0,
                     use_bias = False
                     ):
         super().__init__()
@@ -52,7 +52,7 @@ class QuadConvLayer(nn.Module):
 
         #bias
         if self.use_bias:
-            self.bias = nn.Parameter(torch.zeros(1, self.channels_out, self.num_points_out))
+            self.bias = nn.Parameter(torch.zeros(1, self.channels_out, self.num_points_out), requires_grad=True)
 
         #initialize filter
         # NOTE: This is just a placeholder
@@ -116,7 +116,7 @@ class QuadConvLayer(nn.Module):
         tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
         idx = torch.nonzero(tf_vec, as_tuple=False)
 
-        self.eval_indices = idx
+        self.eval_indices = nn.Parameter(idx, requires_grad=False)
 
         print('Evaluation indices cached.')
 
@@ -146,16 +146,13 @@ class QuadConvLayer(nn.Module):
         '''
         This approach uses the pytorch_scatter library.
 
-        segment_coo: 24,889 μs
-        scatter: 21,784 μs
-
-        segment_coo should be faster because the indices are ordered
+        NOTE: segment_coo should be faster because the indices are ordered
         '''
         values = torch.matmul(self.G, features[:,:,self.eval_indices[:,1]])
 
         #both of the following are valid
-        # torch_scatter.segment_coo(values, self.eval_indices[:,0].to(features.device).expand(features.shape[0], self.channels_out, -1), integral, reduce="sum")
-        torch_scatter.scatter(values, self.eval_indices[:,0].to(features.device), 2, integral, reduce="sum")
+        torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.channels_out, -1), integral, reduce="sum")
+        # torch_scatter.scatter(values, self.eval_indices[:,0], 2, integral, reduce="sum")
 
         #add bias
         if self.use_bias:
@@ -170,26 +167,26 @@ QuadConvLayer block
 
 Input:
     point_dim: space dimension
+    num_points_in: number of input points
+    num_points_out: number of output points
     channels_in: input feature channels
     channels_out: output feature channels
-    n_points_in: number of input points
-    n_points_out: number of output points
     filter_size: complexity of point to filter operation
-    adjoint: downsample or upsample
     use_bias: add bias term to output of layer
+    adjoint: downsample or upsample
     activation1:
     activation2:
 '''
 class QuadConvBlock(nn.Module):
     def __init__(self,
                     point_dim,
+                    num_points_in,
+                    num_points_out,
                     channels_in,
                     channels_out,
-                    n_points_in,
-                    n_points_out,
-                    filter_size,
-                    adjoint = False,
+                    filter_size = 0,
                     use_bias = False,
+                    adjoint = False,
                     activation1 = nn.CELU(alpha=1),
                     activation2 = nn.CELU(alpha=1)
                     ):
@@ -200,35 +197,31 @@ class QuadConvBlock(nn.Module):
         self.activation2 = activation2
 
         if self.adjoint:
-            conv1_point_num = n_points_out
+            conv1_point_num = num_points_out
             conv1_channel_num = channels_out
         else:
-            conv1_point_num = n_points_in
+            conv1_point_num = num_points_in
             conv1_channel_num = channels_in
 
         self.conv1 = QuadConvLayer(point_dim,
+                                    num_points_in = conv1_point_num,
+                                    num_points_out = conv1_point_num,
                                     channels_in = conv1_channel_num,
                                     channels_out = conv1_channel_num,
                                     filter_size = filter_size,
                                     use_bias = use_bias
                                     )
-        self.batchnorm1 = nn.InstanceNorm1d(conv1_channel_num)
+        self.norm1 = nn.InstanceNorm1d(conv1_channel_num)
 
         self.conv2 = QuadConvLayer(point_dim,
+                                    num_points_in = num_points_in,
+                                    num_points_out = num_points_out,
                                     channels_in = channels_in,
                                     channels_out = channels_out,
                                     filter_size = filter_size,
                                     use_bias = use_bias
                                     )
-        self.batchnorm2 = nn.InstanceNorm1d(channels_out)
-
-
-        if n_points_in and n_points_out:
-            self.conv1.set_quad(conv1_point_num)
-            self.conv2.set_quad(n_points_in)
-
-            self.conv1.set_output_locs(conv1_point_num)
-            self.conv2.set_output_locs(n_points_out)
+        self.norm2 = nn.InstanceNorm1d(channels_out)
 
     '''
     Forward mode
@@ -237,11 +230,11 @@ class QuadConvBlock(nn.Module):
         x = data
 
         x1 = self.conv1(x)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x
 
         x2 = self.conv2(x1)
-        x2 = self.activation2(self.batchnorm2(x2))
+        x2 = self.activation2(self.norm2(x2))
 
         return x2
 
@@ -252,10 +245,10 @@ class QuadConvBlock(nn.Module):
         x = data
 
         x2 = self.conv2(x)
-        x2 = self.activation2(self.batchnorm2(x2))
+        x2 = self.activation2(self.norm2(x2))
 
         x1 = self.conv1(x2)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x2
 
         return x1

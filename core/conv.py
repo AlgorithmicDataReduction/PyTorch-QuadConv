@@ -12,25 +12,26 @@ QuadConvLayer block
 
 Input:
     point_dim: space dimension
+    num_points_in: number of input points
+    num_points_out: number of output points
     channels_in: input feature channels
     channels_out: output feature channels
-    N_in: number of input points
-    N_out: number of output points
-    adjoint: downsample or upsample
+    kernel_size: convolution kernel size
     use_bias: add bias term to output of layer
+    adjoint: downsample or upsample
     activation1:
     activation2:
 '''
 class ConvBlock(nn.Module):
     def __init__(self,
                     point_dim,
+                    num_points_in,
+                    num_points_out,
                     channels_in,
                     channels_out,
-                    N_in,
-                    N_out,
                     kernel_size = 3,
-                    adjoint = False,
                     use_bias = False,
+                    adjoint = False,
                     activation1 = nn.CELU(alpha=1),
                     activation2 = nn.CELU(alpha=1)
                     ):
@@ -62,7 +63,7 @@ class ConvBlock(nn.Module):
 
         if self.adjoint:
             conv1_channel_num = channels_out
-            stride = int(np.floor((N_out-1-(kernel_size-1))/(N_in-1)))
+            stride = int(np.floor((um_points_out-1-(kernel_size-1))/(num_points_in-1)))
             self.conv2 = Conv2(channels_in,
                                 channels_out,
                                 kernel_size,
@@ -71,7 +72,7 @@ class ConvBlock(nn.Module):
                                 )
         else:
             conv1_channel_num = channels_in
-            stride = int(np.floor((N_in-1-(kernel_size-1))/(N_out-1)))
+            stride = int(np.floor((num_points_in-1-(kernel_size-1))/(num_points_out-1)))
             self.conv2 = Conv2(channels_in,
                                 channels_out,
                                 kernel_size,
