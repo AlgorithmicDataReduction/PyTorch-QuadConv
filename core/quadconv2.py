@@ -34,7 +34,7 @@ class QuadConvLayer(nn.Module):
                     num_points_out,
                     channels_in,
                     channels_out,
-                    filter_size = 0,
+                    filter_size,
                     use_bias = False
                     ):
         super().__init__()
@@ -54,12 +54,38 @@ class QuadConvLayer(nn.Module):
         if self.use_bias:
             self.bias = nn.Parameter(torch.zeros(1, self.channels_out, self.num_points_out), requires_grad=True)
 
-        #initialize filter
-        # NOTE: This is just a placeholder
-        self.G = nn.Parameter(torch.randn(self.channels_out, self.channels_in), requires_grad=True)
-
         #cache indices
         self.cache()
+
+        #initialize filter
+        self.init_filter(filter_size)
+
+    '''
+    Initialize the layer filter.
+
+    Input:
+        filter_size: mlp feature sequence
+    '''
+    def init_filter(self, filter_size):
+        #NOTE: This is just a placeholder
+        # self.G = nn.Parameter(torch.randn(self.channels_out, self.channels_in), requires_grad=True).expand(self.idx.shape[0], -1, -1)
+
+        #point to matrix operation is stack of point to vector mlp operations
+        self.G = nn.Sequential()
+
+        activation = Sin
+        bias = False
+
+        feature_seq = (self.point_dim, *filter_size, self.channels_in*self.channels_out)
+
+        for i in range(len(feature_seq)-2):
+            self.G.append(nn.Linear(feature_seq[i], feature_seq[i+1], bias=bias))
+            self.G.append(activation())
+
+        self.G.append(nn.Linear(feature_seq[-2], feature_seq[-1], bias=bias))
+        self.G.append(nn.Unflatten(1, (self.channels_in, self.channels_out)))
+
+        return
 
     '''
     Get Gaussian quadrature weights and nodes.
@@ -97,7 +123,7 @@ class QuadConvLayer(nn.Module):
     Compute indices associated with non-zero filters
     '''
     def cache(self):
-        print('Caching nonzero evaluation indices.')
+        print('Caching nonzero evaluation locations...')
 
         _, quad_nodes = self.gauss_quad(self.num_points_in**(1/self.point_dim))
         output_locs = self.output_locs()
@@ -109,16 +135,17 @@ class QuadConvLayer(nn.Module):
 
         #determine indices
         #NOTE: This seems to be the source of the memory issues
-        eval_locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
+        locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
 
-        bump_arg = torch.linalg.vector_norm(eval_locs, dim=(2), keepdims = True)**4
+        bump_arg = torch.linalg.vector_norm(locs, dim=(2), keepdims = True)**4
 
         tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
         idx = torch.nonzero(tf_vec, as_tuple=False)
 
+        self.eval_locs = nn.Parameter(locs[tf_vec, :], requires_grad=False)
         self.eval_indices = nn.Parameter(idx, requires_grad=False)
 
-        print('Evaluation indices cached.')
+        print('Evaluation locations cached.')
 
         return
 
@@ -126,32 +153,20 @@ class QuadConvLayer(nn.Module):
     Apply operator via quadrature approximation of convolution with features and learned filter.
 
     Input:
-        features:  a tensor of shape (batch size X channels X number of points)
+        features:  a tensor of shape (batch size  X number of points X input channels)
 
-    Output: tensor of shape (batch size X output channels X number of output points)
+    Output: tensor of shape (batch size X number of output points X output channels)
     '''
     def forward(self, features):
-        integral = torch.zeros(features.shape[0], self.channels_out, self.num_points_out, device=features.device)
+        integral = torch.zeros(features.shape[0], self.num_points_out, self.channels_out, device=features.device)
 
-        #compute convolutions
-
-        '''
-        For-loop approach.
-
-        Much too slow.
-        '''
-        # for index in self.eval_indices:
-        #     integral[:,:,index[0]] += torch.matmul(self.G, features[:,:,index[1]].T).T
-
-        '''
-        This approach uses the pytorch_scatter library.
-
-        NOTE: segment_coo should be faster because the indices are ordered
-        '''
-        values = torch.matmul(self.G, features[:,:,self.eval_indices[:,1]])
+        #compute filter feature mat-vec products
+        # values = torch.matmul(features[:,self.eval_indices[:,1],:], self.G(self.eval_locs))
+        values = torch.einsum('bni, nij -> bnj', features[:,self.eval_indices[:,1],:], self.G(self.eval_locs))
 
         #both of the following are valid
-        torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.channels_out, -1), integral, reduce="sum")
+        #NOTE: segment_coo should be faster because the indices are ordered
+        torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], -1), integral, reduce="sum")
         # torch_scatter.scatter(values, self.eval_indices[:,0], 2, integral, reduce="sum")
 
         #add bias
@@ -184,7 +199,7 @@ class QuadConvBlock(nn.Module):
                     num_points_out,
                     channels_in,
                     channels_out,
-                    filter_size = 0,
+                    filter_size,
                     use_bias = False,
                     adjoint = False,
                     activation1 = nn.CELU(alpha=1),

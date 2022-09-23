@@ -12,12 +12,13 @@ N_out = 150**point_dim
 channels_in = 1
 channels_out = 4
 batch_size = 2
+filter_size = [4, 4]
 
 loss_fn = nn.functional.mse_loss
 
 #create data
-data = torch.ones(batch_size, channels_in, N_in).cuda()
-ref = torch.ones(batch_size, channels_out, N_out).cuda()
+data = torch.ones(batch_size, N_in, channels_in).cuda()
+ref = torch.ones(batch_size, N_out, channels_out).cuda()
 
 record_shapes=False
 profile_memory=True
@@ -42,7 +43,7 @@ layer2 = QL2(point_dim,
             N_out,
             channels_in,
             channels_out,
-            filter_size=0)
+            filter_size)
 
 layer2.cuda()
 
