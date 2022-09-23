@@ -17,8 +17,8 @@ filter_size = [4, 4]
 loss_fn = nn.functional.mse_loss
 
 #create data
-data = torch.ones(batch_size, N_in, channels_in).cuda()
-ref = torch.ones(batch_size, N_out, channels_out).cuda()
+data = torch.ones(batch_size, channels_in, N_in).cuda()
+ref = torch.ones(batch_size, channels_out, N_out).cuda()
 
 record_shapes=False
 profile_memory=True
@@ -63,10 +63,10 @@ loss_fn(layer2(data), ref)
 #
 #     loss_fn(layer1(data), ref).backward()
 
-with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-                record_shapes=record_shapes,
-                profile_memory=profile_memory,
-                with_stack=with_stack,
-                on_trace_ready=tth('./lightning_logs/profiles/quad_conv')) as prof:
-
-    loss_fn(layer2(data), ref).backward()
+# with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+#                 record_shapes=record_shapes,
+#                 profile_memory=profile_memory,
+#                 with_stack=with_stack,
+#                 on_trace_ready=tth('./lightning_logs/profiles/quad_conv')) as prof:
+#
+#     loss_fn(layer2(data), ref).backward()

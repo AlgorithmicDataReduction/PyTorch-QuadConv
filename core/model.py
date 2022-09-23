@@ -53,20 +53,22 @@ class Encoder(nn.Module):
                                     ))
 
         if conv_type == 'standard':
-            self.cnn_out_shape = self.cnn(torch.zeros(input_shape)).shape
+            self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
+        elif conv_type == 'quadrature':
+            self.conv_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]))
         else:
-            self.cnn_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]))
+            raise ValueError('Convolution type "{conv_type}" is not valid.')
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
 
         self.linear = nn.Sequential()
 
-        self.linear.append(spn(nn.Linear(self.cnn_out_shape.numel(), latent_dim)))
+        self.linear.append(spn(nn.Linear(self.conv_out_shape.numel(), latent_dim)))
         self.linear.append(self.activation1)
         self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
         self.linear.append(self.activation2)
 
-        self.linear(self.flat(torch.zeros(self.cnn_out_shape)))
+        self.linear(self.flat(torch.zeros(self.conv_out_shape)))
 
     def forward(self, x):
         x = self.cnn(x)
@@ -183,7 +185,7 @@ class AutoEncoder(pl.LightningModule):
         self.decoder = Decoder(**self.hparams,
                                 forward_activation=forward_activation,
                                 latent_activation=latent_activation,
-                                input_shape=self.encoder.cnn_out_shape)
+                                input_shape=self.encoder.conv_out_shape)
 
         #training hyperparameters
         self.loss_fn = loss_fn

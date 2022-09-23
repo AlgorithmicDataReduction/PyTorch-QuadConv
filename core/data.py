@@ -147,7 +147,7 @@ class GridDataModule(pl.LightningDataModule):
             data = data/(torch.max(torch.abs(data))+1e-4)
 
         #NOTE: It would be better if we normalized before flattening
-        if not self.flatten:
+        if self.flatten == False:
             data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)]))
 
         return data

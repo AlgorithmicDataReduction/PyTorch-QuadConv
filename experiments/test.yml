@@ -16,9 +16,9 @@ train:
   # default_root_dir: #str
   logger: True #bool
   # log_every_n_steps: #int
-  enable_progress_bar: False #bool
+  enable_progress_bar: True #bool
   # profiler: #str
-  max_epochs: 5000 #int
+  max_epochs: 2 #int
   # max_steps: #int
 
 #Model arguments
@@ -27,14 +27,14 @@ model:
   point_dim: 2 #int
   latent_dim: 10 #int
   point_seq: [2500, 900, 625, 100] #list
-  channel_seq: [1, 4, 16, 32] #list
+  channel_seq: [1, 2, 3, 4] #list
   filter_size: [4,4] #list
   optimizer: "adam" #str
   learning_rate: 0.01 #foat
 
 #PT LightningDataModule arguments
 data:
-  # data_dir: "data/ignition_center_cut" #str
+  data_dir: "data/ignition_center_cut" #str
   dimension: 2 #int
   batch_size: 16 #int
   size: 50 #int

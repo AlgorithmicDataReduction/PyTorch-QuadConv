@@ -123,7 +123,7 @@ class QuadConvLayer(nn.Module):
     Compute indices associated with non-zero filters
     '''
     def cache(self):
-        print('Caching nonzero evaluation locations...')
+        # print('Caching nonzero evaluation locations...')
 
         _, quad_nodes = self.gauss_quad(self.num_points_in**(1/self.point_dim))
         output_locs = self.output_locs()
@@ -145,7 +145,7 @@ class QuadConvLayer(nn.Module):
         self.eval_locs = nn.Parameter(locs[tf_vec, :], requires_grad=False)
         self.eval_indices = nn.Parameter(idx, requires_grad=False)
 
-        print('Evaluation locations cached.')
+        # print('Evaluation locations cached.')
 
         return
 
@@ -153,20 +153,22 @@ class QuadConvLayer(nn.Module):
     Apply operator via quadrature approximation of convolution with features and learned filter.
 
     Input:
-        features:  a tensor of shape (batch size  X number of points X input channels)
+        features:  a tensor of shape (batch size  X num of points X input channels)
 
-    Output: tensor of shape (batch size X number of output points X output channels)
+    Output: tensor of shape (batch size X num of output points X output channels)
+
+    NOTE: THIS WOULD ALL BE A LOT EASIER IF WE WERE DOING CHANNELS_LAST BUT PYTORCH DOESN'T LIKE THAT
     '''
     def forward(self, features):
-        integral = torch.zeros(features.shape[0], self.num_points_out, self.channels_out, device=features.device)
+        integral = torch.zeros(features.shape[0], self.channels_out, self.num_points_out, device=features.device)
 
         #compute filter feature mat-vec products
         # values = torch.matmul(features[:,self.eval_indices[:,1],:], self.G(self.eval_locs))
-        values = torch.einsum('bni, nij -> bnj', features[:,self.eval_indices[:,1],:], self.G(self.eval_locs))
+        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].view(features.shape[0], -1, self.channels_in), self.G(self.eval_locs)).view(features.shape[0], self.channels_out, -1)
 
         #both of the following are valid
         #NOTE: segment_coo should be faster because the indices are ordered
-        torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], -1), integral, reduce="sum")
+        torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.channels_out, -1), integral, reduce="sum")
         # torch_scatter.scatter(values, self.eval_indices[:,0], 2, integral, reduce="sum")
 
         #add bias
@@ -226,7 +228,7 @@ class QuadConvBlock(nn.Module):
                                     filter_size = filter_size,
                                     use_bias = use_bias
                                     )
-        self.norm1 = nn.InstanceNorm1d(conv1_channel_num)
+        self.norm1 = nn.BatchNorm1d(conv1_channel_num)
 
         self.conv2 = QuadConvLayer(point_dim,
                                     num_points_in = num_points_in,
@@ -236,7 +238,7 @@ class QuadConvBlock(nn.Module):
                                     filter_size = filter_size,
                                     use_bias = use_bias
                                     )
-        self.norm2 = nn.InstanceNorm1d(channels_out)
+        self.norm2 = nn.BatchNorm1d(channels_out)
 
     '''
     Forward mode
