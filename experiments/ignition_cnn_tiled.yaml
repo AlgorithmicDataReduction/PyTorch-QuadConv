@@ -3,32 +3,32 @@ train:
   accelerator: "gpu" #str e.g. "gpu"
   devices: -1
   strategy: "ddp_sharded" #str
-  # precision: #str
   # num_nodes: #int
+  # precision: #str
   # auto_scale_batch_size: #bool
   enable_checkpointing: True #bool
   check_val_every_n_epoch: 1 #int
-  # default_root_dir: #str
+  default_root_dir: "./lightning_logs" #str
   logger: True #bool
   enable_progress_bar: False #bool
-  max_epochs: 2000 #int
+  max_epochs: 1000 #int
 
 #Model building arguments
 model:
   conv_type: "standard" #str "standard" or "quadrature"
   point_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [250, 100, 50, 25, 10] #list
-  channel_seq: [1, 4, 8, 16, 32] #list
+  point_seq: [50, 25, 15, 10, 5] #list
+  channel_seq: [1, 2, 4, 8, 16] #list
   learning_rate: 0.01
 
 #Data loader arguments
 data:
   # data_dir: #str
-  dimension: 2 #int
-  batch_size: 8 #int
-  size: 250 #int
-  stride: 250 #int
+  point_dim: 2 #int
+  batch_size: 512 #int
+  size: 50 #int
+  stride: 25 #int
   flatten: False #bool, flatten for quadrature
   channels: [1] #list
   shuffle: False

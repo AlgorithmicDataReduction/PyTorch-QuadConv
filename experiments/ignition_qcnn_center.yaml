@@ -3,19 +3,15 @@ train:
   accelerator: "gpu" #str e.g. "gpu"
   devices: -1
   strategy: "ddp_sharded" #str
-  precision: 16 #int
   # num_nodes: #int
+  precision: 16 #str
   # auto_scale_batch_size: #bool
-  # auto_select_gpus: #bool
-  enable_checkpointing: False #bool
+  enable_checkpointing: True #bool
   check_val_every_n_epoch: 1 #int
-  # default_root_dir: #str
-  logger: False #bool
-  # log_every_n_steps: 1 #int
+  default_root_dir: "./lightning_logs" #str
+  logger: True #bool
   enable_progress_bar: False #bool
-  profiler: "simple" #str
-  max_epochs: 2 #int
-  # max_steps: #int
+  max_epochs: 5000 #int
 
 #Model building arguments
 model:
@@ -24,14 +20,14 @@ model:
   latent_dim: 10 #int
   point_seq: [50, 25, 15, 10, 5] #list
   channel_seq: [1, 4, 8, 16, 32] #list
-  mlp_channels: [4, 4] #list
-  use_bias: False #bool
+  mlp_channels: [8, 8, 8] #list
+  learning_rate: 0.01
 
 #Data loader arguments
 data:
   # data_dir: #str
-  dimension: 2 #int
-  batch_size: 128 #int
+  point_dim: 2 #int
+  batch_size: 32 #int
   size: 50 #int
   stride: 50 #int
   flatten: True #bool, flatten for quadrature
@@ -39,5 +35,5 @@ data:
 
 #Extra arguments
 extra:
-  make_gif: False #bool
+  make_gif: True #bool
   early_stopping: False #bool

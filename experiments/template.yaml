@@ -35,7 +35,7 @@ model:
 #PT LightningDataModule arguments
 data:
   data_dir: #str
-  dimension: #int
+  point_dim: #int
   batch_size: #int
   size: #int
   stride: #int

@@ -164,7 +164,7 @@ class QuadConvLayer(nn.Module):
 
         #compute filter feature mat-vec products
         # values = torch.matmul(features[:,self.eval_indices[:,1],:], self.G(self.eval_locs))
-        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].view(features.shape[0], -1, self.channels_in), self.G(self.eval_locs)).view(features.shape[0], self.channels_out, -1)
+        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.channels_in), self.G(self.eval_locs)).reshape(features.shape[0], self.channels_out, -1)
 
         #both of the following are valid
         #NOTE: segment_coo should be faster because the indices are ordered

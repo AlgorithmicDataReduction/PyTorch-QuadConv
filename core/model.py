@@ -138,13 +138,15 @@ class Decoder(nn.Module):
         return output
 
 '''
-Quadrature convolution based autoencoder
+Convolution based autoencoder.
 
+Input:
+    conv_type:
     point_dim: space dimension (e.g. 3D)
     latent_dim: dimension of latent representation
-    point_seq: number of points along each dimension
-    channel_seq:
-    mlp_channels:
+    point_seq: number of points at each level
+    channel_seq: number of channels at each level
+    input_shape:
 '''
 class AutoEncoder(pl.LightningModule):
     def __init__(self,
@@ -153,12 +155,12 @@ class AutoEncoder(pl.LightningModule):
                     latent_dim,
                     point_seq,
                     channel_seq,
+                    input_shape,
                     forward_activation = nn.CELU,
                     latent_activation = nn.CELU,
                     output_activation = nn.Tanh,
                     loss_fn = nn.functional.mse_loss,
                     noise_scale = 0.0,
-                    input_shape = None,
                     optimizer = "adam",
                     learning_rate = 1e-2,
                     profiler = None,
@@ -177,15 +179,22 @@ class AutoEncoder(pl.LightningModule):
                                             'learning_rate',
                                             'profiler'])
 
+        #model parameters
+        model_args = {'conv_type':conv_type,
+                        'point_dim':point_dim,
+                        'latent_dim':latent_dim,
+                        'point_seq':point_seq,
+                        'channel_seq':channel_seq,
+                        'forward_activation':forward_activation,
+                        'latent_activation':latent_activation}
+
         #model pieces
-        self.encoder = Encoder(**self.hparams,
-                                forward_activation=forward_activation,
-                                latent_activation=latent_activation,
-                                input_shape=input_shape)
-        self.decoder = Decoder(**self.hparams,
-                                forward_activation=forward_activation,
-                                latent_activation=latent_activation,
-                                input_shape=self.encoder.conv_out_shape)
+        self.encoder = Encoder(**model_args,
+                                input_shape=input_shape,
+                                **kwargs)
+        self.decoder = Decoder(**model_args,
+                                input_shape=self.encoder.conv_out_shape,
+                                **kwargs)
 
         #training hyperparameters
         self.loss_fn = loss_fn
@@ -200,12 +209,7 @@ class AutoEncoder(pl.LightningModule):
     def add_args(parent_parser):
         parser = parent_parser.add_argument_group("AutoEncoder")
 
-        parser.add_argument('--conv_type', type=str)
-        parser.add_argument('--point_dim', type=int)
-        parser.add_argument('--latent_dim', type=int)
-        parser.add_argument('--point_seq', type=int, nargs='+')
-        parser.add_argument('--channel_seq', type=int, nargs='+')
-        parser.add_argument('--mlp_channels', type=int, nargs='+')
+        # parser.add_argument()
 
         return parent_parser
 
