@@ -205,6 +205,12 @@ class GridDataModule(pl.LightningDataModule):
     def teardown(self, stage=None):
         pass
 
+    ############################################################################
+
+    #NOTE: this may not be the best way to do this and it doesn't account for multichannel
+    def get_sample(self, idx):
+        return self.predict[idx,...].reshape(self.data_shape)
+
     def get_shape(self):
         if self.flatten:
             return (1, 1, self.size**self.point_dim)

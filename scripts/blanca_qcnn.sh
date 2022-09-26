@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=10:00:00
+#SBATCH --time=05:00:00
 #SBATCH --qos=preemptable
 #SBATCH --job-name=ignition_qcnn
 #SBATCH --gres=gpu:1
@@ -12,14 +12,11 @@
 ROOT=/projects/cosi1728/QuadConv
 TEST=ignition_qcnn_update
 DATA=data/ignition_center_cut
-TIME=00:09:45:00
+TIME=00:04:45:00
 
 module purge
 module load anaconda
 
 conda activate compression
 
-#remove old logs
-rm -r $ROOT/lightning_logs/$TEST/*
-
-python $ROOT/main.py --experiment $TEST --default_root_dir $ROOT --data_dir $ROOT/$DATA --max_time $TIME
+python $ROOT/main.py --experiment $TEST --default_root_dir $ROOT/lightning_logs --data_dir $ROOT/$DATA --max_time $TIME

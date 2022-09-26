@@ -74,14 +74,21 @@ def make_gif(trainer, data_module, model):
     data = data_module.agglomerate(results)
 
     #if multichannel then just take first channel
-    if data.dim() > data_module.dimension+1:
+    if data.dim() > data_module.point_dim+1:
         data = data[...,0]
 
     #gif frame closure
     @gif.frame
     def plot(i):
-        plt.imshow(data[i,:,:], vmin=-1, vmax=1, origin='lower')
-        plt.colorbar(location='top')
+        fig, ax = plt.subplots(1, 2)
+
+        ax[0].imshow(data_module.get_sample(i), vmin=-1, vmax=1, origin='lower')
+        ax[0].set_title("Uncompressed")
+
+        im = ax[1].imshow(data[i,:,:], vmin=-1, vmax=1, origin='lower')
+        ax[1].set_title("Reconstructed")
+
+        fig.colorbar(im, ax=ax.ravel().tolist(), location='bottom')
 
     #build frames
     frames = [plot(i) for i in range(data.shape[0])]
