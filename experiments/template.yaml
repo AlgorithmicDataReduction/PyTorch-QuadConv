@@ -45,4 +45,5 @@ data:
 #Extra arguments
 extra:
   make_gif: #bool
+  compute_stats: #bool
   early_stopping: #bool

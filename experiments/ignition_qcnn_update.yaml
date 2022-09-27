@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 5000 #int
+  max_epochs: 10000 #int
   # max_steps: #int
 
 #Model arguments
@@ -26,9 +26,9 @@ model:
   conv_type: "quadrature" #str "standard" or "quadrature"
   point_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [2500, 900, 625, 100] #list
-  channel_seq: [1, 4, 16, 32] #list
-  filter_size: [8, 8] #list
+  point_seq: [2500, 900, 625, 625, 100] #list
+  channel_seq: [1, 4, 16, 16, 32] #list
+  filter_size: [8, 8, 8] #list
   optimizer: "adam" #str
   learning_rate: 0.01 #foat
 
@@ -45,4 +45,5 @@ data:
 #Extra arguments
 extra:
   make_gif: True #bool
+  compute_stats: True #bool
   early_stopping: False #bool

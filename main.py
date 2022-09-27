@@ -77,6 +77,12 @@ def main(experiment, trainer_args, model_args, data_args, extra_args):
     if extra_args['make_gif']:
         make_gif(trainer, data_module, None if trainer_args['enable_checkpointing'] else model)
 
+    #compute stats
+    if extra_args['compute_stats']:
+        trainer.test(model=None if trainer_args['enable_checkpointing'] else model,
+                        ckpt_path='best' if trainer_args['enable_checkpointing'] else None,
+                        datamodule=data_module)
+
 '''
 Parse arguments
 '''
