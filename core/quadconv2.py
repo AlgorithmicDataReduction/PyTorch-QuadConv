@@ -53,7 +53,7 @@ class QuadConvLayer(nn.Module):
         #bias
         if self.use_bias:
             bias = torch.empty(1, self.channels_out, self.num_points_out)
-            self.bias = nn.Parameter(torch.xavier_uniform(bias), requires_grad=True)
+            self.bias = nn.Parameter(nn.init.xavier_uniform_(bias), requires_grad=True)
 
         #cache indices
         self.cache()
