@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# from scipy.integrate import newton_cotes
+from scipy.integrate import newton_cotes
 
 from core.FastGL.glpair import glpair
 
@@ -15,41 +15,90 @@ from core.FastGL.glpair import glpair
 Quadrature based convolution operator.
 
 Input:
-    point_dim: space dimension
+    dimension: space dimension
     channels_in: input feature channels
     channels_out: output feature channels
     mlp_channels: convolution kernel MLP feature sequence
     use_bias: add bias term to output of layer
 '''
 class QuadConvLayer(nn.Module):
+
+    __allowed = ( 
+                  'mlp_channels',
+                  'use_bias',
+                  'mlp_mode',
+                  'quad_type',
+                  'composite_quad_order',
+                  'activation1',
+                  'activation2',
+                  )
+
+    mlp_channels = (8,8)
+    use_bias = True
+    mlp_mode = 'share_in'
+    quad_type = 'newton_cotes'
+    composite_quad_order = 2
+    activation1 = nn.CELU(alpha=1)
+    activation2 = nn.CELU(alpha=1)
+
+    quad_set_flag = False
+
     def __init__(self,
-                    point_dim,
+                    dimension,
                     channels_in,
                     channels_out,
                     mlp_channels,
-                    use_bias = False
+                    **kwargs,
                     ):
         super().__init__()
 
-        #can only handle 2D right now
-        if point_dim > 2:
+        for key, value in kwargs.items():
+            if key in self.__allowed:
+                setattr(self, key,value)
+
+        #can only handle 2D or less right now
+        if dimension > 2:
             raise RuntimeError('Point dimension must be less than 2')
 
         #set hyperparameters
-        self.point_dim = point_dim
+        self.dimension = dimension
         self.channels_out = channels_out
         self.channels_in = channels_in
-        self.use_bias = use_bias
-        self.quad_set_flag = False
 
         #setup mlps
         self.weight_func = nn.ModuleList()
 
-        mlp_spec = (point_dim, *mlp_channels, 1)
+        '''
+        MLP::Single : This generates a single MLP for every incoming and outgoing channel.
+                        Using for example a 1D Conv operator, this corresponds to:
 
-        for i in range(channels_in):
+                        .. math::
+                            \text{out}(N_i, C_{\text{out}_j}) = \text{bias}(C_{\text{out}_j}) +
+                            \sum_{k = 0}^{C_{in} - 1} \text{weight}(C_{\text{out}_j}, k)
+                            \star \text{input}(N_i, k)
+
+                    If :math:'\text{weight}(i,j)' is each a single MLP with a domain in :math:'\mathbb{R}^3' and range :math:'\mathbb{R}'
+
+        MLP::Share-in : Borrowing the example in MLP::Single, this corresponds to:
+
+                        :math:'\text{weight}(i,:)' being a single MLP with domain in  :math:'\mathbb{R}^3' and range :math:'\mathbb{R}^{C_in}'
+        '''
+
+        if self.mlp_mode == 'single':
+            mlp_spec = (dimension, *mlp_channels, 1)
+
+            for i in range(channels_in):
+                for j in range(channels_out):
+                    self.weight_func.append(self.create_mlp(mlp_spec))
+
+        elif self.mlp_mode == 'share_in' or channels_out == 1:
+            mlp_spec = (dimension, *mlp_channels, channels_in)
+
             for j in range(channels_out):
                 self.weight_func.append(self.create_mlp(mlp_spec))
+
+        else:
+            raise ValueError('MLP Mode not recognized')
 
     '''
     Create convolution kernel MLP
@@ -89,6 +138,26 @@ class QuadConvLayer(nn.Module):
         return quad_weights, quad_nodes
 
     '''
+    Get Newton-Cotes quadrature weights and nodes.
+    This function returns the composite rule, so its required that the order of the quadrature rule divides evenly into N.
+
+    Input:
+        N: number of points
+        x0: left end point
+        x1: right end point
+    '''
+    def newton_cotes_quad(self, N, x0=0, x1=1):
+        rep = [int(N/self.composite_quad_order)]
+
+        dx = (x1-x0)/(self.composite_quad_order-1)
+
+        weights, _ = newton_cotes(self.composite_quad_order-1, 1)
+
+        weights = torch.tile(torch.Tensor(dx*weights), rep)
+
+        return weights, torch.linspace(x0, x1, N)
+
+    '''
     Set quadrature weights and nodes
 
     The decay parameter here is used to ensure that the MLP decays to 0 as the norm of the input goes to \infty.
@@ -104,7 +173,11 @@ class QuadConvLayer(nn.Module):
         self.N = N
         self.decay_param = (N/4)**4
 
-        quad_weights, quad_nodes = self.gauss_quad(N)
+        if self.quad_type == 'gauss':
+            quad_weights, quad_nodes = self.gauss_quad(N)
+
+        elif self.quad_type == 'newton_cotes':
+            quad_weights, quad_nodes = self.newton_cotes_quad(N)
 
         self.quad_weights = nn.Parameter(quad_weights, requires_grad=False)
         self.quad_nodes = nn.Parameter(quad_nodes, requires_grad=False)
@@ -121,22 +194,28 @@ class QuadConvLayer(nn.Module):
     '''
     def set_output_locs(self, locs):
         if isinstance(locs, int):
-            _, mesh_nodes = self.gauss_quad(locs)
+            if self.quad_type == 'gauss':
+                _, mesh_nodes = self.gauss_quad(locs)
+
+            elif self.quad_type == 'newton_cotes':
+                _, mesh_nodes = self.newton_cotes_quad(locs)
 
         else:
             mesh_nodes = locs
 
-        node_list = [mesh_nodes]*self.point_dim
+        node_list = [mesh_nodes]*self.dimension
 
-        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).reshape(-1, self.point_dim)
+        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).reshape(-1, self.dimension)
 
         self.output_locs = nn.Parameter(output_locs, requires_grad=False)
 
         if self.use_bias:
             self.bias = torch.zeros(1, self.channels_out, output_locs.shape[0])
-            
-            self.bias = nn.Parameter(torch.nn.init.xavier_uniform_(self.bias))
 
+            torch.nn.init.xavier_uniform_(self.bias, gain=np.sqrt(2.))
+
+            self.bias = nn.Parameter(self.bias)
+            
         return
 
     '''
@@ -146,17 +225,17 @@ class QuadConvLayer(nn.Module):
 
         if not self.quad_set_flag: raise RuntimeError('Mesh not yet set')
 
-        node_list = [self.quad_nodes]*self.point_dim
+        node_list = [self.quad_nodes]*self.dimension
 
         mesh_nodes = torch.meshgrid(*node_list, indexing='xy')
 
-        mesh_nodes = torch.dstack(mesh_nodes).reshape(-1, self.point_dim)
+        mesh_nodes = torch.dstack(mesh_nodes).reshape(-1, self.dimension)
 
-        weight_list = [self.quad_weights]*self.point_dim
+        weight_list = [self.quad_weights]*self.dimension
 
         mesh_weights =  torch.meshgrid(*weight_list, indexing='xy')
 
-        mesh_weights = torch.dstack(mesh_weights).reshape(-1, self.point_dim)
+        mesh_weights = torch.dstack(mesh_weights).reshape(-1, self.dimension)
 
         return mesh_nodes, mesh_weights
 
@@ -224,7 +303,7 @@ class QuadConvLayer(nn.Module):
         mesh_weights:
     '''
     def quad(self, features, output_locs, nodes, mesh_weights):
-        eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
+        eval_locs = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.dimension)
 
         kf = self.kernel_func(eval_locs, mesh_weights)
 
@@ -275,10 +354,10 @@ class QuadConvLayer(nn.Module):
         weights:
     '''
     def rquad(self, features, output_locs, level=(), nodes=(), weights=()):
-        if level == self.point_dim or not level:
+        if level == self.dimension or not level:
             nodes =  self.quad_nodes.unsqueeze(-1)
             weights = self.quad_weights.unsqueeze(-1)
-            level = self.point_dim
+            level = self.dimension
 
         if level == 1:
             integral = self.quad(features, output_locs, nodes, weights)
@@ -309,7 +388,7 @@ class QuadConvLayer(nn.Module):
         if output_locs is None:
             output_locs = self.output_locs
 
-        if output_locs.shape[1] != self.point_dim:
+        if output_locs.shape[1] != self.dimension:
             raise RuntimeError('dimension mismatch')
 
         integral =  self.rquad(features, output_locs)
@@ -336,7 +415,7 @@ class Sin(nn.Module):
 QuadConvLayer block
 
 Input:
-    point_dim: space dimension
+    dimension: space dimension
     channels_in: input feature channels
     channels_out: output feature channels
     N_in: number of input points
@@ -351,7 +430,7 @@ Input:
 '''
 class QuadConvBlock(nn.Module):
     def __init__(self,
-                    point_dim,
+                    dimension,
                     channels_in,
                     channels_out,
                     N_in,
@@ -375,7 +454,7 @@ class QuadConvBlock(nn.Module):
             conv1_point_num = N_in
             conv1_channel_num = channels_in
 
-        self.conv1 = QuadConvLayer(point_dim,
+        self.conv1 = QuadConvLayer(dimension,
                                     channels_in = conv1_channel_num,
                                     channels_out = conv1_channel_num,
                                     mlp_channels = mlp_channels,
@@ -383,7 +462,7 @@ class QuadConvBlock(nn.Module):
                                     )
         self.batchnorm1 = nn.InstanceNorm1d(conv1_channel_num)
 
-        self.conv2 = QuadConvLayer(point_dim,
+        self.conv2 = QuadConvLayer(dimension,
                                     channels_in = channels_in,
                                     channels_out = channels_out,
                                     mlp_channels = mlp_channels,
@@ -428,6 +507,143 @@ class QuadConvBlock(nn.Module):
         x1 = x1 + x2
 
         return x1
+
+    '''
+    Apply operator
+    '''
+    def forward(self, data):
+        if self.adjoint:
+            output = self.adjoint_op(data)
+        else:
+            output = self.forward_op(data)
+
+        return output
+
+
+
+################################################################################
+
+'''
+QuadConvLayer + Pooling block
+
+Input:
+    dimension: space dimension
+    channels_in: input feature channels
+    channels_out: output feature channels
+    N_in: number of input points
+    N_out: number of output points
+    mlp_channels: convolution kernel MLP feature sequence
+    adjoint: downsample or upsample
+    quad_type: quadrature type
+    mlp_mode: ?
+    use_bias: add bias term to output of layer
+    activation1:
+    activation2:
+'''
+class QuadConvPoolBlock(nn.Module):
+
+    __allowed = ( 'mlp_channels',
+                  'adjoint',
+                  'mlp_mode',
+                  'quad_type',
+                  'composite_quad_order',
+                  'use_bias',
+                  'activation1',
+                  'activation2',
+                  )
+
+    mlp_channels = (8,8)
+    adjoint = False
+    mlp_mode = 'share_in'
+    quad_type = 'newton_cotes'
+    composite_quad_order = 2
+    use_bias = True
+    activation1 = nn.CELU(alpha=1)
+    activation2 = nn.CELU(alpha=1)
+
+    def __init__(self,
+                    dimension,
+                    channels_in,
+                    channels_out,
+                    N_in = None,
+                    N_out = None,
+                    **kwargs,
+                    ):
+        super().__init__()
+
+        for key, value in kwargs.items():
+            if key in self.__allowed:
+                setattr(self, key,value)
+
+        # channel flexibility can be added later
+        assert channels_in == channels_out
+
+        # make sure the user sets this as no default is provided
+        assert dimension > 0
+
+        layer_lookup = { 1 : (nn.MaxPool1d),
+                         2 : (nn.MaxPool2d),
+                         3 : (nn.MaxPool3d),
+        }
+
+        Pool = layer_lookup[dimension]
+
+        if self.adjoint:
+            self.resample = nn.Upsample(scale_factor=2)
+        else:
+            self.resample = Pool(2)
+
+        self.conv1 = QuadConvLayer(dimension,
+                                    channels_in = channels_in,
+                                    channels_out = channels_in,
+                                    mlp_channels = self.mlp_channels,
+                                    use_bias = self.use_bias
+                                    )
+        self.batchnorm1 = nn.InstanceNorm1d(channels_in)
+
+        self.conv2 = QuadConvLayer(dimension,
+                                    channels_in = channels_in,
+                                    channels_out = channels_out,
+                                    mlp_channels = self.mlp_channels,
+                                    use_bias = self.use_bias
+                                    )
+        self.batchnorm2 = nn.InstanceNorm1d(channels_out)
+
+
+        if N_in and N_out:
+            self.conv1.set_quad(N_in)
+            self.conv2.set_quad(N_in)
+
+            self.conv1.set_output_locs(N_in)
+            self.conv2.set_output_locs(N_in)
+
+    '''
+    Forward mode
+    '''
+    def forward_op(self, data):
+        x = data
+
+        x1 = self.conv1(x)
+        x1 = self.activation1(self.batchnorm1(x1))
+
+        x2 = self.conv2(x1)
+        x2 = self.activation2(self.batchnorm2(x2) + x)
+
+        return self.resample(x2)
+
+    '''
+    Adjoint mode
+    '''
+    def adjoint_op(self, data):
+        x = self.resample(data)
+
+        x1 = self.conv1(x)
+        x1 = self.activation1(self.batchnorm1(x1))
+
+        x2 = self.conv2(x1)
+        x2 = self.activation2(self.batchnorm2(x2) + x)
+
+        return x2
 
     '''
     Apply operator
