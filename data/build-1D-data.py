@@ -66,11 +66,11 @@ if __name__ == "__main__":
 
     for a in tqdm(range(aset), ncols=100, desc='Data Generation'):
 
-        c = 5*np.random.uniform(size=(1))
+        c = 0.001 * np.abs(np.random.uniform(size=(1))) + 0.25
 
-        s = 0.25*np.abs(np.random.uniform(size=(1)))
+        s = 0.001 * np.abs(np.random.uniform(size=(1))) + 0.25
 
-        amp = 10*np.abs(np.random.uniform(size=(1)))
+        amp = 0.001 * np.abs(np.random.uniform(size=(1))) + 1
 
         f_0 =  lambda x : amp * np.exp(-0.5*((x+0.75)/s)**2)
 
