@@ -4,7 +4,7 @@ import gif
 import matplotlib.pyplot as plt
 
 domain = 'ignition_center_cut'
-data_dir = f'data/{domain}/train.npy'
+data_dir = f'../data/{domain}/train.npy'
 
 data = torch.from_numpy(np.float32(np.load(data_dir)))
 data = data[...,[0,1]]

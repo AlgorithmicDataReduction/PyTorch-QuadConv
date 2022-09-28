@@ -1,326 +1,188 @@
 '''
-Quadrature based convolutions.
+Learned quadrature convolutions.
 '''
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-# from scipy.integrate import newton_cotes
+import torch_scatter
 
 from core.FastGL.glpair import glpair
 
 from core.utilities import Sin
 
 '''
-Quadrature based convolution operator.
+Quadrature convolution operator.
 
 Input:
     point_dim: space dimension
+    num_points_in: number of input points
+    num_points_out: number of output points
     channels_in: input feature channels
     channels_out: output feature channels
-    mlp_channels: convolution kernel MLP feature sequence
+    filter_seq: complexity of point to filter operation
     use_bias: add bias term to output of layer
+
+NOTE: The points in and points out actually refer to the number of points along
+each spatial dimension.
 '''
 class QuadConvLayer(nn.Module):
     def __init__(self,
                     point_dim,
+                    num_points_in,
+                    num_points_out,
                     channels_in,
                     channels_out,
-                    mlp_channels,
+                    filter_seq,
                     use_bias = False
                     ):
         super().__init__()
 
-        #can only handle 2D right now
-        if point_dim > 2:
-            raise RuntimeError('Point dimension must be no more than 2.')
-
         #set hyperparameters
         self.point_dim = point_dim
+        self.num_points_in = num_points_in
+        self.num_points_out = num_points_out
         self.channels_out = channels_out
         self.channels_in = channels_in
         self.use_bias = use_bias
-        self.quad_set_flag = False
 
-        #setup mlps
-        self.weight_func = nn.ModuleList()
+        #decay parameter
+        self.decay_param = (self.num_points_in/16)**2
 
-        mlp_spec = (point_dim, *mlp_channels, 1)
+        #bias
+        if self.use_bias:
+            bias = torch.empty(1, self.channels_out, self.num_points_out)
+            self.bias = nn.Parameter(nn.init.xavier_uniform_(bias), requires_grad=True)
 
-        for i in range(channels_in):
-            for j in range(channels_out):
-                self.weight_func.append(self.create_mlp(mlp_spec))
+        #cache indices
+        self.cache()
 
-        #saving stuff
-        self.x = None
-        self.tf_vec = None
-        self.idx = None
-        self.x_eval = None
-        self.bump = None
-        self.weights = None
-        self.saved = False
+        #initialize filter
+        self.init_filter(filter_seq)
 
     '''
-    Create convolution kernel MLP
+    Initialize the layer filter.
 
     Input:
-        mlp_channels: MLP feature sequence
+        filter_seq: mlp feature sequence
     '''
-    def create_mlp(self, mlp_channels):
-        #linear layer settings
-        activation = Sin()
+    def init_filter(self, filter_seq):
+        #NOTE: This is just a placeholder
+        # self.G = nn.Parameter(torch.randn(self.channels_out, self.channels_in), requires_grad=True).expand(self.idx.shape[0], -1, -1)
+
+        #point to matrix operation is stack of point to vector mlp operations
+        self.G = nn.Sequential()
+
+        activation = Sin
         bias = False
 
-        #build mlp
-        mlp = nn.Sequential()
+        feature_seq = (self.point_dim, *filter_seq, self.channels_in*self.channels_out)
 
-        for i in range(len(mlp_channels)-2):
-            mlp.append(nn.Linear(mlp_channels[i], mlp_channels[i+1], bias=bias))
-            mlp.append(activation)
+        for i in range(len(feature_seq)-2):
+            self.G.append(nn.Linear(feature_seq[i], feature_seq[i+1], bias=bias))
+            self.G.append(activation())
 
-        mlp.append(nn.Linear(mlp_channels[-2], mlp_channels[-1], bias=bias))
+        self.G.append(nn.Linear(feature_seq[-2], feature_seq[-1], bias=bias))
+        self.G.append(nn.Unflatten(1, (self.channels_in, self.channels_out)))
 
-        return mlp
+        return
 
     '''
     Get Gaussian quadrature weights and nodes.
 
     Input:
-        N: number of points
+        num_points: number of points
     '''
-    def gauss_quad(self, N):
-        quad_weights = torch.zeros(N)
-        quad_nodes = torch.zeros(N)
+    def gauss_quad(self, num_points):
+        num_points = int(num_points)
 
-        for i in range(N):
-            _, quad_weights[i], quad_nodes[i] = glpair(N, i+1)
+        quad_weights = torch.zeros(num_points)
+        quad_nodes = torch.zeros(num_points)
+
+        for i in range(num_points):
+            _, quad_weights[i], quad_nodes[i] = glpair(num_points, i+1)
 
         return quad_weights, quad_nodes
 
     '''
-    Set quadrature weights and nodes
-
-    The decay parameter here is used to ensure that the MLP decays to 0 as the norm of the input goes to \infty.
-    This parameter should likely be set / controlled elsewhere in the code.
+    Get Newton-Cotes quadrature weights and nodes.
 
     Input:
-        N: number of points
+        num_points: number of points
     '''
-    def set_quad(self, N):
+    def newton_cotes_quad(self, num_points):
+        pass
 
-        if N>1e3: raise RuntimeError('Number of quadrature points exceeds the user set limit.')
-
-        self.N = N
-        self.decay_param = (N/4)**4
-
-        quad_weights, quad_nodes = self.gauss_quad(N)
-
-        self.quad_weights = nn.Parameter(quad_weights, requires_grad=False)
-        self.quad_nodes = nn.Parameter(quad_nodes, requires_grad=False)
-
-        self.quad_set_flag = True
-
-        return
 
     '''
-    Set output locations.
+    Compute convolution output locations.
 
     Input:
-        locs: number of output points
+        n_points: number of output points
     '''
-    def set_output_locs(self, locs):
-        if isinstance(locs, int):
-            _, mesh_nodes = self.gauss_quad(locs)
-
-        else:
-            mesh_nodes = locs
+    def output_locs(self):
+        _, mesh_nodes = self.gauss_quad(self.num_points_out**(1/self.point_dim))
 
         node_list = [mesh_nodes]*self.point_dim
 
-        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).reshape(-1, self.point_dim)
+        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).view(-1, self.point_dim)
 
-        self.output_locs = nn.Parameter(output_locs, requires_grad=False)
+        return output_locs
 
-        if self.use_bias:
-            self.bias = nn.Parameter(torch.zeros(1, self.channels_out, output_locs.shape[0]))
+    '''
+    Compute indices associated with non-zero filters
+    '''
+    def cache(self):
+        # print('Caching nonzero evaluation locations...')
+
+        _, quad_nodes = self.gauss_quad(self.num_points_in**(1/self.point_dim))
+        output_locs = self.output_locs()
+
+        #create mesh
+        node_list = [quad_nodes]*self.point_dim
+        nodes = torch.meshgrid(*node_list, indexing='xy')
+        nodes = torch.dstack(nodes).view(-1, self.point_dim)
+
+        #determine indices
+        #NOTE: This seems to be the source of the memory issues
+        locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
+
+        bump_arg = torch.linalg.vector_norm(locs, dim=(2), keepdims = True)**4
+
+        tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
+        idx = torch.nonzero(tf_vec, as_tuple=False)
+
+        self.eval_locs = nn.Parameter(locs[tf_vec, :], requires_grad=False)
+        self.eval_indices = nn.Parameter(idx, requires_grad=False)
+
+        # print('Evaluation locations cached.')
 
         return
 
     '''
-    Get quadrature nodes and weights
-    '''
-    def get_quad_mesh(self):
-
-        if not self.quad_set_flag: raise RuntimeError('Mesh not yet set')
-
-        node_list = [self.quad_nodes]*self.point_dim
-
-        mesh_nodes = torch.meshgrid(*node_list, indexing='xy')
-
-        mesh_nodes = torch.dstack(mesh_nodes).reshape(-1, self.point_dim)
-
-        weight_list = [self.quad_weights]*self.point_dim
-
-        mesh_weights =  torch.meshgrid(*weight_list, indexing='xy')
-
-        mesh_weights = torch.dstack(mesh_weights).reshape(-1, self.point_dim)
-
-        return mesh_nodes, mesh_weights
-
-    '''
-    Evaluate the convolution kernel MLPs
-
-    The essential component of this function is that it returns an array of shape:
-            (self.channels_out, self.channels_in, -1)
-
-    Otherwise any method for generating these weights is acceptable (consider test functions etc)
+    Apply operator via quadrature approximation of convolution with features and learned filter.
 
     Input:
-        x: the location in \mathbb{R}^dim that you are evaluating each MLP at
+        features:  a tensor of shape (batch size  X num of points X input channels)
+
+    Output: tensor of shape (batch size X num of output points X output channels)
+
+    NOTE: THIS WOULD ALL BE A LOT EASIER IF WE WERE DOING CHANNELS_LAST BUT PYTORCH DOESN'T LIKE THAT
     '''
-    def eval_MLPs(self, x):
-        weights = [module(x) for module in self.weight_func]
-        weights = torch.cat(weights).view(self.channels_out, self.channels_in, -1)
+    def forward(self, features):
+        integral = torch.zeros(features.shape[0], self.channels_out, self.num_points_out, device=features.device)
 
-        return weights
+        #compute filter feature mat-vec products
+        # values = torch.matmul(features[:,self.eval_indices[:,1],:], self.G(self.eval_locs))
+        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.channels_in), self.G(self.eval_locs)).reshape(features.shape[0], self.channels_out, -1)
 
-    '''
-    Evaluate the convolution kernel.
+        #both of the following are valid
+        #NOTE: segment_coo should be faster because the indices are ordered
+        torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.channels_out, -1), integral, reduce="sum")
+        # torch_scatter.scatter(values, self.eval_indices[:,0], 2, integral, reduce="sum")
 
-    The mesh_weights array is passed into this function for the sake of computational efficiency, but the main purpose
-    of this function is to evaluate the convolution kernel which includes the MLPs and the decay function (AKA the Bump function)
-
-    This function uses the sparse_coo_tensor format since the bump function enforces the compact support of the MLP. Further computation
-    does not take advantage of this sparsity but should do so in the future.
-
-    The compact support is a function of the self.decay_param
-
-    Input:
-        x: the location in \mathbb{R}^dim that you are evaluating each MLP at
-        mesh_weights: this function is derived from the self.get_quad_mesh() call and corresponds to the quadrature weights
-
-    '''
-    def kernel_func(self, output_locs, nodes, mesh_weights):
-        if self.saved == False:
-            self.x = (torch.repeat_interleave(output_locs, nodes.shape[0], dim=0)-nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
-
-            bump_arg = torch.linalg.vector_norm(self.x, dim=(2), keepdims = True)**4
-
-            self.tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
-            self.idx = torch.nonzero(self.tf_vec, as_tuple=False).transpose(0,1)
-
-            #These next two lines are the source of the most of the nonzero calls
-            self.x_eval = self.x[self.tf_vec,:]
-            self.bump = (np.e*torch.exp(-1/(1-self.decay_param*bump_arg[self.tf_vec]))).view(1, 1, -1)
-
-            self.saved = True
-
-        weights_sparse = self.eval_MLPs(self.x_eval)
-
-        mesh_weights_sparse = mesh_weights.repeat(self.x.shape[0], 1).view(self.x.shape[0], self.x.shape[1])[self.idx[0,:], self.idx[1,:]].view(1, 1, -1)
-
-        temp = (weights_sparse*self.bump*mesh_weights_sparse).view(-1, self.channels_out, self.channels_in)
-
-        weights = torch.sparse_coo_tensor(self.idx, temp, [self.x.shape[0], self.x.shape[1], self.channels_out, self.channels_in]).coalesce() #might not need this if we figure out sparsity
-
-        return weights
-
-    '''
-    Compute 1D quadrature
-
-    Input:
-        features:
-        output_locs:
-        nodes:
-        mesh_weights:
-    '''
-    def quad(self, features, output_locs, nodes, mesh_weights):
-        kf = self.kernel_func(output_locs, nodes, mesh_weights)
-
-        idx = kf.indices()
-
-        batch_size = features.shape[0]
-
-        ol =  output_locs.shape[0]
-        il =  features.shape[2]
-
-        kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il, device=features.device)
-
-        kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).view(1, self.channels_out, self.channels_in, -1)
-
-        integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.view(batch_size, 1, self.channels_in, il))
-
-        return integral
-
-    # '''
-    # Compute enitre domain integral
-    #
-    # Input:
-    #     features:
-    #     output_locs:
-    # '''
-    # def tensor_prod_quad(self, features, output_locs):
-    #     nodes, weights = self.get_quad_mesh()
-    #
-    #     integral = self.quad(features, output_locs, nodes, weights)
-    #
-    #     return integral
-
-    '''
-    Compute entire domain integral via recursive quadrature
-
-    The idea here is that each of the 1D integrals is computed for all output locations and
-    summed into the 2D integral or 3D integral.
-
-    Input:
-        features:
-        output_locs:
-        level:
-        nodes:
-        weights:
-    '''
-    def rquad(self, features, output_locs, level=(), nodes=(), weights=()):
-        if level == self.point_dim or not level:
-            nodes =  self.quad_nodes.unsqueeze(-1)
-            weights = self.quad_weights.unsqueeze(-1)
-            level = self.point_dim
-
-        if level == 1:
-            integral = self.quad(features, output_locs, nodes, weights)
-
-        elif level > 1:
-            '''
-            Not sure there is a better way to do this.
-            '''
-            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0], device=features.device)
-
-            for i in range(self.N):
-                this_coord = self.quad_nodes[i].expand(self.N, 1)
-                this_weight = self.quad_weights[i]
-
-                integral += self.rquad(features[:,:,(i*self.N):(i+1)*self.N], output_locs, level=level-1,
-                                        nodes=torch.hstack([nodes,this_coord]), weights=this_weight*weights)
-
-        return integral
-
-    '''
-    Apply operator
-
-    Input:
-        features:
-        output_locs:
-    '''
-    def forward(self, features, output_locs=None):
-        if output_locs is None:
-            output_locs = self.output_locs
-
-        if output_locs.shape[1] != self.point_dim:
-            raise RuntimeError('dimension mismatch')
-
-        integral =  self.rquad(features, output_locs)
-
+        #add bias
         if self.use_bias:
             integral += self.bias
 
@@ -333,28 +195,26 @@ QuadConvLayer block
 
 Input:
     point_dim: space dimension
+    num_points_in: number of input points
+    num_points_out: number of output points
     channels_in: input feature channels
     channels_out: output feature channels
-    N_in: number of input points
-    N_out: number of output points
-    mlp_channels: convolution kernel MLP feature sequence
-    adjoint: downsample or upsample
-    quad_type: quadrature type
-    mlp_mode: ?
+    filter_seq: complexity of point to filter operation
     use_bias: add bias term to output of layer
+    adjoint: downsample or upsample
     activation1:
     activation2:
 '''
 class QuadConvBlock(nn.Module):
     def __init__(self,
                     point_dim,
+                    num_points_in,
+                    num_points_out,
                     channels_in,
                     channels_out,
-                    N_in,
-                    N_out,
-                    mlp_channels,
-                    adjoint = False,
+                    filter_seq,
                     use_bias = False,
+                    adjoint = False,
                     activation1 = nn.CELU(alpha=1),
                     activation2 = nn.CELU(alpha=1)
                     ):
@@ -365,35 +225,31 @@ class QuadConvBlock(nn.Module):
         self.activation2 = activation2
 
         if self.adjoint:
-            conv1_point_num = N_out
+            conv1_point_num = num_points_out
             conv1_channel_num = channels_out
         else:
-            conv1_point_num = N_in
+            conv1_point_num = num_points_in
             conv1_channel_num = channels_in
 
         self.conv1 = QuadConvLayer(point_dim,
+                                    num_points_in = conv1_point_num,
+                                    num_points_out = conv1_point_num,
                                     channels_in = conv1_channel_num,
                                     channels_out = conv1_channel_num,
-                                    mlp_channels = mlp_channels,
+                                    filter_seq = filter_seq,
                                     use_bias = use_bias
                                     )
-        self.batchnorm1 = nn.InstanceNorm1d(conv1_channel_num)
+        self.norm1 = nn.BatchNorm1d(conv1_channel_num)
 
         self.conv2 = QuadConvLayer(point_dim,
+                                    num_points_in = num_points_in,
+                                    num_points_out = num_points_out,
                                     channels_in = channels_in,
                                     channels_out = channels_out,
-                                    mlp_channels = mlp_channels,
+                                    filter_seq = filter_seq,
                                     use_bias = use_bias
                                     )
-        self.batchnorm2 = nn.InstanceNorm1d(channels_out)
-
-
-        if N_in and N_out:
-            self.conv1.set_quad(conv1_point_num)
-            self.conv2.set_quad(N_in)
-
-            self.conv1.set_output_locs(conv1_point_num)
-            self.conv2.set_output_locs(N_out)
+        self.norm2 = nn.BatchNorm1d(channels_out)
 
     '''
     Forward mode
@@ -402,11 +258,11 @@ class QuadConvBlock(nn.Module):
         x = data
 
         x1 = self.conv1(x)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x
 
         x2 = self.conv2(x1)
-        x2 = self.activation2(self.batchnorm2(x2))
+        x2 = self.activation2(self.norm2(x2))
 
         return x2
 
@@ -417,10 +273,10 @@ class QuadConvBlock(nn.Module):
         x = data
 
         x2 = self.conv2(x)
-        x2 = self.activation2(self.batchnorm2(x2))
+        x2 = self.activation2(self.norm2(x2))
 
         x1 = self.conv1(x2)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x2
 
         return x1

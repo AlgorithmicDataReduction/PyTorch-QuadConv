@@ -27,6 +27,6 @@ with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
                 record_shapes=False,
                 profile_memory=True,
                 with_stack=False,
-                on_trace_ready=tth('./lightning_logs/profiles/quad_conv')) as prof:
+                on_trace_ready=tth('../lightning_logs/profiles/quad_conv')) as prof:
 
     loss_fn(layer1(data), ref).backward()

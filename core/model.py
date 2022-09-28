@@ -8,7 +8,7 @@ from torch import nn, optim
 from torch.nn.utils.parametrizations import spectral_norm as spn
 import pytorch_lightning as pl
 
-from .quadconv2 import QuadConvBlock
+from .quadconv import QuadConvBlock
 from .conv import ConvBlock
 
 '''
@@ -253,8 +253,10 @@ class AutoEncoder(pl.LightningModule):
 
         error = n/d
 
-        self.log('test_avg_err', torch.mean(error), on_step=False, on_epoch=True, sync_dist=True, reduce_fx=torch.mean)
-        self.log('test_max_err', torch.max(error), on_step=False, on_epoch=True, sync_dist=True, reduce_fx=torch.max)
+        self.log('test_avg_err', torch.mean(error), on_step=False, on_epoch=True, sync_dist=True,
+                    reduce_fx=torch.mean)
+        self.log('test_max_err', torch.max(error), on_step=False, on_epoch=True, sync_dist=True,
+                    reduce_fx=torch.max)
 
     def predict_step(self, batch, idx):
         return self(batch)

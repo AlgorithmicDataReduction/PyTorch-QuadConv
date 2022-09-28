@@ -28,7 +28,7 @@ model:
   latent_dim: 10 #int
   point_seq: [2500, 900, 625, 100] #list
   channel_seq: [1, 2, 3, 4] #list
-  filter_size: [4, 4] #list
+  filter_seq: [4, 4] #list
   optimizer: "adam" #str
   learning_rate: 0.01 #foat
   use_bias: True
@@ -46,5 +46,5 @@ data:
 #Extra arguments
 extra:
   make_gif: False #bool
-  compute_stats: False #bool
+  compute_stats: True #bool
   early_stopping: False #bool
