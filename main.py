@@ -8,13 +8,14 @@ Example usage:
     python main.py --experiment ignition
 '''
 
-from core.model import AutoEncoder
 from core.data import PointCloudDataModule, GridDataModule
 from core.utilities import Logger, make_gif
 
 import argparse
 import yaml
 import os
+import platform
+from importlib import import_module
 
 import torch
 from pytorch_lightning import Trainer
@@ -36,7 +37,7 @@ def main(args, train_args, model_args, data_args):
     model_args['input_shape'] = data_module.get_shape()
 
     #Build model
-    model = AutoEncoder(**model_args)
+    model = model_module.AutoEncoder(**model_args)
 
     #Callbacks
     callbacks=[]
@@ -77,9 +78,12 @@ def main(args, train_args, model_args, data_args):
         make_gif(trainer, data_module, None if train_args['enable_checkpointing'] else model)
 
 '''
-Parse arguments
+Parse arguments -- note that .yaml args override command line args
 '''
 if __name__ == "__main__":
+
+    if platform.system() == 'Windows':
+        os.environ['PL_TORCH_DISTRIBUTED_BACKEND'] = 'gloo'
 
     #Look for CL arguments
     parser = argparse.ArgumentParser()
@@ -87,25 +91,14 @@ if __name__ == "__main__":
     model_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
     data_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
 
-    #trainer args
-    train_parser = Trainer.add_argparse_args(train_parser)
 
-    #model specific args
-    model_parser = AutoEncoder.add_args(model_parser)
-
-    #data specific args
-    data_parser = GridDataModule.add_args(data_parser)
-
-    #extra args
+    #general args
     parser.add_argument("--experiment", type=str, default=None)
     parser.add_argument("--make_gif", type=bool, default=False)
     parser.add_argument("--early_stopping", type=bool, default=False)
 
-    #parse remaining args
-    args = vars(parser.parse_known_args()[0])
-    train_args = vars(train_parser.parse_known_args()[0])
-    model_args = vars(model_parser.parse_known_args()[0])
-    data_args = vars(data_parser.parse_known_args()[0])
+    #parse general args
+    args, remaining_args = vars(parser.parse_known_args())
 
     #Load YAML config
     if args['experiment'] != None:
@@ -114,13 +107,33 @@ if __name__ == "__main__":
             with open(f"experiments/{args['experiment']}.yml", "r") as file:
                 config = yaml.safe_load(file)
 
-            #extract args
-            train_args.update(config['train'])
-            model_args.update(config['model'])
-            data_args.update(config['data'])
             args.update(config['extra'])
 
         except Exception as e:
             raise ValueError(f"Experiment {args['experiment']} is invalid.")
+    else:
+        raise ValueError('A YAML must be provided to the --experiment flag')
+
+    
+    model_module = import_module('core.' + config['model']['model_type'])
+
+    #trainer args
+    train_parser = Trainer.add_argparse_args(train_parser)
+
+    #model specific args
+    model_parser = model_module.AutoEncoder.add_args(model_parser)
+
+    #data specific args
+    data_parser = GridDataModule.add_args(data_parser)
+
+    #parse remaining args
+    train_args = vars(train_parser.parse_known_args(remaining_args)[0])
+    model_args = vars(model_parser.parse_known_args(remaining_args)[0])
+    data_args = vars(data_parser.parse_known_args(remaining_args)[0])
+
+    #extract args --possible avenue for unchecked args to do something strange
+    train_args.update(config['train'])
+    model_args.update(config['model'])
+    data_args.update(config['data'])
 
     main(args, train_args, model_args, data_args)
