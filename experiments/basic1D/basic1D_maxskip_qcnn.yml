@@ -22,11 +22,16 @@ model:
   learning_rate: 0.01
   noise_scale : 0.0
 
+  conv_type: "quadrature" #str "standard" or "quadrature"
+
   conv_params:
-    conv_type: "quadrature" #str "standard" or "quadrature"
-    mlp_channels: [8, 8] #list
-    channel_seq: [8, 8, 8] #list
-    point_seq: [100, 50, 25]
+    N_in: [100, 100, 50]
+    N_out: [100, 100, 50]
+    mlp_channels: [[8,8,8]]
+    in_channels: [1, 16, 16] #list of length == stages+1 
+    out_channels: [16, 16, 16] #list of length == stages+1 or length == 1
+    bias: [False, True, True] #list of length == stages+1 or length == 1
+    mlp_mode: ['share_in']
 
 #Data loader arguments
 data:
