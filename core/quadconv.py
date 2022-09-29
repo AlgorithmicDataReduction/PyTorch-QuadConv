@@ -47,7 +47,8 @@ class QuadConvLayer(nn.Module):
                     dimension,
                     channels_in,
                     channels_out,
-                    mlp_channels,
+                    N_in = None,
+                    N_out = None,
                     **kwargs,
                     ):
         super().__init__()
@@ -60,10 +61,16 @@ class QuadConvLayer(nn.Module):
         if dimension > 2:
             raise RuntimeError('Point dimension must be less than 2')
 
-        #set hyperparameters
+        #set parameters
         self.dimension = dimension
         self.channels_out = channels_out
         self.channels_in = channels_in
+
+        if N_in:
+            self.set_quad(N_in)
+        
+        if N_out:
+            self.set_output_locs(N_out)
 
         #setup mlps
         self.weight_func = nn.ModuleList()
@@ -85,14 +92,14 @@ class QuadConvLayer(nn.Module):
         '''
 
         if self.mlp_mode == 'single':
-            mlp_spec = (dimension, *mlp_channels, 1)
+            mlp_spec = (dimension, *self.mlp_channels, 1)
 
             for i in range(channels_in):
                 for j in range(channels_out):
                     self.weight_func.append(self.create_mlp(mlp_spec))
 
         elif self.mlp_mode == 'share_in' or channels_out == 1:
-            mlp_spec = (dimension, *mlp_channels, channels_in)
+            mlp_spec = (dimension, *self.mlp_channels, channels_in)
 
             for j in range(channels_out):
                 self.weight_func.append(self.create_mlp(mlp_spec))

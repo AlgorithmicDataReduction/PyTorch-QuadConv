@@ -98,7 +98,9 @@ if __name__ == "__main__":
     parser.add_argument("--early_stopping", type=bool, default=False)
 
     #parse general args
-    args, remaining_args = vars(parser.parse_known_args())
+    args, remaining_args = parser.parse_known_args()
+
+    args = vars(args)
 
     #Load YAML config
     if args['experiment'] != None:
