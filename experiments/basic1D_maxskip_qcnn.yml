@@ -11,10 +11,11 @@ train:
   # default_root_dir: #str
   logger: True #bool
   enable_progress_bar: True #bool
-  max_epochs: 5000 #int
+  max_epochs: 100 #int
 
 #Model building arguments
 model:
+  model_type: maxskip
   dimension: 1 #int dimension of the convolution in the CNN
   latent_dim: 10 #int
   stages: 2
@@ -29,7 +30,7 @@ model:
 
 #Data loader arguments
 data:
-  data_dir: "C:\\Users\\Kevin\\Google Drive\\Research\\QuadConv\\data\\simple_transport_cnn_single" #str
+  data_dir: "C:\\Users\\Kevin\\Google Drive\\Research\\QuadConv\\data\\simple_transport" #str
   dimension: 1 #int
   batch_size: 16 #int
   size: 100 #int
