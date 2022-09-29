@@ -2,6 +2,7 @@
 
 '''
 
+from typing import List
 import numpy as np
 import torch
 from torch import nn, optim
@@ -15,17 +16,26 @@ from .conv import PoolConvBlock
 Encoder module
 '''
 class Encoder(nn.Module):
+
+    __allowed = ('',
+
+    )
+
     def __init__(self, **kwargs):
         super().__init__()
 
+        for key, value in kwargs.items():
+            if key in self.__allowed:
+                setattr(self, key,value)
+
         #establish block type
-        conv_params = kwargs.pop('conv_params')
+        conv_type = kwargs['conv_type']
+        conv_params = kwargs['conv_params']
 
         #specific args
         dimension = kwargs.pop('dimension')
         latent_dim = kwargs.pop('latent_dim')
         stages = kwargs.pop('stages')
-        #channel_seq = kwargs.pop('channel_seq')
         input_shape = kwargs.pop('input_shape')
 
         #activations
@@ -33,40 +43,19 @@ class Encoder(nn.Module):
         latent_activation = kwargs.pop('latent_activation')
         self.activation1 = latent_activation()
         self.activation2 = latent_activation()
+        
 
-        channel_seq = conv_params['channel_seq']
-        conv_type = conv_params['conv_type']
+        arg_stack = self.package_args(conv_params, stages)
 
         if conv_type == 'standard':
 
-            initial_kernel_size = conv_params['initial_kernel_size']
-
             Block = PoolConvBlock
-            init_layer = nn.Conv1d( 
-                                    1, 
-                                    channel_seq[0], 
-                                    kernel_size=initial_kernel_size, 
-                                    stride=1, 
-                                    padding='same', 
-                                    bias=False
-                                    )
+            init_layer = nn.Conv1d(**arg_stack[0])
 
         elif conv_type == 'quadrature':
 
-            mlp_channels = conv_params['mlp_channels']
-            point_seq = conv_params['point_seq']
-
             Block = PoolQuadConvBlock
-            init_layer = QuadConvLayer( 
-                                        1,
-                                        1,
-                                        channel_seq[0],
-                                        N_in = point_seq[0],
-                                        N_out = point_seq[0],
-                                        mlp_channels = mlp_channels,
-                                        use_bias=False,
-                                        )
-
+            init_layer = QuadConvLayer( dimension = dimension, **arg_stack[0] )
 
 
         #build network
@@ -75,14 +64,10 @@ class Encoder(nn.Module):
         self.cnn.append(init_layer)
 
         for i in range(stages):
-            self.cnn.append(Block(  dimension,
-                                    channel_seq[i],
-                                    channel_seq[i+1],
-                                    N_in = point_seq[i],
-                                    N_out = point_seq[i],
-                                    activation1 = forward_activation(),
+            self.cnn.append(Block(  dimension = dimension,
+                                    **arg_stack[i+1],
+                                    activation1 = forward_activation() if i!=1 else nn.Identity(),
                                     activation2 = forward_activation(),
-                                    **kwargs
                                     ))
 
         self.cnn_out_shape = self.cnn(torch.randn(size=input_shape)).shape
@@ -96,7 +81,7 @@ class Encoder(nn.Module):
         self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
         self.linear.append(self.activation2)
 
-        self.linear(self.flat(torch.zeros(self.cnn_out_shape)))
+        self.out_shape = self.linear(self.flat(torch.zeros(self.cnn_out_shape)))
 
     def forward(self, x):
         x = self.cnn(x)
@@ -105,6 +90,18 @@ class Encoder(nn.Module):
 
         return output
 
+    def package_args(self, args : dict, stages : int):
+
+        for key in args:
+            if isinstance(args[key],List) and len(args[key]) == 1:
+                args[key] = args[key]*(stages+1)
+
+        arg_stack = [{ key : args[key][i] for key in args } for i in range(stages+1)]
+
+        return arg_stack
+
+
+
 '''
 Decoder module
 '''
@@ -112,7 +109,9 @@ class Decoder(nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
 
-        conv_params = kwargs.pop('conv_params')
+        #establish block type
+        conv_type = kwargs['conv_type']
+        conv_params = kwargs['conv_params']
 
         #specific args
         dimension = kwargs.pop('dimension')
@@ -126,39 +125,17 @@ class Decoder(nn.Module):
         self.activation1 = latent_activation()
         self.activation2 = latent_activation()
 
-        #establish block type
-        channel_seq = conv_params['channel_seq']
-        conv_type = conv_params['conv_type']
+        arg_stack = self.package_args(conv_params, stages)
 
         if conv_type == 'standard':
 
-            initial_kernel_size = conv_params['initial_kernel_size']
-
             Block = PoolConvBlock
-            init_layer = nn.Conv1d( 
-                                    channel_seq[0], 
-                                    1, 
-                                    kernel_size=initial_kernel_size, 
-                                    stride=1, 
-                                    padding='same', 
-                                    bias=False
-                                    )
+            init_layer = nn.Conv1d( **arg_stack[0] )
 
         elif conv_type == 'quadrature':
 
-            mlp_channels = conv_params['mlp_channels']
-            point_seq = conv_params['point_seq']
-
             Block = PoolQuadConvBlock
-            init_layer = QuadConvLayer( 
-                                        1,
-                                        channel_seq[0],
-                                        1,
-                                        N_in = point_seq[0],
-                                        N_out = point_seq[0],
-                                        mlp_channels = mlp_channels,
-                                        use_bias=False,
-                                        )
+            init_layer = QuadConvLayer( dimension = dimension, **arg_stack[0] )
 
         #build network
         self.unflat = nn.Unflatten(1, input_shape[1:])
@@ -174,16 +151,12 @@ class Decoder(nn.Module):
 
         self.cnn = nn.Sequential()
 
-        for i in range(stages).__reversed__():
-            self.cnn.append(Block(  dimension,
-                                    channel_seq[i],
-                                    channel_seq[i],
-                                    N_in = point_seq[i],
-                                    N_out = point_seq[i],
+        for i in reversed(range(stages)):
+            self.cnn.append(Block(  dimension = dimension,
+                                    **arg_stack[i+1],
                                     activation1 = forward_activation() if i!=1 else nn.Identity(),
                                     activation2 = forward_activation(),
                                     adjoint = True,
-                                    **kwargs
                                     ))
 
         self.cnn.append(init_layer)
@@ -194,6 +167,30 @@ class Decoder(nn.Module):
         output = self.cnn(x)
 
         return output
+
+    def package_args(self, args : dict, stages : int):
+
+        in_channels = args['in_channels']
+        out_channels = args['out_channels']
+
+        args['in_channels'] = out_channels
+        args['out_channels'] = in_channels
+
+        if 'N_in' in args and 'N_out' in args:
+
+            N_in = args['N_in']
+            N_out = args['N_out']
+
+            args['N_in'] = N_out
+            args['N_out'] = N_in
+
+        for key in args:
+            if isinstance(args[key],List) and len(args[key]) == 1:
+                args[key] = args[key]*(stages+1)
+
+        arg_stack = [{ key : args[key][i] for key in args } for i in range(stages+1)]
+
+        return arg_stack
 
 '''
 Quadrature convolution based autoencoder
