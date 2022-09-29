@@ -16,6 +16,7 @@ import yaml
 import os
 import platform
 from importlib import import_module
+from pathlib import Path
 
 import torch
 from pytorch_lightning import Trainer
@@ -105,8 +106,14 @@ if __name__ == "__main__":
     #Load YAML config
     if args['experiment'] != None:
         try:
+
+            exp_path = list(Path('experiments/').rglob(args['experiment'] + '*'))
+
+            if len(exp_path) != 1:
+                raise ValueError('Experiment was not uniquely specified')
+
             #open YAML file
-            with open(f"experiments/{args['experiment']}.yml", "r") as file:
+            with exp_path[0].open() as file:
                 config = yaml.safe_load(file)
 
             args.update(config['extra'])
