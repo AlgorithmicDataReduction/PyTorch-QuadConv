@@ -172,8 +172,8 @@ class PoolConvBlock(nn.Module):
     activation2 = nn.CELU(alpha=1)
 
     def __init__(self, dimension,
-                       channels_in,
-                       channels_out,
+                       in_channels,
+                       out_channels,
                        **kwargs
                        ):
         super().__init__()
@@ -183,7 +183,7 @@ class PoolConvBlock(nn.Module):
                 setattr(self, key,value)
 
         # channel flexibility can be added later with a 1x1 conv layer in the resampling operator
-        assert channels_in == channels_out
+        assert in_channels == out_channels
 
         # make sure the user sets this as no default is provided
         assert dimension > 0
@@ -201,21 +201,21 @@ class PoolConvBlock(nn.Module):
             self.resample = Pool(2)
 
 
-        self.conv1 = Conv(channels_in,
-                            channels_in,
+        self.conv1 = Conv(in_channels,
+                            in_channels,
                             self.kernel_size,
                             padding='same'
                             )
 
-        self.conv2 = Conv(channels_in,
-                            channels_out,
+        self.conv2 = Conv(in_channels,
+                            out_channels,
                             self.kernel_size,
                             padding='same'
                             )
 
-        self.batchnorm1 = Norm(channels_in)
+        self.batchnorm1 = Norm(in_channels)
 
-        self.batchnorm2 = Norm(channels_out)
+        self.batchnorm2 = Norm(out_channels)
 
     '''
     Forward mode

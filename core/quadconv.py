@@ -16,8 +16,8 @@ Quadrature based convolution operator.
 
 Input:
     dimension: space dimension
-    channels_in: input feature channels
-    channels_out: output feature channels
+    in_channels: input feature channels
+    out_channels: output feature channels
     mlp_channels: convolution kernel MLP feature sequence
     use_bias: add bias term to output of layer
 '''
@@ -45,8 +45,8 @@ class QuadConvLayer(nn.Module):
 
     def __init__(self,
                     dimension,
-                    channels_in,
-                    channels_out,
+                    in_channels,
+                    out_channels,
                     N_in = None,
                     N_out = None,
                     **kwargs,
@@ -63,8 +63,8 @@ class QuadConvLayer(nn.Module):
 
         #set parameters
         self.dimension = dimension
-        self.channels_out = channels_out
-        self.channels_in = channels_in
+        self.out_channels = out_channels
+        self.in_channels = in_channels
 
         if N_in:
             self.set_quad(N_in)
@@ -94,14 +94,14 @@ class QuadConvLayer(nn.Module):
         if self.mlp_mode == 'single':
             mlp_spec = (dimension, *self.mlp_channels, 1)
 
-            for i in range(channels_in):
-                for j in range(channels_out):
+            for i in range(in_channels):
+                for j in range(out_channels):
                     self.weight_func.append(self.create_mlp(mlp_spec))
 
-        elif self.mlp_mode == 'share_in' or channels_out == 1:
-            mlp_spec = (dimension, *self.mlp_channels, channels_in)
+        elif self.mlp_mode == 'share_in' or out_channels == 1:
+            mlp_spec = (dimension, *self.mlp_channels, in_channels)
 
-            for j in range(channels_out):
+            for j in range(out_channels):
                 self.weight_func.append(self.create_mlp(mlp_spec))
 
         else:
@@ -217,7 +217,7 @@ class QuadConvLayer(nn.Module):
         self.output_locs = nn.Parameter(output_locs, requires_grad=False)
 
         if self.use_bias:
-            self.bias = torch.zeros(1, self.channels_out, output_locs.shape[0])
+            self.bias = torch.zeros(1, self.out_channels, output_locs.shape[0])
 
             torch.nn.init.xavier_uniform_(self.bias, gain=np.sqrt(2.))
 
@@ -250,7 +250,7 @@ class QuadConvLayer(nn.Module):
     Evaluate the convolution kernel MLPs
 
     The essential component of this function is that it returns an array of shape:
-            (self.channels_out, self.channels_in, -1)
+            (self.out_channels, self.in_channels, -1)
 
     Otherwise any method for generating these weights is acceptable (consider test functions etc)
 
@@ -259,7 +259,7 @@ class QuadConvLayer(nn.Module):
     '''
     def eval_MLPs(self, x):
         weights = [module(x) for module in self.weight_func]
-        weights = torch.cat(weights).view(self.channels_out, self.channels_in, -1)
+        weights = torch.cat(weights).view(self.out_channels, self.in_channels, -1)
 
         return weights
 
@@ -294,9 +294,9 @@ class QuadConvLayer(nn.Module):
 
         bump = (torch.exp(1 + -1/(1-self.decay_param*bump_arg[tf_vec]))).view(1, 1, -1)
 
-        temp = (weights_sparse*bump*mesh_weights_sparse).view(-1, self.channels_out, self.channels_in)
+        temp = (weights_sparse*bump*mesh_weights_sparse).view(-1, self.out_channels, self.in_channels)
 
-        weights = torch.sparse_coo_tensor(idx, temp, [x.shape[0], x.shape[1], self.channels_out, self.channels_in]).coalesce() #might not need this if we figure out sparsity
+        weights = torch.sparse_coo_tensor(idx, temp, [x.shape[0], x.shape[1], self.out_channels, self.in_channels]).coalesce() #might not need this if we figure out sparsity
 
         return weights
 
@@ -325,11 +325,11 @@ class QuadConvLayer(nn.Module):
         ol =  output_locs.shape[0]
         il =  features.shape[2]
 
-        kf_dense = torch.zeros(1, self.channels_out, self.channels_in, ol, il, device=features.device)
+        kf_dense = torch.zeros(1, self.out_channels, self.in_channels, ol, il, device=features.device)
 
-        kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).view(1, self.channels_out, self.channels_in, -1)
+        kf_dense[:,:,:,idx[0,:],idx[1,:]] = (kf.values()).view(1, self.out_channels, self.in_channels, -1)
 
-        integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.view(batch_size, 1, self.channels_in, il))
+        integral = torch.einsum('b...dij, b...dj -> b...i', kf_dense, features.view(batch_size, 1, self.in_channels, il))
 
         return integral
 
@@ -373,7 +373,7 @@ class QuadConvLayer(nn.Module):
             '''
             Not sure there is a better way to do this.
             '''
-            integral = torch.zeros(features.shape[0], self.channels_out, output_locs.shape[0], device=features.device)
+            integral = torch.zeros(features.shape[0], self.out_channels, output_locs.shape[0], device=features.device)
 
             for i in range(self.N):
                 this_coord = self.quad_nodes[i].expand(self.N, 1)
@@ -423,8 +423,8 @@ QuadConvLayer block
 
 Input:
     dimension: space dimension
-    channels_in: input feature channels
-    channels_out: output feature channels
+    in_channels: input feature channels
+    out_channels: output feature channels
     N_in: number of input points
     N_out: number of output points
     mlp_channels: convolution kernel MLP feature sequence
@@ -438,8 +438,8 @@ Input:
 class QuadConvBlock(nn.Module):
     def __init__(self,
                     dimension,
-                    channels_in,
-                    channels_out,
+                    in_channels,
+                    out_channels,
                     N_in,
                     N_out,
                     mlp_channels,
@@ -456,26 +456,26 @@ class QuadConvBlock(nn.Module):
 
         if self.adjoint:
             conv1_point_num = N_out
-            conv1_channel_num = channels_out
+            conv1_channel_num = out_channels
         else:
             conv1_point_num = N_in
-            conv1_channel_num = channels_in
+            conv1_channel_num = in_channels
 
         self.conv1 = QuadConvLayer(dimension,
-                                    channels_in = conv1_channel_num,
-                                    channels_out = conv1_channel_num,
+                                    in_channels = conv1_channel_num,
+                                    out_channels = conv1_channel_num,
                                     mlp_channels = mlp_channels,
                                     use_bias = use_bias
                                     )
         self.batchnorm1 = nn.InstanceNorm1d(conv1_channel_num)
 
         self.conv2 = QuadConvLayer(dimension,
-                                    channels_in = channels_in,
-                                    channels_out = channels_out,
+                                    in_channels = in_channels,
+                                    out_channels = out_channels,
                                     mlp_channels = mlp_channels,
                                     use_bias = use_bias
                                     )
-        self.batchnorm2 = nn.InstanceNorm1d(channels_out)
+        self.batchnorm2 = nn.InstanceNorm1d(out_channels)
 
 
         if N_in and N_out:
@@ -535,8 +535,8 @@ QuadConvLayer + Pooling block
 
 Input:
     dimension: space dimension
-    channels_in: input feature channels
-    channels_out: output feature channels
+    in_channels: input feature channels
+    out_channels: output feature channels
     N_in: number of input points
     N_out: number of output points
     mlp_channels: convolution kernel MLP feature sequence
@@ -570,8 +570,8 @@ class PoolQuadConvBlock(nn.Module):
 
     def __init__(self,
                     dimension,
-                    channels_in,
-                    channels_out,
+                    in_channels,
+                    out_channels,
                     N_in = None,
                     N_out = None,
                     **kwargs,
@@ -583,7 +583,7 @@ class PoolQuadConvBlock(nn.Module):
                 setattr(self, key,value)
 
         # channel flexibility can be added later
-        assert channels_in == channels_out
+        assert in_channels == out_channels
 
         # make sure the user sets this as no default is provided
         assert dimension > 0
@@ -601,20 +601,20 @@ class PoolQuadConvBlock(nn.Module):
             self.resample = Pool(2)
 
         self.conv1 = QuadConvLayer(dimension,
-                                    channels_in = channels_in,
-                                    channels_out = channels_in,
+                                    in_channels = in_channels,
+                                    out_channels = in_channels,
                                     mlp_channels = self.mlp_channels,
                                     use_bias = self.use_bias
                                     )
-        self.batchnorm1 = nn.InstanceNorm1d(channels_in)
+        self.batchnorm1 = nn.InstanceNorm1d(in_channels)
 
         self.conv2 = QuadConvLayer(dimension,
-                                    channels_in = channels_in,
-                                    channels_out = channels_out,
+                                    in_channels = in_channels,
+                                    out_channels = out_channels,
                                     mlp_channels = self.mlp_channels,
                                     use_bias = self.use_bias
                                     )
-        self.batchnorm2 = nn.InstanceNorm1d(channels_out)
+        self.batchnorm2 = nn.InstanceNorm1d(out_channels)
 
 
         if N_in and N_out:
