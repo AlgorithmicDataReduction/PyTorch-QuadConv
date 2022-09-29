@@ -154,11 +154,9 @@ class GridDataModule(pl.LightningDataModule):
         return data
 
     def setup(self, stage=None):
-
+        #get all training data
         data_path = Path(self.data_dir)
-
         data_files = data_path.glob('*.npy')
-
         data_list = []
 
         for df in data_files:
@@ -169,6 +167,7 @@ class GridDataModule(pl.LightningDataModule):
 
         data = torch.cat(data_list, 0)
 
+        #setup
         if stage == "fit" or stage is None:
 
             self.data_shape = data.shape[1:-1]

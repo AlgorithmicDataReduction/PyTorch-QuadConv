@@ -27,7 +27,7 @@ from pytorch_lightning.strategies import DeepSpeedStrategy
 Build and train a model.
 
 Input:
-    trainer_args: PT Lightning Trainer arguments
+    train_args: PT Lightning Trainer arguments
     model_args: QCNN or CNN model arguments
     data_args: dataset arguments
     extra_args: other arguments that don't fit in groups above
@@ -61,10 +61,6 @@ def main(args, train_args, model_args, data_args):
         train_args['logger'] = Logger(save_dir=train_args['default_root_dir'],
                                         version=args['experiment'],
                                         default_hp_metric=False)
-
-    #DeepSpeed
-    if train_args['strategy'] == 'deepspeed':
-        train_args['strategy'] = DeepSpeedStrategy(config='experiments/deepspeed_config.json')
 
     #Train model
     trainer = Trainer(**train_args, callbacks=callbacks)
