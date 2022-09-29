@@ -9,19 +9,31 @@ from pytorch_lightning.utilities import rank_zero_only
 import matplotlib.pyplot as plt
 import gif
 
+import warnings
+
 '''
-Sobolev loss function, which computes the loss as a sum of the function l2 loss
-and derivative l2 losses.
+Module wrapper around sin function; allows it to operate as a layer.
+'''
+class Sin(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return torch.sin(x)
+
+'''
+Sobolev loss function, which computes the loss as a sum of the function l2 and
+derivative l2 losses.
 
 Input:
     pred: predictions
-    x: actual values
+    target: actual values
     order: max derivative order
     lambda_r: derivative error weighting
 '''
-def sobolev_loss(pred, x, order=1, lambda_r=(0.25, 0.0625)):
+def sobolev_loss(pred, target, order=1, lambda_r=torch.tensor(0.25)):
     #setup
-    bs = pred.shape[0]
+    batch_size = pred.shape[0]
 
     sq_shape = np.sqrt(x.shape[2]).astype(int)
     numel = sq_shape * sq_shape
@@ -50,49 +62,60 @@ saves it to the appropriate lightning log.
 
 Input:
     trainer: lightning trainer
-    data_module: data module
+    datamodule: data module
     model: model to use
 '''
-def make_gif(trainer, data_module, model):
+def make_gif(trainer, datamodule, model):
     #run on test data
     if model:
-        results = trainer.predict(model=model, datamodule=data_module)
+        results = trainer.predict(model=model, datamodule=datamodule)
     else:
-        results = trainer.predict(ckpt_path='best', datamodule=data_module)
+        results = trainer.predict(ckpt_path='best', datamodule=datamodule)
+
+    data = datamodule.agglomerate(results)
+
+    #if multichannel then just take first channel
+    if data.dim() > datamodule.point_dim+1:
+        data = data[...,0]
 
     #check dimension of data
-    if data_module.dimension == 1:
-        data = torch.cat(results)[:,0,:]
-        print(data.shape)
-
+    if datamodule.point_dim == 1:
         #gif frame closure
         @gif.frame
         def plot(i):
-            plt.plot(data[i,:])
-            plt.ylim(-0.5, 1.5)
+            fig, ax = plt.subplots(1, 2)
 
-    elif data_module.dimension == 2:
-        #transform data back to regular form
-        data = data_module.agglomerate(results)
+            ax[0].plot(datamodule.get_sample(i))
+            ax[0].set_title("Uncompressed")
 
-        #if multichannel then just take first channel
-        if data.dim() > data_module.dimension+1:
-            data = data[...,0]
+            ax[1].plot(data[i,:])
+            ax[1].set_title("Reconstructed")
 
+    elif datamodule.point_dim == 2:
         #gif frame closure
         @gif.frame
         def plot(i):
-            plt.imshow(data[i,:,:], vmin=-1, vmax=1, origin='lower')
-            plt.colorbar(location='top')
+            fig, ax = plt.subplots(1, 2)
 
-    elif data_module.dimension == 3:
-        print("GIFs for 3D data not supported.")
+            ax[0].imshow(datamodule.get_sample(i), vmin=-1, vmax=1, origin='lower')
+            ax[0].set_title("Uncompressed")
+
+            im = ax[1].imshow(data[i,:,:], vmin=-1, vmax=1, origin='lower')
+            ax[1].set_title("Reconstructed")
+
+            fig.colorbar(im, ax=ax.ravel().tolist(), location='bottom')
+
+    elif datamodule.point_dim == 3:
+        warnings.warn("Warning...GIF create for 3d data not supported.", )
+        return
 
     #build frames
     frames = [plot(i) for i in range(data.shape[0])]
 
     #save gif
     gif.save(frames, f'{trainer.logger.log_dir}/{"last" if model else "best"}.gif', duration=50)
+
+    return
 
 '''
 Custom Tensorboard logger.

@@ -1,11 +1,11 @@
 '''
-Builds and trains a model based on input parameters, which can be specified via
-command line arguments or an experiment YAML file.
+Builds and trains a model based on input parameters, which are specified via a
+YAML configuration file and optional command line arguments.
 
 Example usage:
 
-- Run the test found in experiments/ignition.yml
-    python main.py --experiment ignition
+- Run the test found in experiments/test.yaml
+    python main.py --experiment test.yaml
 '''
 
 from core.model import AutoEncoder
@@ -19,104 +19,116 @@ import os
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from pytorch_lightning.strategies import DeepSpeedStrategy
 
 '''
 Build and train a model.
 
 Input:
-    train_args: PT Lightning Trainer arguments
+    experiment: experiment name
+    trainer_args: PT Lightning Trainer arguments
     model_args: QCNN or CNN model arguments
     data_args: dataset arguments
-    extra_args: other arguments that don't fit in groups above
+    extra_args: other arguments
 '''
-def main(args, train_args, model_args, data_args):
+def main(experiment, trainer_args, model_args, data_args, extra_args):
     #Setup data
-    data_module = GridDataModule(**data_args)
-    model_args['input_shape'] = data_module.get_shape()
+    datamodule = GridDataModule(**data_args)
+    model_args['input_shape'] = datamodule.get_shape()
 
     #Build model
     model = AutoEncoder(**model_args)
 
     #Callbacks
     callbacks=[]
-    if train_args['enable_checkpointing']:
+    if trainer_args['enable_checkpointing']:
         callbacks.append(ModelCheckpoint(monitor="val_err",
                                             save_last=True,
                                             save_top_k=1,
                                             mode='min',
                                             filename='{epoch}'))
-    if args['early_stopping']:
+    if extra_args['early_stopping']:
         callbacks.append(EarlyStopping(monitor="val_err",
                                         patience=5,
                                         strict=False))
 
     #Logger
-    if train_args['logger']:
-        if train_args['default_root_dir'] is None:
-            train_args['default_root_dir'] = os.getcwd()
+    if trainer_args['logger']:
+        dir, name = os.path.split(experiment)
+        name = os.path.splitext(name)[0]
 
-        train_args['logger'] = Logger(save_dir=train_args['default_root_dir'],
-                                        version=args['experiment'],
-                                        default_hp_metric=False)
+        logger = Logger(save_dir=os.path.join(trainer_args['default_root_dir'], dir),
+                        name=name, default_hp_metric=False)
+
+        filename = os.path.join(logger.log_dir, 'config.yaml')
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w") as file:
+            yaml.dump(config, file)
+
+        #add logger to trainer args
+        trainer_args['logger'] = logger
 
     #Train model
-    trainer = Trainer(**train_args, callbacks=callbacks)
+    trainer = Trainer(**trainer_args, callbacks=callbacks)
 
-    # if train_args['auto_scale_batch_size']:
-    #     trainer.tune(model, datamodule=data_module)
+    # if trainer_args['auto_scale_batch_size']:
+    #     trainer.tune(model, datamodule=datamodule)
 
-    trainer.fit(model=model, datamodule=data_module, ckpt_path=None)
+    trainer.fit(model=model, datamodule=datamodule, ckpt_path=None)
 
     #Make GIF
-    if args['make_gif']:
-        make_gif(trainer, data_module, None if train_args['enable_checkpointing'] else model)
+    if extra_args['make_gif']:
+        make_gif(trainer, datamodule, None if trainer_args['enable_checkpointing'] else model)
+
+    #compute stats
+    if extra_args['compute_stats']:
+        trainer.test(model=None if trainer_args['enable_checkpointing'] else model,
+                        ckpt_path='best' if trainer_args['enable_checkpointing'] else None,
+                        datamodule=datamodule)
 
 '''
 Parse arguments
 '''
 if __name__ == "__main__":
-
-    #Look for CL arguments
+    #Look for config
     parser = argparse.ArgumentParser()
-    train_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    model_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    data_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-
-    #trainer args
-    train_parser = Trainer.add_argparse_args(train_parser)
-
-    #model specific args
-    model_parser = AutoEncoder.add_args(model_parser)
-
-    #data specific args
-    data_parser = GridDataModule.add_args(data_parser)
-
-    #extra args
     parser.add_argument("--experiment", type=str, default=None)
-    parser.add_argument("--make_gif", type=bool, default=False)
-    parser.add_argument("--early_stopping", type=bool, default=False)
-
-    #parse remaining args
     args = vars(parser.parse_known_args()[0])
-    train_args = vars(train_parser.parse_known_args()[0])
-    model_args = vars(model_parser.parse_known_args()[0])
-    data_args = vars(data_parser.parse_known_args()[0])
 
     #Load YAML config
     if args['experiment'] != None:
         try:
             #open YAML file
-            with open(f"experiments/{args['experiment']}.yml", "r") as file:
+            with open(f"experiments/{args['experiment']}", "r") as file:
                 config = yaml.safe_load(file)
 
             #extract args
-            train_args.update(config['train'])
-            model_args.update(config['model'])
-            data_args.update(config['data'])
-            args.update(config['extra'])
+            trainer_args = config['train']
+            model_args = config['model']
+            data_args = config['data']
+            extra_args = config['extra']
 
         except Exception as e:
             raise ValueError(f"Experiment {args['experiment']} is invalid.")
+    else:
+        raise ValueError("An experiment configuration file must be provided.")
 
-    main(args, train_args, model_args, data_args)
+    #trainer args
+    trainer_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    trainer_parser.add_argument("--default_root_dir", type=str)
+    trainer_parser.add_argument("--max_time", type=str)
+
+    #model specific args
+    model_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    model_parser = AutoEncoder.add_args(model_parser)
+
+    #data specific args
+    data_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    data_parser = GridDataModule.add_args(data_parser)
+
+    #look for other CL arguments
+    trainer_args.update(vars(trainer_parser.parse_known_args()[0]))
+    model_args.update(vars(model_parser.parse_known_args()[0]))
+    data_args.update(vars(data_parser.parse_known_args()[0]))
+
+    #run main script
+    main(args['experiment'], trainer_args, model_args, data_args, extra_args)

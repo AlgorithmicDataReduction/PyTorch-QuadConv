@@ -15,10 +15,10 @@ class PointCloudDataModule(pl.LightningDataModule):
     def __init__(self,
                     data_dir,
                     batch_size,
-                    dimension,
-                    channels=(),
-                    time_chunk=1,
-                    normalize=True
+                    point_dim,
+                    channels = (),
+                    time_chunk = 1,
+                    normalize = True
                     ):
         super().__init__()
 
@@ -74,23 +74,23 @@ class PointCloudDataModule(pl.LightningDataModule):
 class GridDataModule(pl.LightningDataModule):
     def __init__(self,
                     data_dir,
-                    dimension,
+                    point_dim,
                     batch_size,
                     size,
                     stride,
-                    flatten=True,
-                    channels=(),
-                    normalize=True,
-                    split=0.8,
-                    shuffle=False,
-                    num_workers=4,
-                    persistent_workers=True,
-                    pin_memory=True
+                    flatten = True,
+                    channels = (),
+                    normalize = True,
+                    split = 0.8,
+                    shuffle = False,
+                    num_workers = 4,
+                    persistent_workers = True,
+                    pin_memory = True
                     ):
         super().__init__()
 
         self.data_dir = data_dir
-        self.dimension = dimension
+        self.point_dim = point_dim
         self.batch_size = batch_size
         self.size = size
         self.stride = stride
@@ -108,11 +108,6 @@ class GridDataModule(pl.LightningDataModule):
         parser = parent_parser.add_argument_group("GridDataModule")
 
         parser.add_argument('--data_dir', type=str)
-        parser.add_argument('--dimension', type=int)
-        parser.add_argument('--batch_size', type=int)
-        parser.add_argument('--size', type=int)
-        parser.add_argument('--stride', type=int)
-        parser.add_argument('--channels', type=int, nargs='+')
 
         return parent_parser
 
@@ -121,18 +116,18 @@ class GridDataModule(pl.LightningDataModule):
         if len(self.channels) != 0:
             data = data[...,self.channels]
 
-        #per dimension
+        #per point_dim
         self.num_tiles = int(np.floor(((data.shape[1]-self.size)/self.stride)+1))
 
         #reshape
         if len(self.channels) != 1:
             data = torch.movedim(data, -1, 0)
-            data = data.reshape(-1, **data.shape[-self.dimension:])
+            data = data.reshape(-1, **data.shape[-self.point_dim:])
 
-        for i in range(1, self.dimension+1):
+        for i in range(1, self.point_dim+1):
             data = data.unfold(i, self.size, self.stride)
 
-        data = data.reshape(tuple([-1]+[self.size for i in range(self.dimension)])).reshape(-1, 1, self.size**self.dimension)
+        data = data.reshape(tuple([-1]+[self.size for i in range(self.point_dim)])).reshape(-1, 1, self.size**self.point_dim)
 
         #normalize
         #NOTE: This might need to change for 3D data
@@ -148,8 +143,8 @@ class GridDataModule(pl.LightningDataModule):
             data = data/(torch.max(torch.abs(data))+1e-4)
 
         #NOTE: It would be better if we normalized before flattening
-        if not self.flatten:
-            data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)]))
+        if self.flatten == False:
+            data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.point_dim)]))
 
         return data
 
@@ -222,38 +217,47 @@ class GridDataModule(pl.LightningDataModule):
     def teardown(self, stage=None):
         pass
 
+    ############################################################################
+
+    #NOTE: this may not be the best way to do this and it doesn't account for multichannel
+    def get_sample(self, idx):
+        return self.predict[idx,...].reshape(self.data_shape)
+
     def get_shape(self):
         if self.flatten:
-            return (1, 1, self.size**self.dimension)
+            return (1, 1, self.size**self.point_dim)
         else:
-            return tuple([1, 1]+[self.size for i in range(self.dimension)])
+            return tuple([1, 1]+[self.size for i in range(self.point_dim)])
 
     def _stitch(self, data):
-        #reshape to time X space X channels
         time_steps = data.shape[0]
-
         processed = torch.zeros([time_steps]+[d for d in self.data_shape])
-        for i in range(time_steps):
-            for j in range(self.num_tiles):
-                for k in range(self.num_tiles):
-                    processed[i,self.stride*j:self.stride*j+self.size,self.stride*k:self.stride*k+self.size] += data[i,j,k,:,:]
+
+        for t in range(time_steps):
+            for i in range(self.num_tiles):
+                for j in range(self.num_tiles):
+                    processed[t,self.stride*i:self.stride*i+self.size,self.stride*j:self.stride*j+self.size] += data[t,i,j,:,:]
 
         return processed
 
     def agglomerate(self, data):
         if self.flatten:
-            data = [t.reshape(tuple([-1, 1]+[self.size for i in range(self.dimension)])) for t in data]
+            data = [t.reshape(tuple([-1, 1]+[self.size for i in range(self.point_dim)])) for t in data]
 
         #first, concatenate all the batches
         data = torch.cat(data)
 
+        #if data wasn't tiled then dont bother stitching
+        if self.num_tiles == 1:
+            return torch.swapaxes(data, 1, -1)
+
         #do some other stuff
-        data = data.reshape(-1, self.num_tiles, self.num_tiles, self.size, self.size)
+        data = data.reshape(tuple([-1]+[self.num_tiles for i in range(self.point_dim)]+[self.size for i in range(self.point_dim)]))
 
         #create mask
-        mask = self._stitch(torch.ones(1, self.num_tiles, self.num_tiles, self.size, self.size))
+        mask = self._stitch(torch.ones(tuple([1]+[self.num_tiles for i in range(self.point_dim)]+[self.size for i in range(self.point_dim)])))
 
-        #
+        #stich everything back together
         quilt = self._stitch(data)
 
         return quilt/mask

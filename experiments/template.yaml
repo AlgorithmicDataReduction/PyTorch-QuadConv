@@ -4,7 +4,7 @@
 #Documentation: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html
 #Comment out options you aren't using
 train:
-  accelerator: #str e.g. "gpu"
+  accelerator: #str, e.g. "gpu"
   devices: #int
   num_nodes: #int
   strategy: #str
@@ -23,19 +23,21 @@ train:
 
 #Model arguments
 model:
-  conv_type: #str "standard" or "quadrature"
+  module: #str, encoder and decoder
+  conv_type: #str, "standard" or "quadrature"
   point_dim: #int
   latent_dim: #int
   point_seq: #list
   channel_seq: #list
-  mlp_channels: #list, delete this for standard conv
-  optimizer: #str
+  filter_seq: #list, delete this for standard conv
+  loss_fn: #str, nn.<loss_function>
+  optimizer: #str, torch.optim.<optimizer>
   learning_rate: #float
 
 #PT LightningDataModule arguments
 data:
   data_dir: #str
-  dimension: #int
+  point_dim: #int
   batch_size: #int
   size: #int
   stride: #int
@@ -46,4 +48,5 @@ data:
 #Extra arguments
 extra:
   make_gif: #bool
+  compute_stats: #bool
   early_stopping: #bool
