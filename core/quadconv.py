@@ -540,7 +540,7 @@ Input:
     activation1:
     activation2:
 '''
-class QuadConvPoolBlock(nn.Module):
+class PoolQuadConvBlock(nn.Module):
 
     __allowed = ( 'mlp_channels',
                   'adjoint',
