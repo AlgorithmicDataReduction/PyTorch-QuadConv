@@ -10,7 +10,7 @@
 #ntasks per node should be num_workers*num_gpus
 
 ROOT=/projects/cosi1728/QuadConv
-TEST=ignition_cnn_center
+TEST=ignition/cnn_center.yaml
 DATA=data/ignition_center_cut
 
 module purge

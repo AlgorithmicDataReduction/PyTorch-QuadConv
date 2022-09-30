@@ -10,7 +10,7 @@
 #ntasks per node should be num_workers*num_gpus
 
 ROOT=/projects/cosi1728/QuadConv
-TEST=ignition_qcnn_update
+TEST=ignition/qcnn_center.yaml
 DATA=data/ignition_center_cut
 TIME=00:04:45:00
 
