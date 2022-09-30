@@ -48,6 +48,10 @@ class QuadConvLayer(nn.Module):
         self.channels_in = channels_in
         self.use_bias = use_bias
 
+        #quadrature
+        self.composite_quad_order = 2
+        self.quad = self.newton_cotes_quad
+
         #decay parameter
         self.decay_param = (self.num_points_in/16)**2
 
@@ -96,7 +100,7 @@ class QuadConvLayer(nn.Module):
         num_points: number of points
     '''
     def gauss_quad(self, num_points):
-        num_points = int(num_points)
+        num_points = int(num_points**(1/self.point_dim))
 
         quad_weights = torch.zeros(num_points)
         quad_nodes = torch.zeros(num_points)
@@ -117,12 +121,13 @@ class QuadConvLayer(nn.Module):
         x1: right end point
     '''
     def newton_cotes_quad(self, num_points, x0=0, x1=1):
-        rep = int(num_points/self.composite_quad_order)
+        num_points = int(num_points**(1/self.point_dim))
+        rep = [int(num_points/self.composite_quad_order)]
 
         dx = (x1-x0)/(self.composite_quad_order-1)
 
         weights, _ = newton_cotes(self.composite_quad_order-1, 1)
-        weights = torch.tile(dx*weights, rep)
+        weights = torch.tile(torch.Tensor(dx*weights), rep)
 
         return weights, torch.linspace(x0, x1, num_points)
 
@@ -130,7 +135,7 @@ class QuadConvLayer(nn.Module):
     Compute convolution output locations.
     '''
     def output_locs(self):
-        _, mesh_nodes = self.gauss_quad(self.num_points_out**(1/self.point_dim))
+        _, mesh_nodes = self.quad(self.num_points_out)
 
         node_list = [mesh_nodes]*self.point_dim
 
@@ -142,7 +147,7 @@ class QuadConvLayer(nn.Module):
     Compute indices associated with non-zero filters
     '''
     def cache(self):
-        _, quad_nodes = self.gauss_quad(self.num_points_in**(1/self.point_dim))
+        _, quad_nodes = self.quad(self.num_points_in)
         output_locs = self.output_locs()
 
         #create mesh
