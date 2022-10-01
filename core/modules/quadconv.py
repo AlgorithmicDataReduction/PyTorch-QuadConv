@@ -27,25 +27,22 @@ each spatial dimension.
 '''
 class QuadConvLayer(nn.Module):
 
-    use_bias = False
-    mlp_mode = 'single'
-    quad_type = 'newton'
-    composite_quad_order = 2
-
-    def __init__(self,
+    def __init__(self,*,
             spatial_dim,
             num_points_in,
             num_points_out,
             in_channels,
             out_channels,
             filter_seq,
-            **kwargs
+            use_bias = False,
+            mlp_mode = 'single',
+            quad_type = 'newton',
+            composite_quad_order = 2
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
+        #valid spatial dim
+        assert spatial_dim > 0
 
         #set hyperparameters
         self.spatial_dim = spatial_dim
@@ -53,14 +50,16 @@ class QuadConvLayer(nn.Module):
         self.num_points_out = num_points_out
         self.out_channels = out_channels
         self.in_channels = in_channels
+        self.use_bias = use_bias
+        self.composite_quad_order = composite_quad_order
 
         #decay parameter
         self.decay_param = (self.num_points_in/16)**2
 
         #quadrature
-        if self.quad_type == 'newton':
+        if quad_type == 'newton':
             self.quad = self.newton_cotes_quad
-        elif self.quad_type == 'gauss':
+        elif quad_type == 'gauss':
             self.quad = self.gauss_quad
         else:
             raise ValueError(f'Quadrature type {self.quad_type} is not supported.')

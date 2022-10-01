@@ -17,31 +17,22 @@ Encoder module
 '''
 class Encoder(nn.Module):
 
-    def __init__(self,
+    def __init__(self,*,
+            conv_type,
+            conv_params,
+            spatial_dim,
+            latent_dim,
+            stages,
+            input_shape,
+            forward_activation = nn.CELU,
+            latent_activation = nn.CELU,
             **kwargs
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-
-        #establish block type
-        conv_type = kwargs['conv_type']
-        conv_params = kwargs['conv_params']
-
-        #specific args
-        spatial_dim = kwargs.pop('spatial_dim')
-        latent_dim = kwargs.pop('latent_dim')
-        stages = kwargs.pop('stages')
-        input_shape = kwargs.pop('input_shape')
-
         #activations
-        forward_activation = kwargs.pop('forward_activation')
-        latent_activation = kwargs.pop('latent_activation')
         self.activation1 = latent_activation()
         self.activation2 = latent_activation()
-
 
         arg_stack = self.package_args(conv_params, stages)
 
@@ -53,7 +44,6 @@ class Encoder(nn.Module):
             Block = PoolQuadConvBlock
             init_layer = QuadConvLayer(spatial_dim = spatial_dim, **arg_stack[0])
 
-
         #build network
         self.cnn = nn.Sequential()
 
@@ -62,22 +52,22 @@ class Encoder(nn.Module):
         for i in range(stages):
             self.cnn.append(Block(spatial_dim = spatial_dim,
                                     **arg_stack[i+1],
-                                    activation1 = forward_activation() if i!=1 else nn.Identity(),
-                                    activation2 = forward_activation()
+                                    activation1 = forward_activation if i!=1 else nn.Identity,
+                                    activation2 = forward_activation
                                     ))
 
-        self.cnn_out_shape = self.cnn(torch.randn(size=input_shape)).shape
+        self.conv_out_shape = self.cnn(torch.randn(size=input_shape)).shape
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
 
         self.linear = nn.Sequential()
 
-        self.linear.append(spn(nn.Linear(self.cnn_out_shape.numel(), latent_dim)))
+        self.linear.append(spn(nn.Linear(self.conv_out_shape.numel(), latent_dim)))
         self.linear.append(self.activation1)
         self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
         self.linear.append(self.activation2)
 
-        self.out_shape = self.linear(self.flat(torch.zeros(self.cnn_out_shape)))
+        self.out_shape = self.linear(self.flat(torch.zeros(self.conv_out_shape)))
 
     def forward(self, x):
         x = self.cnn(x)
@@ -95,34 +85,25 @@ class Encoder(nn.Module):
 
         return arg_stack
 
-
-
 '''
 Decoder module
 '''
 class Decoder(nn.Module):
-    def __init__(self,
+
+    def __init__(self,*,
+            conv_type,
+            conv_params,
+            spatial_dim,
+            latent_dim,
+            stages,
+            input_shape,
+            forward_activation = nn.CELU,
+            latent_activation = nn.CELU,
             **kwargs
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-
-        #establish block type
-        conv_type = kwargs['conv_type']
-        conv_params = kwargs['conv_params']
-
-        #specific args
-        spatial_dim = kwargs.pop('spatial_dim')
-        latent_dim = kwargs.pop('latent_dim')
-        stages = kwargs.pop('stages')
-        input_shape = kwargs.pop('input_shape')
-
         #activations
-        forward_activation = kwargs.pop('forward_activation')
-        latent_activation = kwargs.pop('latent_activation')
         self.activation1 = latent_activation()
         self.activation2 = latent_activation()
 
@@ -153,8 +134,8 @@ class Decoder(nn.Module):
         for i in reversed(range(stages)):
             self.cnn.append(Block(spatial_dim = spatial_dim,
                                     **arg_stack[i+1],
-                                    activation1 = forward_activation() if i!=1 else nn.Identity(),
-                                    activation2 = forward_activation(),
+                                    activation1 = forward_activation if i!=1 else nn.Identity,
+                                    activation2 = forward_activation,
                                     adjoint = True
                                     ))
 
@@ -174,13 +155,13 @@ class Decoder(nn.Module):
         args['in_channels'] = out_channels
         args['out_channels'] = in_channels
 
-        if 'N_in' in args and 'N_out' in args:
+        if 'num_points_in' in args and 'num_points_out' in args:
 
-            N_in = args['N_in']
-            N_out = args['N_out']
+            N_in = args['num_points_in']
+            N_out = args['num_points_out']
 
-            args['N_in'] = N_out
-            args['N_out'] = N_in
+            args['num_points_in'] = N_out
+            args['num_points_out'] = N_in
 
         for key in args:
             if isinstance(args[key],List) and len(args[key]) == 1:

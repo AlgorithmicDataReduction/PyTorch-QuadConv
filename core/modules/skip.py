@@ -11,66 +11,54 @@ from .conv_blocks import ConvBlock
 
 '''
 Encoder module
+
+Input:
+    conv_type:
+    latent_dim: dimension of latent representation
+    point_seq: number of points at each level
+    channel_seq: number of channels at each level
 '''
 class Encoder(nn.Module):
-    def __init__(self,
+    def __init__(self,*,
+            conv_type,
+            latent_dim,
+            point_seq,
+            channel_seq,
+            input_shape,
+            latent_activation = nn.CELU,
             **kwargs
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-
-        #establish block type
-        conv_type = kwargs.pop('conv_type')
+        #establish block type and output shape
         if conv_type == 'standard':
             Block = ConvBlock
+            self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
         elif conv_type == 'quadrature':
             Block = QuadConvBlock
-
-        #specific args
-        point_dim = kwargs.pop('point_dim')
-        latent_dim = kwargs.pop('latent_dim')
-        point_seq = kwargs.pop('point_seq')
-        channel_seq = kwargs.pop('channel_seq')
-        input_shape = kwargs.pop('input_shape')
-
-        #activations
-        forward_activation = kwargs.pop('forward_activation')
-        latent_activation = kwargs.pop('latent_activation')
-        self.activation1 = latent_activation()
-        self.activation2 = latent_activation()
+            self.conv_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]))
+        else:
+            raise ValueError(f'Convolution type {conv_type} not supported.')
 
         #build network
         self.cnn = nn.Sequential()
 
         for i in range(len(point_seq)-1):
-            self.cnn.append(Block(point_dim,
-                                    point_seq[i],
-                                    point_seq[i+1],
-                                    channel_seq[i],
-                                    channel_seq[i+1],
-                                    activation1 = forward_activation(),
-                                    activation2 = forward_activation(),
+            self.cnn.append(Block(num_points_in = point_seq[i],
+                                    num_points_out = point_seq[i+1],
+                                    in_channels = channel_seq[i],
+                                    out_channels = channel_seq[i+1],
                                     **kwargs
                                     ))
-
-        if conv_type == 'standard':
-            self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
-        elif conv_type == 'quadrature':
-            self.conv_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]))
-        else:
-            raise ValueError('Convolution type "{conv_type}" is not valid.')
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
 
         self.linear = nn.Sequential()
 
         self.linear.append(spn(nn.Linear(self.conv_out_shape.numel(), latent_dim)))
-        self.linear.append(self.activation1)
+        self.linear.append(latent_activation())
         self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
-        self.linear.append(self.activation2)
+        self.linear.append(latent_activation())
 
         self.linear(self.flat(torch.zeros(self.conv_out_shape)))
 
@@ -85,34 +73,25 @@ class Encoder(nn.Module):
 Decoder module
 '''
 class Decoder(nn.Module):
-    def __init__(self,
+    def __init__(self,*,
+            conv_type,
+            latent_dim,
+            point_seq,
+            channel_seq,
+            input_shape,
+            latent_activation = nn.CELU,
+            activation1 = nn.CELU,
             **kwargs
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-
         #establish block type
-        conv_type = kwargs.pop('conv_type')
         if conv_type == 'standard':
             Block = ConvBlock
         elif conv_type == 'quadrature':
             Block = QuadConvBlock
-
-        #specific args
-        point_dim = kwargs.pop('point_dim')
-        latent_dim = kwargs.pop('latent_dim')
-        point_seq = kwargs.pop('point_seq')
-        channel_seq = kwargs.pop('channel_seq')
-        input_shape = kwargs.pop('input_shape')
-
-        #activations
-        forward_activation = kwargs.pop('forward_activation')
-        latent_activation = kwargs.pop('latent_activation')
-        self.activation1 = latent_activation()
-        self.activation2 = latent_activation()
+        else:
+            raise ValueError(f'Convolution type {conv_type} not supported.')
 
         #build network
         self.unflat = nn.Unflatten(1, input_shape[1:])
@@ -120,23 +99,21 @@ class Decoder(nn.Module):
         self.linear = nn.Sequential()
 
         self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
-        self.linear.append(self.activation1)
+        self.linear.append(latent_activation())
         self.linear.append(spn(nn.Linear(latent_dim, input_shape.numel())))
-        self.linear.append(self.activation2)
+        self.linear.append(latent_activation())
 
         self.linear(torch.zeros(latent_dim))
 
         self.cnn = nn.Sequential()
 
         for i in range(len(point_seq)-1, 0, -1):
-            self.cnn.append(Block(point_dim,
-                                    point_seq[i],
-                                    point_seq[i-1],
-                                    channel_seq[i],
-                                    channel_seq[i-1],
+            self.cnn.append(Block(num_points_in = point_seq[i],
+                                    num_points_out = point_seq[i-1],
+                                    in_channels = channel_seq[i],
+                                    out_channels = channel_seq[i-1],
                                     adjoint = True,
-                                    activation1 = forward_activation() if i!=1 else nn.Identity(),
-                                    activation2 = forward_activation(),
+                                    activation1 = activation1 if i!=1 else nn.Identity,
                                     **kwargs
                                     ))
 

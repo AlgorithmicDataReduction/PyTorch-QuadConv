@@ -45,7 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("--tspan" , type=int , default=100 , help="temporal size")
     parser.add_argument("--xspan" , type=int , default=100 , help="spatial size")
     parser.add_argument("--aspan" , type=int , default=100 , help="initial value")
-    parser.add_argument("--savepath", type=str, default='../data' , help='save path for the data')
+    parser.add_argument("--savepath", type=str, default='./' , help='save path for the data')
 
     args, _ = parser.parse_known_args()
 

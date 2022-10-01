@@ -11,12 +11,10 @@ from .quadconv import QuadConvLayer
 QuadConvLayer block
 
 Input:
-    spatial_dim: space dimension
     num_points_in: number of input points
     num_points_out: number of output points
     in_channels: input feature channels
     out_channels: output feature channels
-    filter_seq: complexity of point to filter operation
     use_bias: add bias term to output of layer
     adjoint: downsample or upsample
     activation1:
@@ -24,26 +22,22 @@ Input:
 '''
 class QuadConvBlock(nn.Module):
 
-    use_bias = False
-    adjoint = False
-    activation1 = nn.CELU(alpha=1)
-    activation2 = nn.CELU(alpha=1)
-
-    def __init__(self,
-            spatial_dim,
+    def __init__(self,*,
             num_points_in,
             num_points_out,
             in_channels,
             out_channels,
-            filter_seq,
+            adjoint = False,
+            activation1 = nn.CELU,
+            activation2 = nn.CELU,
             **kwargs
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
+        #set hyperparameters
+        self.adjoint = adjoint
 
+        #buid block pieces
         if self.adjoint:
             conv1_point_num = num_points_out
             conv1_channel_num = out_channels
@@ -51,25 +45,23 @@ class QuadConvBlock(nn.Module):
             conv1_point_num = num_points_in
             conv1_channel_num = in_channels
 
-        self.conv1 = QuadConvLayer(spatial_dim,
-                                    num_points_in = conv1_point_num,
+        self.conv1 = QuadConvLayer(num_points_in = conv1_point_num,
                                     num_points_out = conv1_point_num,
                                     in_channels = conv1_channel_num,
                                     out_channels = conv1_channel_num,
-                                    filter_seq = filter_seq,
-                                    use_bias = self.use_bias
+                                    **kwargs
                                     )
         self.norm1 = nn.BatchNorm1d(conv1_channel_num)
+        self.activation1 = activation1()
 
-        self.conv2 = QuadConvLayer(spatial_dim,
-                                    num_points_in = num_points_in,
+        self.conv2 = QuadConvLayer(num_points_in = num_points_in,
                                     num_points_out = num_points_out,
                                     in_channels = in_channels,
                                     out_channels = out_channels,
-                                    filter_seq = filter_seq,
-                                    use_bias = self.use_bias
+                                    **kwargs
                                     )
         self.norm2 = nn.BatchNorm1d(out_channels)
+        self.activation2 = activation2()
 
         return
 
@@ -120,48 +112,32 @@ class QuadConvBlock(nn.Module):
 QuadConvLayer + Pooling block
 
 Input:
-    spatial_dim: space dimension
-    num_points_in: number of input points
-    num_points_out: number of output points
     in_channels: input feature channels
     out_channels: output feature channels
     adjoint: downsample or upsample
-    quad_type: quadrature type
-    mlp_mode: ?
-    use_bias: add bias term to output of layer
     activation1:
     activation2:
 '''
 class PoolQuadConvBlock(nn.Module):
 
-    adjoint = False
-    mlp_mode = 'share_in'
-    quad_type = 'newton_cotes'
-    composite_quad_order = 2
-    use_bias = True
-    activation1 = nn.CELU(alpha=1)
-    activation2 = nn.CELU(alpha=1)
-
-    def __init__(self,
+    def __init__(self,*,
             spatial_dim,
             num_points_in,
             num_points_out,
             in_channels,
             out_channels,
-            filter_seq,
+            adjoint = False,
+            activation1 = nn.CELU,
+            activation2 = nn.CELU,
             **kwargs,
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-
         # channel flexibility can be added later
         assert in_channels == out_channels
 
-        # make sure the user sets this as no default is provided
-        assert spatial_dim > 0
+        #set hyperparameters
+        self.adjoint = adjoint
 
         layer_lookup = { 1 : (nn.MaxPool1d),
                          2 : (nn.MaxPool2d),
@@ -175,25 +151,23 @@ class PoolQuadConvBlock(nn.Module):
         else:
             self.resample = Pool(2)
 
-        self.conv1 = QuadConvLayer(spatial_dim,
+        self.conv1 = QuadConvLayer(spatial_dim = spatial_dim,
                                     num_points_in = num_points_in,
                                     num_points_out = num_points_in,
                                     in_channels = in_channels,
                                     out_channels = in_channels,
-                                    filter_seq = self.filter_seq,
-                                    use_bias = self.use_bias
-                                    )
+                                    **kwargs)
         self.batchnorm1 = nn.InstanceNorm1d(in_channels)
+        self.activation1 = activation1()
 
-        self.conv2 = QuadConvLayer(spatial_dim,
+        self.conv2 = QuadConvLayer(spatial_dim = spatial_dim,
                                     num_points_in = num_points_in,
                                     num_points_out = num_points_in,
                                     in_channels = in_channels,
                                     out_channels = out_channels,
-                                    filter_seq = self.filter_seq,
-                                    use_bias = self.use_bias
-                                    )
+                                    **kwargs)
         self.batchnorm2 = nn.InstanceNorm1d(out_channels)
+        self.activation2 = activation2()
 
         return
 

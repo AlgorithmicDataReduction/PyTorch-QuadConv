@@ -13,29 +13,25 @@ from pathlib import Path
 '''
 class PointCloudDataModule(pl.LightningDataModule):
 
-    channels = ()
-    normalize = True
-    split = 0.8
-    shuffle = False
-    num_workers = 4
-    persistent_workers = True
-    pin_memory = True
-
-    def __init__(self,
+    def __init__(self,*,
             data_dir,
-            point_dim,
-            batch_size
-            **kwargs
+            spatial_dim,
+            batch_size,
+            channels = (),
+            normalize = True,
+            split = 0.8,
+            shuffle = False,
+            num_workers = 4,
+            persistent_workers = True,
+            pin_memory = True,
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
+        args = locals()
+        args.pop('self')
 
-        self.data_dir = data_dir
-        self.point_dim = point_dim
-        self.batch_size = batch_size
+        for key, value in args.items():
+            setattr(self, key, value)
 
         return
 

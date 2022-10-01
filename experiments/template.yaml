@@ -25,7 +25,7 @@ train:
 model:
   module: #str, encoder and decoder
   conv_type: #str, "standard" or "quadrature"
-  point_dim: #int
+  spatial_dim: #int
   latent_dim: #int
   point_seq: #list
   channel_seq: #list
@@ -37,7 +37,7 @@ model:
 #PT LightningDataModule arguments
 data:
   data_dir: #str
-  point_dim: #int
+  spatial_dim: #int
   batch_size: #int
   size: #int
   stride: #int

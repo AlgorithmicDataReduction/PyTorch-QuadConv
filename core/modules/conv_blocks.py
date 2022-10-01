@@ -21,25 +21,23 @@ Input:
 '''
 class ConvBlock(nn.Module):
 
-    kernel_size = 3
-    adjoint = False
-    activation1 = nn.CELU(alpha=1)
-    activation2 = nn.CELU(alpha=1)
-
-    def __init__(self,
+    def __init__(self,*,
             spatial_dim,
             num_points_in,
             num_points_out,
             in_channels,
             out_channels,
-            **kwargs
+            kernel_size = 3,
+            adjoint = False,
+            activation1 = nn.CELU,
+            activation2 = nn.CELU,
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
+        #set hyperparameters
+        self.adjoint = adjoint
 
+        #set convolution type
         if spatial_dim == 1:
             Conv1 = nn.Conv1d
 
@@ -72,31 +70,33 @@ class ConvBlock(nn.Module):
 
         if self.adjoint:
             conv1_channel_num = out_channels
-            stride = int(np.floor((um_points_out-1-(self.kernel_size-1))/(num_points_in-1)))
+            stride = int(np.floor((um_points_out-1-(kernel_size-1))/(num_points_in-1)))
             self.conv2 = Conv2(in_channels,
                                 out_channels,
-                                self.kernel_size,
+                                kernel_size,
                                 stride=stride,
                                 output_padding=stride-1
                                 )
         else:
             conv1_channel_num = in_channels
-            stride = int(np.floor((num_points_in-1-(self.kernel_size-1))/(num_points_out-1)))
+            stride = int(np.floor((num_points_in-1-(kernel_size-1))/(num_points_out-1)))
             self.conv2 = Conv2(in_channels,
                                 out_channels,
-                                self.kernel_size,
+                                kernel_size,
                                 stride=stride
                                 )
 
         self.conv1 = Conv1(conv1_channel_num,
                             conv1_channel_num,
-                            self.kernel_size,
+                            kernel_size,
                             padding='same'
                             )
 
         self.batchnorm1 = Norm(conv1_channel_num)
+        self.activation1 = activation1()
 
         self.batchnorm2 = Norm(out_channels)
+        self.activation2 = activation2()
 
     '''
     Forward mode
@@ -158,22 +158,20 @@ Input:
 
 class PoolConvBlock(nn.Module):
 
-    kernel_size = 3
-    adjoint = False
-    activation1 = nn.CELU(alpha=1)
-    activation2 = nn.CELU(alpha=1)
-
-    def __init__(self,
+    def __init__(self,*,
             spatial_dim,
-           in_channels,
-           out_channels,
-           **kwargs
-       ):
+            in_channels,
+            out_channels,
+            kernel_size = 3,
+            adjoint = False,
+            activation1 = nn.CELU,
+            activation2 = nn.CELU,
+            **kwargs
+        ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
+        #set hyperparameters
+        self.adjoint = adjoint
 
         # channel flexibility can be added later with a 1x1 conv layer in the resampling operator
         assert in_channels == out_channels
@@ -197,19 +195,19 @@ class PoolConvBlock(nn.Module):
 
         self.conv1 = Conv(in_channels,
                             in_channels,
-                            self.kernel_size,
+                            kernel_size,
                             padding='same'
                             )
+        self.batchnorm1 = Norm(in_channels)
+        self.activation1 = activation1()
 
         self.conv2 = Conv(in_channels,
                             out_channels,
-                            self.kernel_size,
+                            kernel_size,
                             padding='same'
                             )
-
-        self.batchnorm1 = Norm(in_channels)
-
         self.batchnorm2 = Norm(out_channels)
+        self.activation2 = activation2()
 
     '''
     Forward mode

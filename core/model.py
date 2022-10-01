@@ -13,64 +13,36 @@ Convolution based autoencoder.
 
 Input:
     module:
-    conv_type:
-    point_dim: space dimension (e.g. 3D)
-    latent_dim: dimension of latent representation
-    point_seq: number of points at each level
-    channel_seq: number of channels at each level
     input_shape:
 '''
 class AutoEncoder(pl.LightningModule):
 
-    def __init__(self,
+    def __init__(self,*,
             module,
-            conv_type,
-            point_dim,
-            latent_dim,
-            point_seq,
-            channel_seq,
             input_shape,
-            forward_activation = nn.CELU,
-            latent_activation = nn.CELU,
             loss_fn = "MSELoss",
             optimizer = "Adam",
             learning_rate = 1e-2,
             noise_scale = 0.0,
-            output_activation = nn.Tanh(),
+            output_activation = nn.Tanh,
             **kwargs
         ):
         super().__init__()
 
-        args = locals()
-        args.pop('self')
-
-        for key, value in args.items():
-            setattr(self, key, value)
-
-        #model parameters
-        model_args = {
-            'conv_type': conv_type,
-            'point_dim': point_dim,
-            'latent_dim': latent_dim,
-            'point_seq': point_seq,
-            'channel_seq': channel_seq,
-            'forward_activation': forward_activation,
-            'latent_activation': latent_activation
-        }
-
         #import the encoder and decoder
         module = import_module('core.modules.' + module)
 
-        #model pieces
-        self.encoder = module.Encoder(**model_args,
-                                        input_shape=input_shape,
-                                        **kwargs)
-        self.decoder = module.Decoder(**model_args,
-                                        input_shape=self.encoder.conv_out_shape,
-                                        **kwargs)
-
         #training hyperparameters
-        self.loss_fn = getattr(nn, self.loss_fn)()
+        self.loss_fn = getattr(nn, loss_fn)()
+        self.optimizer = optimizer
+        self.learning_rate = learning_rate
+        self.noise_scale = noise_scale
+
+        #model pieces
+        self.output_activation = output_activation()
+
+        self.encoder = module.Encoder(input_shape=input_shape, **kwargs)
+        self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape, **kwargs)
 
         return
 
@@ -135,7 +107,6 @@ class AutoEncoder(pl.LightningModule):
         return self(batch)
 
     def configure_optimizers(self):
-        # optimizer = getattr(torch.optim, self.optimizer)(self.parameters(), lr=self.learning_rate)
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = getattr(torch.optim, self.optimizer)(self.parameters(), lr=self.learning_rate)
 
         return optimizer

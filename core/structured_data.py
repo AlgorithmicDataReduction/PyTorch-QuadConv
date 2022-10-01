@@ -13,34 +13,28 @@ from pathlib import Path
 '''
 class GridDataModule(pl.LightningDataModule):
 
-    flatten = True
-    channels = ()
-    normalize = True
-    split = 0.8
-    shuffle = False
-    num_workers = 4
-    persistent_workers = True
-    pin_memory = True
-
-    def __init__(self,
+    def __init__(self,*,
             data_dir,
-            point_dim,
+            spatial_dim,
             batch_size,
             size,
             stride,
-            **kwargs
+            flatten = True,
+            channels = (),
+            normalize = True,
+            split = 0.8,
+            shuffle = False,
+            num_workers = 4,
+            persistent_workers = True,
+            pin_memory = True,
         ):
         super().__init__()
 
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
+        args = locals()
+        args.pop('self')
 
-        self.data_dir = data_dir
-        self.point_dim = point_dim
-        self.batch_size = batch_size
-        self.size = size
-        self.stride = stride
+        for key, value in args.items():
+            setattr(self, key, value)
 
         return
 
@@ -57,18 +51,18 @@ class GridDataModule(pl.LightningDataModule):
         if len(self.channels) != 0:
             data = data[...,self.channels]
 
-        #per point_dim
+        #per spatial_dim
         self.num_tiles = int(np.floor(((data.shape[1]-self.size)/self.stride)+1))
 
         #reshape
         if len(self.channels) != 1:
             data = torch.movedim(data, -1, 0)
-            data = data.reshape(-1, **data.shape[-self.point_dim:])
+            data = data.reshape(-1, **data.shape[-self.spatial_dim:])
 
-        for i in range(1, self.point_dim+1):
+        for i in range(1, self.spatial_dim+1):
             data = data.unfold(i, self.size, self.stride)
 
-        data = data.reshape(tuple([-1]+[self.size for i in range(self.point_dim)])).reshape(-1, 1, self.size**self.point_dim)
+        data = data.reshape(tuple([-1]+[self.size for i in range(self.spatial_dim)])).reshape(-1, 1, self.size**self.spatial_dim)
 
         #normalize
         #NOTE: This might need to change for 3D data
@@ -85,7 +79,7 @@ class GridDataModule(pl.LightningDataModule):
 
         #NOTE: It would be better if we normalized before flattening
         if self.flatten == False:
-            data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.point_dim)]))
+            data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.spatial_dim)]))
 
         return data
 
@@ -168,9 +162,9 @@ class GridDataModule(pl.LightningDataModule):
 
     def get_shape(self):
         if self.flatten:
-            return (1, 1, self.size**self.point_dim)
+            return (1, 1, self.size**self.spatial_dim)
         else:
-            return tuple([1, 1]+[self.size for i in range(self.point_dim)])
+            return tuple([1, 1]+[self.size for i in range(self.spatial_dim)])
 
     def _stitch(self, data):
         time_steps = data.shape[0]
@@ -185,20 +179,20 @@ class GridDataModule(pl.LightningDataModule):
 
     def agglomerate(self, data):
         if self.flatten:
-            data = [t.reshape(tuple([-1, 1]+[self.size for i in range(self.point_dim)])) for t in data]
+            data = [t.reshape(tuple([-1, 1]+[self.size for i in range(self.spatial_dim)])) for t in data]
 
         #first, concatenate all the batches
         data = torch.cat(data)
 
         #if data wasn't tiled then dont bother stitching
         if self.num_tiles == 1:
-            return torch.swapaxes(data, 1, -1)
+            return data
 
         #do some other stuff
-        data = data.reshape(tuple([-1]+[self.num_tiles for i in range(self.point_dim)]+[self.size for i in range(self.point_dim)]))
+        data = data.reshape(tuple([-1]+[self.num_tiles for i in range(self.spatial_dim)]+[self.size for i in range(self.spatial_dim)]))
 
         #create mask
-        mask = self._stitch(torch.ones(tuple([1]+[self.num_tiles for i in range(self.point_dim)]+[self.size for i in range(self.point_dim)])))
+        mask = self._stitch(torch.ones(tuple([1]+[self.num_tiles for i in range(self.spatial_dim)]+[self.size for i in range(self.spatial_dim)])))
 
         #stich everything back together
         quilt = self._stitch(data)
