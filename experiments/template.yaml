@@ -30,8 +30,8 @@ model:
   point_seq: #list
   channel_seq: #list
   filter_seq: #list, delete this for standard conv
-  loss_fn: #str, nn.<loss_function>
-  optimizer: #str, torch.optim.<optimizer>
+  loss_fn: #str, from torch.nn
+  optimizer: #str, from torch.optim
   learning_rate: #float
 
 #PT LightningDataModule arguments

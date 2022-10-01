@@ -8,19 +8,19 @@ Example usage:
     python main.py --experiment test.yaml
 '''
 
-from core.data import PointCloudDataModule, GridDataModule
-from core.utilities import Logger, make_gif
+import torch
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 import argparse
 import yaml
 import os
 import platform
-from importlib import import_module
 from pathlib import Path
 
-import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from core.model import AutoEncoder
+from core.structured_data import GridDataModule
+from core.utilities import Logger, make_gif
 
 '''
 Build and train a model.
@@ -38,7 +38,7 @@ def main(experiment, trainer_args, model_args, data_args, extra_args):
     model_args['input_shape'] = datamodule.get_shape()
 
     #Build model
-    model = model_module.AutoEncoder(**model_args)
+    model = AutoEncoder(**model_args)
 
     #Callbacks
     callbacks=[]
@@ -55,11 +55,11 @@ def main(experiment, trainer_args, model_args, data_args, extra_args):
 
     #Logger
     if trainer_args['logger']:
-        dir, name = os.path.split(experiment)
-        name = os.path.splitext(name)[0]
+        exp_dir, exp_name = os.path.split(experiment)
+        exp_name = os.path.splitext(exp_name)[0]
 
-        logger = Logger(save_dir=os.path.join(trainer_args['default_root_dir'], dir),
-                        name=name, default_hp_metric=False)
+        logger = Logger(save_dir=os.path.join(trainer_args['default_root_dir'], exp_dir),
+                        name=exp_name, default_hp_metric=False)
 
         filename = os.path.join(logger.log_dir, 'config.yaml')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -91,19 +91,19 @@ def main(experiment, trainer_args, model_args, data_args, extra_args):
 Parse arguments -- note that .yaml args override command line args
 '''
 if __name__ == "__main__":
-
+    #windows setup
     if platform.system() == 'Windows':
         os.environ['PL_TORCH_DISTRIBUTED_BACKEND'] = 'gloo'
-    #Look for config
+
+    #look for config
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", type=str, default=None)
-    args = vars(parser.parse_known_args()[0])
+    experiment = vars(parser.parse_known_args()[0])['experiment']
 
-    #Load YAML config
-    if args['experiment'] != None:
+    #load YAML config
+    if experiment != None:
         try:
-
-            exp_path = list(Path('experiments/').rglob(args['experiment'] + '*'))
+            exp_path = list(Path('experiments/').rglob(experiment + '*'))
 
             if len(exp_path) != 1:
                 raise ValueError('Experiment was not uniquely specified')
@@ -119,7 +119,8 @@ if __name__ == "__main__":
             extra_args = config['extra']
 
         except Exception as e:
-            raise ValueError(f"Experiment {args['experiment']} is invalid.")
+            raise ValueError(f"Experiment {experiment} is invalid.")
+
     else:
         raise ValueError("An experiment configuration file must be provided.")
 
@@ -142,4 +143,4 @@ if __name__ == "__main__":
     data_args.update(vars(data_parser.parse_known_args()[0]))
 
     #run main script
-    main(args['experiment'], trainer_args, model_args, data_args, extra_args)
+    main(experiment, trainer_args, model_args, data_args, extra_args)

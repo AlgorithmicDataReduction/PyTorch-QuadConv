@@ -31,30 +31,49 @@ Input:
     order: max derivative order
     lambda_r: derivative error weighting
 '''
-def sobolev_loss(pred, target, order=1, lambda_r=torch.tensor(0.25)):
-    #setup
+def sobolev_loss(self, pred, x, order=1, lambda_r = torch.tensor(0.25)):
+
     batch_size = pred.shape[0]
 
-    sq_shape = np.sqrt(x.shape[2]).astype(int)
-    numel = sq_shape * sq_shape
+    if self.spatial_dim == 1:
 
-    temp_x = torch.reshape(x, (x.shape[0],x.shape[1],sq_shape,sq_shape))
-    temp_pred = torch.reshape(pred, (pred.shape[0],pred.shape[1],sq_shape,sq_shape))
+        stencil = torch.tensor([-1.0, 2.0, -1.0], device=self.device)*1/2
+        stencil = torch.reshape(stencil, (1,1,3)).repeat(x.shape[1], x.shape[1], 1)
 
-    #compute function l1 error
-    loss = torch.sum((temp_pred-temp_x)**2)
+        temp_pred = pred
+        temp_x = x
 
-    #compute derivatives l1 error
-    stencil = torch.tensor([[0.0, -1.0, 0.0],[-1.0, 4.0, -1.0],[0.0, -1.0, 0.0]], device=x.device)*1/4
-    stencil = torch.reshape(stencil, (1,1,3,3)).repeat(1, x.shape[1], 1, 1)
+        loss = torch.sum((temp_pred-temp_x)**2)**(0.5)
 
-    for i in range(order):
-        temp_x = torch.nn.functional.conv2d(temp_x, stencil)
-        temp_pred = torch.nn.functional.conv2d(temp_pred, stencil)
+        for i in range(order):
+            temp_x = torch.nn.functional.conv1d(temp_x, stencil)
+            temp_pred = torch.nn.functional.conv1d(temp_pred, stencil)
 
-        loss += lambda_r[i] * torch.sum((temp_pred-temp_x)**2)
+            loss += torch.sqrt(lambda_r**(i+1)) * torch.sum((temp_pred-temp_x)**2)**(0.5)
 
-    return loss/bs
+    elif self.spatial_dim == 2:
+
+        sq_shape = np.sqrt(x.shape[2]).astype(int)
+
+        numel = sq_shape * sq_shape
+
+        temp_x = torch.reshape(x, (x.shape[0],x.shape[1],sq_shape,sq_shape))
+        temp_pred = torch.reshape(pred, (pred.shape[0],pred.shape[1],sq_shape,sq_shape))
+
+        #compute function squared l2 error
+        loss = torch.nn.functional.mse_loss(temp_pred,temp_x)
+
+        #compute derivatives squared l2 error
+        stencil = torch.tensor([[0.0, -1.0, 0.0],[-1.0, 4.0, -1.0],[0.0, -1.0, 0.0]], device=self.device)*1/4
+        stencil = torch.reshape(stencil, (1,1,3,3)).repeat(1, x.shape[1], 1, 1)
+
+        for i in range(order):
+            temp_x = torch.nn.functional.conv2d(temp_x, stencil)
+            temp_pred = torch.nn.functional.conv2d(temp_pred, stencil)
+
+            loss += torch.sqrt(lambda_r**(i+1)) * torch.nn.functional.mse_loss(temp_pred,temp_x)
+
+    return loss/batch_size
 
 '''
 Makes a GIF of the model output on the test data provided by the data module and
@@ -121,7 +140,9 @@ def make_gif(trainer, datamodule, model):
 Custom Tensorboard logger.
 '''
 class Logger(TensorBoardLogger):
-    def __init__(self, **kwargs):
+    def __init__(self,
+            **kwargs
+        ):
         super().__init__(**kwargs)
 
     @rank_zero_only

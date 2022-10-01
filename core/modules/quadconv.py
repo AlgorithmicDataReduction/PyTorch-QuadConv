@@ -2,10 +2,8 @@
 Learned quadrature convolutions.
 '''
 
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch_scatter
 
 from core.FastGL.glpair import glpair
@@ -17,47 +15,59 @@ from core.utilities import Sin
 Quadrature convolution operator.
 
 Input:
-    point_dim: space dimension
+    spatial_dim: space dimension
     num_points_in: number of input points
     num_points_out: number of output points
-    channels_in: input feature channels
-    channels_out: output feature channels
+    in_channels: input feature channels
+    out_channels: output feature channels
     filter_seq: complexity of point to filter operation
-    use_bias: add bias term to output of layer
 
 NOTE: The points in and points out actually refer to the number of points along
 each spatial dimension.
 '''
 class QuadConvLayer(nn.Module):
+
+    use_bias = False
+    mlp_mode = 'single'
+    quad_type = 'newton'
+    composite_quad_order = 2
+
     def __init__(self,
-                    point_dim,
-                    num_points_in,
-                    num_points_out,
-                    channels_in,
-                    channels_out,
-                    filter_seq,
-                    use_bias = False
-                    ):
+            spatial_dim,
+            num_points_in,
+            num_points_out,
+            in_channels,
+            out_channels,
+            filter_seq,
+            **kwargs
+        ):
         super().__init__()
 
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
         #set hyperparameters
-        self.point_dim = point_dim
+        self.spatial_dim = spatial_dim
         self.num_points_in = num_points_in
         self.num_points_out = num_points_out
-        self.channels_out = channels_out
-        self.channels_in = channels_in
-        self.use_bias = use_bias
-
-        #quadrature
-        self.composite_quad_order = 2
-        self.quad = self.newton_cotes_quad
+        self.out_channels = out_channels
+        self.in_channels = in_channels
 
         #decay parameter
         self.decay_param = (self.num_points_in/16)**2
 
+        #quadrature
+        if self.quad_type == 'newton':
+            self.quad = self.newton_cotes_quad
+        elif self.quad_type == 'gauss':
+            self.quad = self.gauss_quad
+        else:
+            raise ValueError(f'Quadrature type {self.quad_type} is not supported.')
+
         #bias
         if self.use_bias:
-            bias = torch.empty(1, self.channels_out, self.num_points_out)
+            bias = torch.empty(1, self.out_channels, self.num_points_out)
             self.bias = nn.Parameter(nn.init.xavier_uniform_(bias), requires_grad=True)
 
         #cache indices
@@ -74,7 +84,7 @@ class QuadConvLayer(nn.Module):
     '''
     def init_filter(self, filter_seq):
         #NOTE: This is just a placeholder
-        # self.G = nn.Parameter(torch.randn(self.channels_out, self.channels_in), requires_grad=True).expand(self.idx.shape[0], -1, -1)
+        # self.G = nn.Parameter(torch.randn(self.out_channels, self.in_channels), requires_grad=True).expand(self.idx.shape[0], -1, -1)
 
         #point to matrix operation is stack of point to vector mlp operations
         self.G = nn.Sequential()
@@ -82,14 +92,14 @@ class QuadConvLayer(nn.Module):
         activation = Sin
         bias = False
 
-        feature_seq = (self.point_dim, *filter_seq, self.channels_in*self.channels_out)
+        feature_seq = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
         for i in range(len(feature_seq)-2):
             self.G.append(nn.Linear(feature_seq[i], feature_seq[i+1], bias=bias))
             self.G.append(activation())
 
         self.G.append(nn.Linear(feature_seq[-2], feature_seq[-1], bias=bias))
-        self.G.append(nn.Unflatten(1, (self.channels_in, self.channels_out)))
+        self.G.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
 
         return
 
@@ -100,7 +110,7 @@ class QuadConvLayer(nn.Module):
         num_points: number of points
     '''
     def gauss_quad(self, num_points):
-        num_points = int(num_points**(1/self.point_dim))
+        num_points = int(num_points**(1/self.spatial_dim))
 
         quad_weights = torch.zeros(num_points)
         quad_nodes = torch.zeros(num_points)
@@ -121,7 +131,7 @@ class QuadConvLayer(nn.Module):
         x1: right end point
     '''
     def newton_cotes_quad(self, num_points, x0=0, x1=1):
-        num_points = int(num_points**(1/self.point_dim))
+        num_points = int(num_points**(1/self.spatial_dim))
         rep = [int(num_points/self.composite_quad_order)]
 
         dx = (x1-x0)/(self.composite_quad_order-1)
@@ -137,9 +147,9 @@ class QuadConvLayer(nn.Module):
     def output_locs(self):
         _, mesh_nodes = self.quad(self.num_points_out)
 
-        node_list = [mesh_nodes]*self.point_dim
+        node_list = [mesh_nodes]*self.spatial_dim
 
-        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).view(-1, self.point_dim)
+        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).view(-1, self.spatial_dim)
 
         return output_locs
 
@@ -151,13 +161,13 @@ class QuadConvLayer(nn.Module):
         output_locs = self.output_locs()
 
         #create mesh
-        node_list = [quad_nodes]*self.point_dim
+        node_list = [quad_nodes]*self.spatial_dim
         nodes = torch.meshgrid(*node_list, indexing='xy')
-        nodes = torch.dstack(nodes).view(-1, self.point_dim)
+        nodes = torch.dstack(nodes).view(-1, self.spatial_dim)
 
         #determine indices
         #NOTE: This seems to be the source of the memory issues
-        locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.point_dim)
+        locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.spatial_dim)
 
         bump_arg = torch.linalg.vector_norm(locs, dim=(2), keepdims = True)**4
 
@@ -180,15 +190,15 @@ class QuadConvLayer(nn.Module):
     NOTE: THIS WOULD ALL BE A LOT EASIER IF WE WERE DOING CHANNELS_LAST BUT PYTORCH DOESN'T LIKE THAT
     '''
     def forward(self, features):
-        integral = torch.zeros(features.shape[0], self.channels_out, self.num_points_out, device=features.device)
+        integral = torch.zeros(features.shape[0], self.out_channels, self.num_points_out, device=features.device)
 
         #compute filter feature mat-vec products
         # values = torch.matmul(features[:,self.eval_indices[:,1],:], self.G(self.eval_locs))
-        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.channels_in), self.G(self.eval_locs)).reshape(features.shape[0], self.channels_out, -1)
+        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.in_channels), self.G(self.eval_locs)).reshape(features.shape[0], self.out_channels, -1)
 
         #both of the following are valid
         #NOTE: segment_coo should be faster because the indices are ordered
-        torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.channels_out, -1), integral, reduce="sum")
+        torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), integral, reduce="sum")
         # torch_scatter.scatter(values, self.eval_indices[:,0], 2, integral, reduce="sum")
 
         #add bias
@@ -196,107 +206,3 @@ class QuadConvLayer(nn.Module):
             integral += self.bias
 
         return integral
-
-################################################################################
-
-'''
-QuadConvLayer block
-
-Input:
-    point_dim: space dimension
-    num_points_in: number of input points
-    num_points_out: number of output points
-    channels_in: input feature channels
-    channels_out: output feature channels
-    filter_seq: complexity of point to filter operation
-    use_bias: add bias term to output of layer
-    adjoint: downsample or upsample
-    activation1:
-    activation2:
-'''
-class QuadConvBlock(nn.Module):
-    def __init__(self,
-                    point_dim,
-                    num_points_in,
-                    num_points_out,
-                    channels_in,
-                    channels_out,
-                    filter_seq,
-                    use_bias = False,
-                    adjoint = False,
-                    activation1 = nn.CELU(alpha=1),
-                    activation2 = nn.CELU(alpha=1)
-                    ):
-        super().__init__()
-
-        self.adjoint = adjoint
-        self.activation1 = activation1
-        self.activation2 = activation2
-
-        if self.adjoint:
-            conv1_point_num = num_points_out
-            conv1_channel_num = channels_out
-        else:
-            conv1_point_num = num_points_in
-            conv1_channel_num = channels_in
-
-        self.conv1 = QuadConvLayer(point_dim,
-                                    num_points_in = conv1_point_num,
-                                    num_points_out = conv1_point_num,
-                                    channels_in = conv1_channel_num,
-                                    channels_out = conv1_channel_num,
-                                    filter_seq = filter_seq,
-                                    use_bias = use_bias
-                                    )
-        self.norm1 = nn.BatchNorm1d(conv1_channel_num)
-
-        self.conv2 = QuadConvLayer(point_dim,
-                                    num_points_in = num_points_in,
-                                    num_points_out = num_points_out,
-                                    channels_in = channels_in,
-                                    channels_out = channels_out,
-                                    filter_seq = filter_seq,
-                                    use_bias = use_bias
-                                    )
-        self.norm2 = nn.BatchNorm1d(channels_out)
-
-    '''
-    Forward mode
-    '''
-    def forward_op(self, data):
-        x = data
-
-        x1 = self.conv1(x)
-        x1 = self.activation1(self.norm1(x1))
-        x1 = x1 + x
-
-        x2 = self.conv2(x1)
-        x2 = self.activation2(self.norm2(x2))
-
-        return x2
-
-    '''
-    Adjoint mode
-    '''
-    def adjoint_op(self, data):
-        x = data
-
-        x2 = self.conv2(x)
-        x2 = self.activation2(self.norm2(x2))
-
-        x1 = self.conv1(x2)
-        x1 = self.activation1(self.norm1(x1))
-        x1 = x1 + x2
-
-        return x1
-
-    '''
-    Apply operator
-    '''
-    def forward(self, data):
-        if self.adjoint:
-            output = self.adjoint_op(data)
-        else:
-            output = self.forward_op(data)
-
-        return output

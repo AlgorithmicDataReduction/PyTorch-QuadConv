@@ -1,107 +1,48 @@
 '''
 '''
 
-import os
 import numpy as np
 import torch
 from torch.utils.data import random_split, DataLoader
 import pytorch_lightning as pl
+
 from pathlib import Path
 
 '''
 
 '''
-class PointCloudDataModule(pl.LightningDataModule):
-    def __init__(self,
-                    data_dir,
-                    batch_size,
-                    point_dim,
-                    channels = (),
-                    time_chunk = 1,
-                    normalize = True
-                    ):
-        super().__init__()
-
-        self.data_dir = data_dir
-        self.batch_size = batch_size
-        self.channels = channels
-        self.time_chunk = time_chunk
-
-    @staticmethod
-    def add_args(parent_parser):
-        parser = parent_parser.add_argument_group("PointCloudDataModule")
-
-        # parser.add_argument()
-
-        return parent_parser
-
-    def setup(self, stage=None):
-        if stage == "fit" or stage is None:
-            full = None
-
-            train_size = int(0.8*len(full))
-            val_size = len(full) - train_size
-
-            self.train, self.val = random_split(full, [train_size, val_size])
-
-        elif stage == "test" or stage is None:
-            self.test = None
-
-        elif stage == "predict" or stage is None:
-            self.predict = None
-
-        else:
-            raise ValueError("Stage must be one of 'fit', 'test', or 'predict'.")
-
-    def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.batch_size)
-
-    def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.batch_size)
-
-    def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.batch_size)
-
-    def predict_dataloader(self):
-        return DataLoader(self.predict, batch_size=self.batch_size)
-
-    def teardown(self, stage=None):
-        pass
-
-'''
-
-'''
 class GridDataModule(pl.LightningDataModule):
+
+    flatten = True
+    channels = ()
+    normalize = True
+    split = 0.8
+    shuffle = False
+    num_workers = 4
+    persistent_workers = True
+    pin_memory = True
+
     def __init__(self,
-                    data_dir,
-                    point_dim,
-                    batch_size,
-                    size,
-                    stride,
-                    flatten = True,
-                    channels = (),
-                    normalize = True,
-                    split = 0.8,
-                    shuffle = False,
-                    num_workers = 4,
-                    persistent_workers = True,
-                    pin_memory = True
-                    ):
+            data_dir,
+            point_dim,
+            batch_size,
+            size,
+            stride,
+            **kwargs
+        ):
         super().__init__()
+
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
 
         self.data_dir = data_dir
         self.point_dim = point_dim
         self.batch_size = batch_size
         self.size = size
         self.stride = stride
-        self.flatten = flatten
-        self.channels = channels
-        self.normalize = normalize
-        self.split = split
-        self.shuffle = shuffle
-        self.num_workers = num_workers
-        self.persistent_workers = persistent_workers
-        self.pin_memory = pin_memory
+
+        return
 
     @staticmethod
     def add_args(parent_parser):
@@ -185,6 +126,8 @@ class GridDataModule(pl.LightningDataModule):
         else:
             raise ValueError("Invalid stage.")
 
+        return
+
     def train_dataloader(self):
         return DataLoader(self.train,
                             batch_size=self.batch_size,
@@ -215,7 +158,7 @@ class GridDataModule(pl.LightningDataModule):
                             persistent_workers=self.persistent_workers)
 
     def teardown(self, stage=None):
-        pass
+        return
 
     ############################################################################
 

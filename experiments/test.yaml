@@ -30,7 +30,7 @@ model:
   point_seq: [2500, 900, 625, 100] #list
   channel_seq: [1, 2, 3, 4] #list
   filter_seq: [4, 4] #list
-  optimizer: "torch.optim.Adam" #str
+  optimizer: "Adam" #str
   learning_rate: 0.01 #foat
   use_bias: True
 

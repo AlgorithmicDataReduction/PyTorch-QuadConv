@@ -6,15 +6,21 @@ import torch
 from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
 
-from .quadconv import QuadConvBlock
-from .conv import ConvBlock
+from .quadconv_blocks import QuadConvBlock
+from .conv_blocks import ConvBlock
 
 '''
 Encoder module
 '''
 class Encoder(nn.Module):
-    def __init__(self, **kwargs):
+    def __init__(self,
+            **kwargs
+        ):
         super().__init__()
+
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
 
         #establish block type
         conv_type = kwargs.pop('conv_type')
@@ -79,8 +85,14 @@ class Encoder(nn.Module):
 Decoder module
 '''
 class Decoder(nn.Module):
-    def __init__(self, **kwargs):
+    def __init__(self,
+            **kwargs
+        ):
         super().__init__()
+
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
 
         #establish block type
         conv_type = kwargs.pop('conv_type')

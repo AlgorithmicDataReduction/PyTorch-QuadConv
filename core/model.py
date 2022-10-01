@@ -21,46 +21,45 @@ Input:
     input_shape:
 '''
 class AutoEncoder(pl.LightningModule):
+
     def __init__(self,
-                    module,
-                    conv_type,
-                    point_dim,
-                    latent_dim,
-                    point_seq,
-                    channel_seq,
-                    input_shape,
-                    forward_activation = nn.CELU,
-                    latent_activation = nn.CELU,
-                    output_activation = nn.Tanh,
-                    loss_fn = "nn.MSELoss",
-                    noise_scale = 0.0,
-                    optimizer = "torch.optim.adam",
-                    learning_rate = 1e-2,
-                    **kwargs
-                    ):
+            module,
+            conv_type,
+            point_dim,
+            latent_dim,
+            point_seq,
+            channel_seq,
+            input_shape,
+            forward_activation = nn.CELU,
+            latent_activation = nn.CELU,
+            loss_fn = "MSELoss",
+            optimizer = "Adam",
+            learning_rate = 1e-2,
+            noise_scale = 0.0,
+            output_activation = nn.Tanh(),
+            **kwargs
+        ):
         super().__init__()
 
-        #save model hyperparameters under self.hparams
-        self.save_hyperparameters(ignore=['loss_fn',
-                                            'noise_scale',
-                                            'forward_activation',
-                                            'latent_activation',
-                                            'output_activation',
-                                            'input_shape',
-                                            'optimizer',
-                                            'learning_rate'])
+        args = locals()
+        args.pop('self')
+
+        for key, value in args.items():
+            setattr(self, key, value)
 
         #model parameters
-        model_args = {'conv_type':conv_type,
-                        'point_dim':point_dim,
-                        'latent_dim':latent_dim,
-                        'point_seq':point_seq,
-                        'channel_seq':channel_seq,
-                        'forward_activation':forward_activation,
-                        'latent_activation':latent_activation}
+        model_args = {
+            'conv_type': conv_type,
+            'point_dim': point_dim,
+            'latent_dim': latent_dim,
+            'point_seq': point_seq,
+            'channel_seq': channel_seq,
+            'forward_activation': forward_activation,
+            'latent_activation': latent_activation
+        }
 
         #import the encoder and decoder
-        module = import_module('core.modules.'+module)
+        module = import_module('core.modules.' + module)
 
         #model pieces
         self.encoder = module.Encoder(**model_args,
@@ -71,15 +70,9 @@ class AutoEncoder(pl.LightningModule):
                                         **kwargs)
 
         #training hyperparameters
-        try:
-            self.loss_fn = eval(loss_fn)()
-        except Exception as e:
-            raise e
+        self.loss_fn = getattr(nn, self.loss_fn)()
 
-        self.noise_scale = noise_scale
-        self.output_activation = output_activation()
-        self.optimizer = optimizer
-        self.learning_rate = learning_rate
+        return
 
     @staticmethod
     def add_args(parent_parser):
@@ -119,6 +112,8 @@ class AutoEncoder(pl.LightningModule):
 
         self.log('val_err', torch.mean(error), on_step=False, on_epoch=True, sync_dist=True)
 
+        return
+
     def test_step(self, batch, idx):
         pred = self(batch)
 
@@ -134,13 +129,13 @@ class AutoEncoder(pl.LightningModule):
         self.log('test_max_err', torch.max(error), on_step=False, on_epoch=True, sync_dist=True,
                     reduce_fx=torch.max)
 
+        return
+
     def predict_step(self, batch, idx):
         return self(batch)
 
     def configure_optimizers(self):
-        try:
-            optimizer = eval(self.optimizer)(self.parameters(), lr=self.learning_rate)
-        except Exception as e:
-            raise e
+        # optimizer = getattr(torch.optim, self.optimizer)(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
         return optimizer

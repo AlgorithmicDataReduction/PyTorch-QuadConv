@@ -3,8 +3,6 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 
 import numpy as np
-from numba import njit
-
 
 def generate_time_series(time,x,c,f_0,f):
 
@@ -17,7 +15,7 @@ def generate_time_series(time,x,c,f_0,f):
     return tseries
 
 def advection_diffusion_zero_visc(t , x , c , v = 0.05 , terms = 50):
-    ''' 
+    '''
     Closed form solution for u(x,0) = -sin(pi*x) and zero boundary condtions
     '''
 
@@ -47,7 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("--tspan" , type=int , default=100 , help="temporal size")
     parser.add_argument("--xspan" , type=int , default=100 , help="spatial size")
     parser.add_argument("--aspan" , type=int , default=100 , help="initial value")
-    parser.add_argument("--savepath", type=str, default='./data' , help='save path for the data')
+    parser.add_argument("--savepath", type=str, default='../data' , help='save path for the data')
 
     args, _ = parser.parse_known_args()
 
@@ -81,15 +79,3 @@ if __name__ == "__main__":
         tseries = tseries.reshape(args.tspan, args.xspan, 1)
 
         np.save(save_path_folder / id_string, tseries)
-
-
-        
-
-
-
-
-    
-
-
-
-    

@@ -30,7 +30,7 @@ model:
   point_seq: [2500, 900, 625, 100] #list
   channel_seq: [1, 4, 16, 32] #list
   filter_seq: [200, 200, 200] #list
-  optimizer: "torch.optim.Adam" #str
+  optimizer: "Adam" #str
   learning_rate: 0.01 #foat
 
 #PT LightningDataModule arguments
