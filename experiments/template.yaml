@@ -29,7 +29,9 @@ model:
   latent_dim: #int
   point_seq: #list
   channel_seq: #list
-  filter_seq: #list, delete this for standard conv
+  filter_seq: #list, only for quadconv
+  filter_mode: #string, only for quadconv
+  quad_weights: #string, only for quadconv
   loss_fn: #str, from torch.nn
   optimizer: #str, from torch.optim
   learning_rate: #float
@@ -41,7 +43,7 @@ data:
   batch_size: #int
   size: #int
   stride: #int
-  flatten: #bool, flatten for quadrature
+  flatten: #bool, flatten for quadconv
   channels: #list
   shuffle: #bool
 

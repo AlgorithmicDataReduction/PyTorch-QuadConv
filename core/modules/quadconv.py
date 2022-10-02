@@ -34,10 +34,10 @@ class QuadConvLayer(nn.Module):
             in_channels,
             out_channels,
             filter_seq,
-            use_bias = False,
-            mlp_mode = 'single',
-            quad_type = 'newton',
-            composite_quad_order = 2
+            filter_mode = 'single',
+            quad_mode = 'implicit',
+            composite_quad_order = 2,
+            use_bias = False
         ):
         super().__init__()
 
@@ -50,19 +50,18 @@ class QuadConvLayer(nn.Module):
         self.num_points_out = num_points_out
         self.out_channels = out_channels
         self.in_channels = in_channels
-        self.use_bias = use_bias
+        self.quad_mode = quad_mode
         self.composite_quad_order = composite_quad_order
+        self.use_bias = use_bias
 
         #decay parameter
         self.decay_param = (self.num_points_in/16)**2
 
         #quadrature
-        if quad_type == 'newton':
-            self.quad = self.newton_cotes_quad
-        elif quad_type == 'gauss':
-            self.quad = self.gauss_quad
-        else:
-            raise ValueError(f'Quadrature type {self.quad_type} is not supported.')
+        #NOTE: In the future we need to be able to handle different quadratures
+        #and arbitrary point cloud input. For now, we just assume that the data
+        #on a grid, so we use newton, and only change how the weights are computed.
+        self.quad = self.newton_cotes_quad
 
         #bias
         if self.use_bias:
@@ -73,7 +72,7 @@ class QuadConvLayer(nn.Module):
         self.cache()
 
         #initialize filter
-        self.init_filter(filter_seq)
+        self.init_filter(filter_seq, filter_mode)
 
     '''
     Initialize the layer filter.
@@ -81,24 +80,49 @@ class QuadConvLayer(nn.Module):
     Input:
         filter_seq: mlp feature sequence
     '''
-    def init_filter(self, filter_seq):
-        #NOTE: This is just a placeholder
-        # self.G = nn.Parameter(torch.randn(self.out_channels, self.in_channels), requires_grad=True).expand(self.idx.shape[0], -1, -1)
-
-        #point to matrix operation is stack of point to vector mlp operations
-        self.G = nn.Sequential()
+    def init_filter(self, filter_seq, filter_mode):
 
         activation = Sin
         bias = False
 
-        feature_seq = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
+        #NOTE: If we were actually gonne use this one, this would be a bad way to
+        #use it as it has a bunch of redundant memory usage.
+        if filter_mode == 'static':
+            self.G = lambda z: nn.Parameter(torch.randn(self.out_channels, self.in_channels), requires_grad=True).expand(self.idx.shape[0], -1, -1)
 
-        for i in range(len(feature_seq)-2):
-            self.G.append(nn.Linear(feature_seq[i], feature_seq[i+1], bias=bias))
-            self.G.append(activation())
+        elif filter_mode == 'single':
+            self.G = nn.Sequential()
 
-        self.G.append(nn.Linear(feature_seq[-2], feature_seq[-1], bias=bias))
-        self.G.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
+            feature_seq = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
+
+            for i in range(len(feature_seq)-2):
+                self.G.append(nn.Linear(feature_seq[i], feature_seq[i+1], bias=bias))
+                self.G.append(activation())
+
+            self.G.append(nn.Linear(feature_seq[-2], feature_seq[-1], bias=bias))
+            self.G.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
+
+        elif filter_mode == 'nested':
+            self.filter = nn.ModuleList()
+
+            feature_seq = (self.spatial_dim, *filter_seq, 1)
+
+            for i in range(self.in_channels):
+                for j in range(self.out_channels):
+                    mlp = nn.Sequential()
+
+                    for k in range(len(feature_seq)-2):
+                        mlp.append(nn.Linear(feature_seq[k], feature_seq[k+1], bias=bias))
+                        mlp.append(activation)
+
+                    mlp.append(nn.Linear(feature_seq[-2], feature_seq[-1], bias=bias))
+
+                    filter.append(mlp)
+
+            self.G = lambda z: torch.cat(module(z) for module in self.filter).reshape(-1, self.channels_in, self.channels_out)
+
+        else:
+            raise ValueError(f'Filter mode {filter_mode} is not supported.')
 
         return
 
@@ -156,7 +180,7 @@ class QuadConvLayer(nn.Module):
     Compute indices associated with non-zero filters
     '''
     def cache(self):
-        _, quad_nodes = self.quad(self.num_points_in)
+        quad_weights, quad_nodes = self.quad(self.num_points_in)
         output_locs = self.output_locs()
 
         #create mesh
@@ -176,6 +200,21 @@ class QuadConvLayer(nn.Module):
         self.eval_locs = nn.Parameter(locs[tf_vec, :], requires_grad=False)
         self.eval_indices = nn.Parameter(idx, requires_grad=False)
 
+        if self.quad_mode == 'quadrature':
+            weight_list = [quad_weights]*self.spatial_dim
+            weights =  torch.meshgrid(*weight_list, indexing='xy')
+            weights = torch.dstack(weights).reshape(-1, self.spatial_dim)
+
+            weights = torch.prod(weights[self.eval_indices[:,1],...], dim=1)
+
+            self.quad_weights = nn.Parameter(weights, requires_grad=False)
+
+        elif self.quad_mode == 'implicit':
+            self.quad_weights = None
+
+        else:
+            raise ValueError(f'Quadrature mode {self.quad_mode} is not supported.')
+
         return
 
     '''
@@ -191,14 +230,18 @@ class QuadConvLayer(nn.Module):
     def forward(self, features):
         integral = torch.zeros(features.shape[0], self.out_channels, self.num_points_out, device=features.device)
 
+        #compute filter
+        filters = self.G(self.eval_locs)
+
+        #multiply by quadrature weights
+        if self.quad_weights != None:
+            filters = torch.einsum('n, nij -> nij', self.quad_weights, filters)
+
         #compute filter feature mat-vec products
-        # values = torch.matmul(features[:,self.eval_indices[:,1],:], self.G(self.eval_locs))
-        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.in_channels), self.G(self.eval_locs)).reshape(features.shape[0], self.out_channels, -1)
+        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.in_channels), filters).reshape(features.shape[0], self.out_channels, -1)
 
         #both of the following are valid
-        #NOTE: segment_coo should be faster because the indices are ordered
         torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), integral, reduce="sum")
-        # torch_scatter.scatter(values, self.eval_indices[:,0], 2, integral, reduce="sum")
 
         #add bias
         if self.use_bias:

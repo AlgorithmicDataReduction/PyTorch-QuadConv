@@ -27,12 +27,13 @@ model:
   conv_type: "quadrature" #str "standard" or "quadrature"
   spatial_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [2500, 900, 625, 100] #list
+  point_seq: [2500, 900, 576, 100] #list
   channel_seq: [1, 2, 3, 4] #list
   filter_seq: [4, 4] #list
   optimizer: "Adam" #str
   learning_rate: 0.01 #foat
   use_bias: True
+  quad_mode: "implicit"
 
 #PT LightningDataModule arguments
 data:
@@ -47,5 +48,5 @@ data:
 #Extra arguments
 extra:
   make_gif: False #bool
-  compute_stats: True #bool
+  compute_stats: False #bool
   early_stopping: False #bool
