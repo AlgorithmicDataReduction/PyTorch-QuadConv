@@ -2,7 +2,9 @@
 Utility functions.
 '''
 
+import numpy as np
 import torch
+import torch.nn as nn
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities import rank_zero_only
 
@@ -10,70 +12,6 @@ import matplotlib.pyplot as plt
 import gif
 
 import warnings
-
-'''
-Module wrapper around sin function; allows it to operate as a layer.
-'''
-class Sin(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        return torch.sin(x)
-
-'''
-Sobolev loss function, which computes the loss as a sum of the function l2 and
-derivative l2 losses.
-
-Input:
-    pred: predictions
-    target: actual values
-    order: max derivative order
-    lambda_r: derivative error weighting
-'''
-def sobolev_loss(self, pred, x, order=1, lambda_r = torch.tensor(0.25)):
-
-    batch_size = pred.shape[0]
-
-    if self.spatial_dim == 1:
-
-        stencil = torch.tensor([-1.0, 2.0, -1.0], device=self.device)*1/2
-        stencil = torch.reshape(stencil, (1,1,3)).repeat(x.shape[1], x.shape[1], 1)
-
-        temp_pred = pred
-        temp_x = x
-
-        loss = torch.sum((temp_pred-temp_x)**2)**(0.5)
-
-        for i in range(order):
-            temp_x = torch.nn.functional.conv1d(temp_x, stencil)
-            temp_pred = torch.nn.functional.conv1d(temp_pred, stencil)
-
-            loss += torch.sqrt(lambda_r**(i+1)) * torch.sum((temp_pred-temp_x)**2)**(0.5)
-
-    elif self.spatial_dim == 2:
-
-        sq_shape = np.sqrt(x.shape[2]).astype(int)
-
-        numel = sq_shape * sq_shape
-
-        temp_x = torch.reshape(x, (x.shape[0],x.shape[1],sq_shape,sq_shape))
-        temp_pred = torch.reshape(pred, (pred.shape[0],pred.shape[1],sq_shape,sq_shape))
-
-        #compute function squared l2 error
-        loss = torch.nn.functional.mse_loss(temp_pred,temp_x)
-
-        #compute derivatives squared l2 error
-        stencil = torch.tensor([[0.0, -1.0, 0.0],[-1.0, 4.0, -1.0],[0.0, -1.0, 0.0]], device=self.device)*1/4
-        stencil = torch.reshape(stencil, (1,1,3,3)).repeat(1, x.shape[1], 1, 1)
-
-        for i in range(order):
-            temp_x = torch.nn.functional.conv2d(temp_x, stencil)
-            temp_pred = torch.nn.functional.conv2d(temp_pred, stencil)
-
-            loss += torch.sqrt(lambda_r**(i+1)) * torch.nn.functional.mse_loss(temp_pred,temp_x)
-
-    return loss/batch_size
 
 '''
 Makes a GIF of the model output on the test data provided by the data module and
@@ -137,6 +75,97 @@ def make_gif(trainer, datamodule, model):
     return
 
 '''
+Module wrapper around sin function; allows it to operate as a layer.
+'''
+class Sin(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return torch.sin(x)
+
+'''
+Sobolev loss function, which computes the loss as a sum of the function l2 and
+derivative l2 losses.
+
+Input:
+    order: max derivative order
+    lambda_r: derivative error weighting
+'''
+class SobolevLoss(nn.Module):
+
+    def __init__(self,*,
+            spatial_dim,
+            order = 1,
+            lambda_r = torch.tensor(0.25)
+        ):
+        super().__init__()
+
+        if spatial_dim == 1:
+            stencil = torch.tensor([-1.0, 2.0, -1.0])*1/2
+            stencil = torch.reshape(stencil, (1,1,3))
+
+        elif spatial_dim == 2:
+            stencil = torch.tensor([[0.0, -1.0, 0.0],[-1.0, 4.0, -1.0],[0.0, -1.0, 0.0]])*1/4
+            stencil = torch.reshape(stencil, (1,1,3,3))
+
+        elif spatial_dim == 3:
+            raise NotImplementedError('A spatial dimension of 3 is not currently supported.')
+
+        else:
+            raise ValueError(f'A spatial dimension of {spatial_dim} is invalid.')
+
+        self.stencil = nn.Parameter(stencil, requires_grad=False)
+
+        self.spatial_dim = spatial_dim
+        self.order = order
+        self.lambda_r = lambda_r
+
+        return
+
+    '''
+    Input:
+        pred: predictions
+        target: actual values
+    '''
+    def forward(self, pred, target):
+        #
+        batch_size = pred.shape[0]
+        channels = pred.shape[1]
+
+        #compute function l2 error
+        loss = nn.functional.mse_loss(pred, target)
+
+        #copy predictions and target
+        _pred = pred
+        _target = target
+
+        #setup
+        if self.spatial_dim == 1:
+            conv = nn.functional.conv1d
+
+            stencil = self.stencil.repeat(channels, channels, 1)
+
+        elif self.spatial_dim == 2:
+            sq_shape = np.sqrt(_pred.shape[2]).astype(int)
+
+            _pred = torch.reshape(_pred, (_pred.shape[0], _pred.shape[1], sq_shape, sq_shape))
+            _target = torch.reshape(_target, (_target.shape[0], _target.shape[1], sq_shape, sq_shape))
+
+            conv = nn.functional.conv2d
+
+            stencil = self.stencil.repeat(1, channels, 1, 1)
+
+        #compute derivative l2 losses
+        for i in range(self.order):
+            _pred = conv(_pred, stencil)
+            _target = conv(_target, stencil)
+
+            loss += torch.sqrt(self.lambda_r**(i+1)) * nn.functional.mse_loss(_pred, _target)
+
+        return loss/pred.shape[0]
+
+'''
 Custom Tensorboard logger.
 '''
 class Logger(TensorBoardLogger):
@@ -149,3 +178,7 @@ class Logger(TensorBoardLogger):
     def log_metrics(self, metrics, step):
         metrics.pop('epoch', None)
         return super().log_metrics(metrics, step)
+
+    @rank_zero_only
+    def save(self):
+        pass

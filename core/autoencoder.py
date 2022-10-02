@@ -8,6 +8,8 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 
+from .utilities import SobolevLoss
+
 '''
 Convolution based autoencoder.
 
@@ -19,6 +21,7 @@ class AutoEncoder(pl.LightningModule):
 
     def __init__(self,*,
             module,
+            spatial_dim,
             input_shape,
             loss_fn = "MSELoss",
             optimizer = "Adam",
@@ -33,16 +36,27 @@ class AutoEncoder(pl.LightningModule):
         module = import_module('core.modules.' + module)
 
         #training hyperparameters
-        self.loss_fn = getattr(nn, loss_fn)()
         self.optimizer = optimizer
         self.learning_rate = learning_rate
         self.noise_scale = noise_scale
 
+        #loss function
+        #NOTE: There is probably a bit of a better way to do this, but this
+        #should work for now.
+        if loss_fn == 'SobolevLoss':
+            self.loss_fn = SobolevLoss(spatial_dim=spatial_dim)
+        else:
+            self.loss_fn = getattr(nn, loss_fn)()
+
         #model pieces
         self.output_activation = output_activation()
 
-        self.encoder = module.Encoder(input_shape=input_shape, **kwargs)
-        self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape, **kwargs)
+        self.encoder = module.Encoder(input_shape=input_shape,
+                                        spatial_dim=spatial_dim,
+                                        **kwargs)
+        self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape,
+                                        spatial_dim=spatial_dim,
+                                        **kwargs)
 
         return
 

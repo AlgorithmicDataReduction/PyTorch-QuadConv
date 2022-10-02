@@ -34,6 +34,7 @@ model:
   learning_rate: 0.01 #foat
   use_bias: True
   quad_mode: "implicit"
+  loss_fn: "SobolevLoss"
 
 #PT LightningDataModule arguments
 data:

@@ -18,7 +18,7 @@ import os
 import platform
 from pathlib import Path
 
-from core.model import AutoEncoder
+from core.autoencoder import AutoEncoder
 from core.structured_data import GridDataModule
 from core.utilities import Logger, make_gif
 
