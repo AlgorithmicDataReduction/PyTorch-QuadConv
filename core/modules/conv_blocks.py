@@ -1,20 +1,23 @@
 '''
-
+Various standard convolution blocks.
 '''
 
 import numpy as np
+
 import torch
 import torch.nn as nn
 
 '''
-ConvLayer block
+Convolution block with skip connections
 
 Input:
-    spatial_dim: space dimension
+    spatial_dim: spatial dimension of input data
+    num_points_in: number of input points
+    num_points_out: number of output points
     in_channels: input feature channels
     out_channels: output feature channels
     kernel_size: convolution kernel size
-    use_bias: add bias term to output of layer
+    use_bias: whether or not to use bias
     adjoint: downsample or upsample
     activation1:
     activation2:
@@ -34,10 +37,10 @@ class ConvBlock(nn.Module):
         ):
         super().__init__()
 
-        #set hyperparameters
+        #set attributes
         self.adjoint = adjoint
 
-        #set convolution type
+        #set layer types
         if spatial_dim == 1:
             Conv1 = nn.Conv1d
 
@@ -68,6 +71,15 @@ class ConvBlock(nn.Module):
 
             Norm = nn.InstanceNorm3d
 
+        #build convolution layers, normalization layers, and activations
+        self.conv1 = Conv1(conv1_channel_num,
+                            conv1_channel_num,
+                            kernel_size,
+                            padding='same'
+                            )
+        self.norm1 = Norm(conv1_channel_num)
+        self.activation1 = activation1()
+
         if self.adjoint:
             conv1_channel_num = out_channels
             stride = int(np.floor((um_points_out-1-(kernel_size-1))/(num_points_in-1)))
@@ -85,18 +97,10 @@ class ConvBlock(nn.Module):
                                 kernel_size,
                                 stride=stride
                                 )
-
-        self.conv1 = Conv1(conv1_channel_num,
-                            conv1_channel_num,
-                            kernel_size,
-                            padding='same'
-                            )
-
-        self.batchnorm1 = Norm(conv1_channel_num)
-        self.activation1 = activation1()
-
-        self.batchnorm2 = Norm(out_channels)
+        self.norm2 = Norm(out_channels)
         self.activation2 = activation2()
+
+        return
 
     '''
     Forward mode
@@ -105,11 +109,11 @@ class ConvBlock(nn.Module):
         x = data
 
         x1 = self.conv1(x)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x
 
         x2 = self.conv2(x1)
-        x2 = self.activation2(self.batchnorm2(x2))
+        x2 = self.activation2(self.norm2(x2))
 
         return x2
 
@@ -120,10 +124,10 @@ class ConvBlock(nn.Module):
         x = data
 
         x2 = self.conv2(x)
-        x2 = self.activation2(self.batchnorm2(x2))
+        x2 = self.activation2(self.norm2(x2))
 
         x1 = self.conv1(x2)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x2
 
         return x1
@@ -142,16 +146,15 @@ class ConvBlock(nn.Module):
 ################################################################################
 
 '''
-ConvLayer + Pooling block
+Convolution block with skip connections and pooling.
 
 Input:
-    spatial_dim: space dimension
+    spatial_dim: spatial dimension of input data
     in_channels: input feature channels
     out_channels: output feature channels
-    N_in: number of input points
-    N_out: number of output points
+    kernel_size: convolution kernel size
     adjoint: downsample or upsample
-    use_bias: add bias term to output of layer
+    use_bias: whether or not to use bias
     activation1:
     activation2:
 '''
@@ -170,15 +173,16 @@ class PoolConvBlock(nn.Module):
         ):
         super().__init__()
 
-        #set hyperparameters
+        #set attributes
         self.adjoint = adjoint
 
-        # channel flexibility can be added later with a 1x1 conv layer in the resampling operator
+        #NOTE: channel flexibility can be added later with a 1x1 conv layer in the resampling operator
         assert in_channels == out_channels
 
-        # make sure the user sets this as no default is provided
+        #make sure the user sets this as no default is provided
         assert spatial_dim > 0
 
+        #set layer types
         layer_lookup = {
             1 : (nn.Conv1d, nn.InstanceNorm1d, nn.MaxPool1d),
             2 : (nn.Conv2d, nn.InstanceNorm2d, nn.MaxPool2d),
@@ -187,18 +191,19 @@ class PoolConvBlock(nn.Module):
 
         Conv, Norm, Pool = layer_lookup[spatial_dim]
 
+        #pooling or upsampling
         if self.adjoint:
             self.resample = nn.Upsample(scale_factor=2)
         else:
             self.resample = Pool(2)
 
-
+        #build convolution layers, normalization layers, and activations
         self.conv1 = Conv(in_channels,
                             in_channels,
                             kernel_size,
                             padding='same'
                             )
-        self.batchnorm1 = Norm(in_channels)
+        self.norm1 = Norm(in_channels)
         self.activation1 = activation1()
 
         self.conv2 = Conv(in_channels,
@@ -206,7 +211,7 @@ class PoolConvBlock(nn.Module):
                             kernel_size,
                             padding='same'
                             )
-        self.batchnorm2 = Norm(out_channels)
+        self.norm2 = Norm(out_channels)
         self.activation2 = activation2()
 
     '''
@@ -216,10 +221,10 @@ class PoolConvBlock(nn.Module):
         x = data
 
         x1 = self.conv1(x)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.activation1(self.norm1(x1))
 
         x2 = self.conv2(x1)
-        x2 = self.activation2(self.batchnorm2(x2) + x)
+        x2 = self.activation2(self.norm2(x2) + x)
 
         return self.resample(x2)
 
@@ -230,10 +235,10 @@ class PoolConvBlock(nn.Module):
         x = self.resample(data)
 
         x1 = self.conv1(x)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.activation1(self.norm1(x1))
 
         x2 = self.conv2(x1)
-        x2 = self.activation2(self.batchnorm2(x2) + x)
+        x2 = self.activation2(self.norm2(x2) + x)
 
         return x2
 

@@ -1,5 +1,4 @@
 '''
-
 '''
 
 from importlib import import_module
@@ -11,11 +10,19 @@ import pytorch_lightning as pl
 from .utilities import SobolevLoss
 
 '''
-Convolution based autoencoder.
+High-level convolution based autoencoder; the specific encoder and decoder are
+specified separately.
 
 Input:
-    module:
-    input_shape:
+    module: python module to import containing encoder and decoder classes
+    spatial_dim: spatial dimension of data
+    input_shape: input shape of data
+    loss_fn: loss function specification
+    optimizer: optimizer specification
+    learning_rate: learning rate
+    noise_scale: scale of noise to be added to latent representation in training
+    output_activation: final activation
+    kwargs: keyword arguments to be passed to encoder and decoder
 '''
 class AutoEncoder(pl.LightningModule):
 
@@ -60,6 +67,7 @@ class AutoEncoder(pl.LightningModule):
 
         return
 
+    #NOTE: Not currently used
     @staticmethod
     def add_args(parent_parser):
         parser = parent_parser.add_argument_group("AutoEncoder")
@@ -68,9 +76,26 @@ class AutoEncoder(pl.LightningModule):
 
         return parent_parser
 
+    '''
+    Forward pass of model.
+
+    Input:
+        x: input data
+
+    Output: compressed data reconstruction
+    '''
     def forward(self, x):
         return self.output_activation(self.decoder(self.encoder(x)))
 
+    '''
+    Single training step.
+
+    Input:
+        batch: batch of data
+        idx: batch index
+
+    Output: pytorch loss object
+    '''
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
         latent = self.encoder(batch)
@@ -86,9 +111,18 @@ class AutoEncoder(pl.LightningModule):
 
         return loss
 
+    '''
+    Single validation_step; logs validation error.
+
+    Input:
+        batch: batch of data
+        idx: batch index
+    '''
     def validation_step(self, batch, idx):
+        #predictions
         pred = self(batch)
 
+        #compute average relative reconstruction error
         dim = tuple([i for i in range(1, pred.ndim)])
 
         n = torch.sqrt(torch.sum((pred-batch)**2, dim=dim))
@@ -96,13 +130,23 @@ class AutoEncoder(pl.LightningModule):
 
         error = n/d
 
+        #log validation error
         self.log('val_err', torch.mean(error), on_step=False, on_epoch=True, sync_dist=True)
 
         return
 
+    '''
+    Single test step; logs average and max test error
+
+    Input:
+        batch: batch of data
+        idx: batch index
+    '''
     def test_step(self, batch, idx):
+        #predictions
         pred = self(batch)
 
+        #compute relative reconstruction error
         dim = tuple([i for i in range(1, pred.ndim)])
 
         n = torch.sqrt(torch.sum((pred-batch)**2, dim=dim))
@@ -110,6 +154,7 @@ class AutoEncoder(pl.LightningModule):
 
         error = n/d
 
+        #log average and max error w.r.t batch
         self.log('test_avg_err', torch.mean(error), on_step=False, on_epoch=True, sync_dist=True,
                     reduce_fx=torch.mean)
         self.log('test_max_err', torch.max(error), on_step=False, on_epoch=True, sync_dist=True,
@@ -117,9 +162,23 @@ class AutoEncoder(pl.LightningModule):
 
         return
 
+    '''
+    Single prediction step.
+
+    Input:
+        batch: batch of data
+        idx: batch index
+
+    Output: compressed data reconstruction
+    '''
     def predict_step(self, batch, idx):
         return self(batch)
 
+    '''
+    Instantiates optimizer
+
+    Output: pytorch optimizer
+    '''
     def configure_optimizers(self):
         optimizer = getattr(torch.optim, self.optimizer)(self.parameters(), lr=self.learning_rate)
 

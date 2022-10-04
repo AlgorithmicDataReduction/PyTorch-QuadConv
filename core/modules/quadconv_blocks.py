@@ -1,25 +1,27 @@
 '''
-
+Various quadrature convolution blocks.
 '''
+
+import numpy as np
 
 import torch
 import torch.nn as nn
-import numpy as np
 
 from .quadconv import QuadConvLayer
 
 '''
-QuadConvLayer block
+Quadrature convolution block with skip connections.
 
 Input:
     num_points_in: number of input points
     num_points_out: number of output points
     in_channels: input feature channels
     out_channels: output feature channels
-    use_bias: add bias term to output of layer
+    use_bias: whether or not to use bias
     adjoint: downsample or upsample
     activation1:
     activation2:
+    kwargs: quadrature convolution layer arguments
 '''
 class QuadConvBlock(nn.Module):
 
@@ -35,10 +37,10 @@ class QuadConvBlock(nn.Module):
         ):
         super().__init__()
 
-        #set hyperparameters
+        #set attributes
         self.adjoint = adjoint
 
-        #buid block pieces
+        #block details
         if self.adjoint:
             conv1_point_num = num_points_out
             conv1_channel_num = out_channels
@@ -46,6 +48,7 @@ class QuadConvBlock(nn.Module):
             conv1_point_num = num_points_in
             conv1_channel_num = in_channels
 
+        #buid layers, normalizations, and activations
         self.conv1 = QuadConvLayer(num_points_in = conv1_point_num,
                                     num_points_out = conv1_point_num,
                                     in_channels = conv1_channel_num,
@@ -110,14 +113,18 @@ class QuadConvBlock(nn.Module):
 ################################################################################
 
 '''
-QuadConvLayer + Pooling block
+Quadrature convolution block with skip connections and pooling.
 
 Input:
+    spatial_dim: spatial dimension of input data
+    num_points_in: number of input points
+    num_points_out: number of output points
     in_channels: input feature channels
     out_channels: output feature channels
     adjoint: downsample or upsample
     activation1:
     activation2:
+    kwargs: quadrature convolution layer arguments
 '''
 class PoolQuadConvBlock(nn.Module):
 
@@ -134,12 +141,13 @@ class PoolQuadConvBlock(nn.Module):
         ):
         super().__init__()
 
-        # channel flexibility can be added later
+        #NOTE: channel flexibility can be added later
         assert in_channels == out_channels
 
-        #set hyperparameters
+        #set attributes
         self.adjoint = adjoint
 
+        #set pool type
         self.spatial_dim = spatial_dim
 
         layer_lookup = { 1 : (nn.MaxPool1d),
@@ -149,11 +157,13 @@ class PoolQuadConvBlock(nn.Module):
 
         Pool = layer_lookup[spatial_dim]
 
+        #pooling or upsamling
         if self.adjoint:
             self.resample = nn.Upsample(scale_factor=2)
         else:
             self.resample = Pool(2)
 
+        #buid layers, normalizations, and activations
         self.conv1 = QuadConvLayer(spatial_dim = spatial_dim,
                                     num_points_in = num_points_in,
                                     num_points_out = num_points_in,

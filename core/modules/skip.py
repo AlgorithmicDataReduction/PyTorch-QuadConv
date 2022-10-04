@@ -1,5 +1,5 @@
 '''
-
+Encoder and decoder modules based on the convolution block with skips.
 '''
 
 import torch
@@ -13,10 +13,13 @@ from .conv_blocks import ConvBlock
 Encoder module
 
 Input:
-    conv_type:
+    conv_type: convolution type
     latent_dim: dimension of latent representation
-    point_seq: number of points at each level
-    channel_seq: number of channels at each level
+    point_seq: number of points at each block stage
+    channel_seq: number of channels at each block stage
+    input_shape: input data shape
+    latent_activation: mlp activation
+    kwargs: keyword arguments for quadconv block
 '''
 class Encoder(nn.Module):
     def __init__(self,*,
@@ -71,6 +74,17 @@ class Encoder(nn.Module):
 
 '''
 Decoder module
+
+Input:
+    conv_type: convolution type
+    latent_dim: dimension of latent representation
+    point_seq: number of points at each block stage
+    channel_seq: number of channels at each block stage
+    input_shape: input data shape
+    latent_activation: mlp activation
+    activation1: block activation 1
+    activation2: block activation 2
+    kwargs: keyword arguments for quadconv block
 '''
 class Decoder(nn.Module):
     def __init__(self,*,
@@ -81,6 +95,7 @@ class Decoder(nn.Module):
             input_shape,
             latent_activation = nn.CELU,
             activation1 = nn.CELU,
+            activation2 = nn.CELU,
             **kwargs
         ):
         super().__init__()
@@ -114,6 +129,7 @@ class Decoder(nn.Module):
                                     out_channels = channel_seq[i-1],
                                     adjoint = True,
                                     activation1 = activation1 if i!=1 else nn.Identity,
+                                    activation2 = activation2 if i!=1 else nn.Identity,
                                     **kwargs
                                     ))
 

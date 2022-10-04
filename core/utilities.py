@@ -1,41 +1,41 @@
 '''
-Utility functions.
+Miscellaneous utility functions.
 '''
 
 import numpy as np
+import matplotlib.pyplot as plt
+import gif
+import warnings
+
 import torch
 import torch.nn as nn
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities import rank_zero_only
 
-import matplotlib.pyplot as plt
-import gif
-
-import warnings
-
 '''
-Makes a GIF of the model output on the test data provided by the data module and
-saves it to the appropriate lightning log.
+Generates a side-by-side GIF of the raw data and the model reconstruction for the
+test dataset; logs the result.
 
 Input:
     trainer: lightning trainer
     datamodule: data module
-    model: model to use
+    model: model to use or none to use best checkpoint
 '''
 def make_gif(trainer, datamodule, model):
     #run on test data
-    if model:
-        results = trainer.predict(model=model, datamodule=datamodule)
-    else:
+    if model == None:
         results = trainer.predict(ckpt_path='best', datamodule=datamodule)
+    else:
+        results = trainer.predict(model=model, datamodule=datamodule)
 
+    #agglomerate the data if necessary (if tiling was used)
     data = datamodule.agglomerate(results)
 
     #if multichannel then just take first channel
     if data.dim() > datamodule.spatial_dim+1:
         data = data[...,0]
 
-    #check dimension of data
+    #GIF logic depending on the spatial dimension
     if datamodule.spatial_dim == 1:
         #gif frame closure
         @gif.frame
@@ -75,9 +75,10 @@ def make_gif(trainer, datamodule, model):
     return
 
 '''
-Module wrapper around sin function; allows it to operate as a layer.
+Module wrapper for sin function; allows it to operate as a layer.
 '''
 class Sin(nn.Module):
+
     def __init__(self):
         super().__init__()
 
@@ -85,10 +86,11 @@ class Sin(nn.Module):
         return torch.sin(x)
 
 '''
-Sobolev loss function, which computes the loss as a sum of the function l2 and
+Sobolev loss function; computes the loss as a sum of the function l2 and
 derivative l2 losses.
 
 Input:
+    spatial_dim: spatial dimension of data
     order: max derivative order
     lambda_r: derivative error weighting
 '''
@@ -101,6 +103,7 @@ class SobolevLoss(nn.Module):
         ):
         super().__init__()
 
+        #build centered difference stencil
         if spatial_dim == 1:
             stencil = torch.tensor([-1.0, 2.0, -1.0])*1/2
             stencil = torch.reshape(stencil, (1,1,3))
@@ -115,6 +118,7 @@ class SobolevLoss(nn.Module):
         else:
             raise ValueError(f'A spatial dimension of {spatial_dim} is invalid.')
 
+        #set attributes
         self.stencil = nn.Parameter(stencil, requires_grad=False)
 
         self.spatial_dim = spatial_dim
@@ -124,12 +128,16 @@ class SobolevLoss(nn.Module):
         return
 
     '''
+    Compute loss between batch of predictions and reference targets.
+
     Input:
         pred: predictions
-        target: actual values
+        target: reference values
+
+    Output: average sobolev loss
     '''
     def forward(self, pred, target):
-        #
+        #get a few details
         batch_size = pred.shape[0]
         channels = pred.shape[1]
 
@@ -163,12 +171,14 @@ class SobolevLoss(nn.Module):
 
             loss += torch.sqrt(self.lambda_r**(i+1)) * nn.functional.mse_loss(_pred, _target)
 
+        #return average loss w.r.t batch
         return loss/pred.shape[0]
 
 '''
-Custom Tensorboard logger.
+Custom Tensorboard logger; does not log hparams.yaml or the epoch metric.
 '''
 class Logger(TensorBoardLogger):
+
     def __init__(self,
             **kwargs
         ):

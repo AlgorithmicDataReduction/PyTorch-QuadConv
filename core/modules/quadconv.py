@@ -2,12 +2,12 @@
 Learned quadrature convolutions.
 '''
 
+from core.FastGL.glpair import glpair
+from scipy.integrate import newton_cotes
+
 import torch
 import torch.nn as nn
 import torch_scatter
-
-from core.FastGL.glpair import glpair
-from scipy.integrate import newton_cotes
 
 from core.utilities import Sin
 
@@ -15,15 +15,16 @@ from core.utilities import Sin
 Quadrature convolution operator.
 
 Input:
-    spatial_dim: space dimension
+    spatial_dim: spatial dimension of input data
     num_points_in: number of input points
     num_points_out: number of output points
     in_channels: input feature channels
     out_channels: output feature channels
-    filter_seq: complexity of point to filter operation
-
-NOTE: The points in and points out actually refer to the number of points along
-each spatial dimension.
+    filter_seq: number of features at each filter stage
+    filter_mode: type of point to filter operation
+    quad_mode: how to compute quadrature weights
+    composite_quad_order: composite qudrature order
+    use_bias: whether or not to use bias
 '''
 class QuadConvLayer(nn.Module):
 
@@ -41,10 +42,10 @@ class QuadConvLayer(nn.Module):
         ):
         super().__init__()
 
-        #valid spatial dim
+        #validate spatial dim
         assert spatial_dim > 0
 
-        #set hyperparameters
+        #set attributes
         self.spatial_dim = spatial_dim
         self.num_points_in = num_points_in
         self.num_points_out = num_points_out
@@ -66,7 +67,7 @@ class QuadConvLayer(nn.Module):
         #bias
         if self.use_bias:
             bias = torch.empty(1, self.out_channels, self.num_points_out)
-            self.bias = nn.Parameter(nn.init.xavier_uniform_(bias), gain=2, requires_grad=True)
+            self.bias = nn.Parameter(nn.init.xavier_uniform_(bias, gain=2), requires_grad=True)
 
         #cache indices
         self.cache()
@@ -79,10 +80,9 @@ class QuadConvLayer(nn.Module):
 
     Input:
         filter_seq: mlp feature sequence
+        filter_mode: type of filter operation
     '''
     def init_filter(self, filter_seq, filter_mode):
-
-
         #NOTE: If we were actually gonne use this one, this would be a bad way to
         #use it as it has a bunch of redundant memory usage.
         if filter_mode == 'static':
@@ -122,6 +122,12 @@ class QuadConvLayer(nn.Module):
 
         return
 
+    '''
+    Build an mlp.
+
+    Input:
+        mlp_channels: sequence of channels
+    '''
     def create_mlp(self, mlp_channels):
         #linear layer settings
         activation = Sin()

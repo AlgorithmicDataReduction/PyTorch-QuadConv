@@ -2,14 +2,29 @@
 '''
 
 import numpy as np
+from pathlib import Path
+
 import torch
 from torch.utils.data import random_split, DataLoader
 import pytorch_lightning as pl
 
-from pathlib import Path
-
 '''
+PT Lightning data module for grid based time series data.
 
+Input:
+    data_dir: data directory
+    spatial_dim: spatial dimension of data
+    batch_size: batch size
+    size: number of points along each spatial dimension for a single sample
+    stride: stride along each spatial dimension between samples
+    flatten: whether or not to flatten spatial dimensions
+    channels: which data channels to use
+    normalize: whether or not to normalize the data
+    split: percentage of data to use in training
+    shuffle: whether or not to shuffle samples
+    num_workers: number of data loading processes
+    persistent_workers: whether or not to maintain data loading processes
+    pin_memory: whether or not to pin data loading memory
 '''
 class GridDataModule(pl.LightningDataModule):
 
@@ -38,6 +53,9 @@ class GridDataModule(pl.LightningDataModule):
 
         return
 
+    '''
+    Obtain datamodule CL arguments
+    '''
     @staticmethod
     def add_args(parent_parser):
         parser = parent_parser.add_argument_group("GridDataModule")
@@ -46,6 +64,10 @@ class GridDataModule(pl.LightningDataModule):
 
         return parent_parser
 
+    '''
+    Transform data by selecting channels, tiling, reshaping, normalizing, and
+    flattening.
+    '''
     def transform(self, data):
         #extract channels
         if len(self.channels) != 0:
@@ -83,6 +105,12 @@ class GridDataModule(pl.LightningDataModule):
 
         return data
 
+    '''
+    Setup dataset.
+
+    Input:
+        stage: lightning stage
+    '''
     def setup(self, stage=None):
         #get all training data
         data_path = Path(self.data_dir)
@@ -156,7 +184,14 @@ class GridDataModule(pl.LightningDataModule):
 
     ############################################################################
 
-    #NOTE: this may not be the best way to do this and it doesn't account for multichannel
+    '''
+    Get a single data sample.
+
+    NOTE: this may not be the best way to do this and it doesn't account for multichannel
+
+    Input:
+        idx: sample index
+    '''
     def get_sample(self, idx):
         return self.predict[idx,...].reshape(self.data_shape)
 
@@ -166,6 +201,12 @@ class GridDataModule(pl.LightningDataModule):
         else:
             return tuple([1, 1]+[self.size for i in range(self.spatial_dim)])
 
+    '''
+    Stitch tiled data back together.
+
+    Input:
+        data: tiled data
+    '''
     def _stitch(self, data):
         time_steps = data.shape[0]
         processed = torch.zeros([time_steps]+[d for d in self.data_shape])
@@ -177,6 +218,12 @@ class GridDataModule(pl.LightningDataModule):
 
         return processed
 
+    '''
+    Agglomerate data if it was tiled by stitching and normalizing.
+
+    Input:
+        data: all batched data
+    '''
     def agglomerate(self, data):
         if self.flatten:
             data = [t.reshape(tuple([-1, 1]+[self.size for i in range(self.spatial_dim)])) for t in data]
@@ -186,7 +233,7 @@ class GridDataModule(pl.LightningDataModule):
 
         #if data wasn't tiled then dont bother stitching
         if self.num_tiles == 1:
-            return data
+            return data.reshape(tuple([-1]+list(self.data_shape)))
 
         #do some other stuff
         data = data.reshape(tuple([-1]+[self.num_tiles for i in range(self.spatial_dim)]+[self.size for i in range(self.spatial_dim)]))
