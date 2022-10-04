@@ -48,6 +48,6 @@ data:
 
 #Extra arguments
 misc:
-  make_gif: True #bool
+  make_gif: False #bool
   compute_stats: False #bool
   early_stopping: False #bool

@@ -39,6 +39,9 @@ class AutoEncoder(pl.LightningModule):
         ):
         super().__init__()
 
+        #save hyperparameters for checkpoint loading
+        self.save_hyperparameters()
+
         #import the encoder and decoder
         module = import_module('core.modules.' + module)
 
