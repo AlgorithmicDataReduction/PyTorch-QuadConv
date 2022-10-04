@@ -32,11 +32,11 @@ def make_gif(trainer, datamodule, model):
     data = datamodule.agglomerate(results)
 
     #if multichannel then just take first channel
-    if data.dim() > datamodule.point_dim+1:
+    if data.dim() > datamodule.spatial_dim+1:
         data = data[...,0]
 
     #check dimension of data
-    if datamodule.point_dim == 1:
+    if datamodule.spatial_dim == 1:
         #gif frame closure
         @gif.frame
         def plot(i):
@@ -48,7 +48,7 @@ def make_gif(trainer, datamodule, model):
             ax[1].plot(data[i,:])
             ax[1].set_title("Reconstructed")
 
-    elif datamodule.point_dim == 2:
+    elif datamodule.spatial_dim == 2:
         #gif frame closure
         @gif.frame
         def plot(i):
@@ -62,7 +62,7 @@ def make_gif(trainer, datamodule, model):
 
             fig.colorbar(im, ax=ax.ravel().tolist(), location='bottom')
 
-    elif datamodule.point_dim == 3:
+    elif datamodule.spatial_dim == 3:
         warnings.warn("Warning...GIF create for 3d data not supported.", )
         return
 

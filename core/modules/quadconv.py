@@ -35,7 +35,7 @@ class QuadConvLayer(nn.Module):
             out_channels,
             filter_seq,
             filter_mode = 'single',
-            quad_mode = 'implicit',
+            quad_mode = 'quadrature',
             composite_quad_order = 2,
             use_bias = False
         ):
@@ -66,7 +66,7 @@ class QuadConvLayer(nn.Module):
         #bias
         if self.use_bias:
             bias = torch.empty(1, self.out_channels, self.num_points_out)
-            self.bias = nn.Parameter(nn.init.xavier_uniform_(bias), requires_grad=True)
+            self.bias = nn.Parameter(nn.init.xavier_uniform_(bias), gain=2, requires_grad=True)
 
         #cache indices
         self.cache()
@@ -82,8 +82,6 @@ class QuadConvLayer(nn.Module):
     '''
     def init_filter(self, filter_seq, filter_mode):
 
-        activation = Sin
-        bias = False
 
         #NOTE: If we were actually gonne use this one, this would be a bad way to
         #use it as it has a bunch of redundant memory usage.
@@ -91,40 +89,54 @@ class QuadConvLayer(nn.Module):
             self.G = lambda z: nn.Parameter(torch.randn(self.out_channels, self.in_channels), requires_grad=True).expand(self.idx.shape[0], -1, -1)
 
         elif filter_mode == 'single':
-            self.G = nn.Sequential()
 
-            feature_seq = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
+            mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
-            for i in range(len(feature_seq)-2):
-                self.G.append(nn.Linear(feature_seq[i], feature_seq[i+1], bias=bias))
-                self.G.append(activation())
+            self.G = self.create_mlp(mlp_spec)
 
-            self.G.append(nn.Linear(feature_seq[-2], feature_seq[-1], bias=bias))
             self.G.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
+
+        elif filter_mode == 'share_in':
+            self.filter = nn.ModuleList()
+
+            mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels)
+
+            for j in range(self.out_channels):
+                self.filter.append(self.create_mlp(mlp_spec))
+
+            self.G = lambda z: torch.cat(module(z) for module in self.filter).reshape(-1, self.channels_in, self.channels_out)
 
         elif filter_mode == 'nested':
             self.filter = nn.ModuleList()
 
-            feature_seq = (self.spatial_dim, *filter_seq, 1)
+            mlp_spec = (self.spatial_dim, *filter_seq, 1)
 
             for i in range(self.in_channels):
                 for j in range(self.out_channels):
-                    mlp = nn.Sequential()
-
-                    for k in range(len(feature_seq)-2):
-                        mlp.append(nn.Linear(feature_seq[k], feature_seq[k+1], bias=bias))
-                        mlp.append(activation)
-
-                    mlp.append(nn.Linear(feature_seq[-2], feature_seq[-1], bias=bias))
-
-                    filter.append(mlp)
+                    self.filter.append(self.create_mlp(mlp_spec))
 
             self.G = lambda z: torch.cat(module(z) for module in self.filter).reshape(-1, self.channels_in, self.channels_out)
 
         else:
-            raise ValueError(f'Filter mode {filter_mode} is not supported.')
+            raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
 
         return
+
+    def create_mlp(self, mlp_channels):
+        #linear layer settings
+        activation = Sin()
+        bias = False
+
+        #build mlp
+        mlp = nn.Sequential()
+
+        for i in range(len(mlp_channels)-2):
+            mlp.append(nn.Linear(mlp_channels[i], mlp_channels[i+1], bias=bias))
+            mlp.append(activation)
+
+        mlp.append(nn.Linear(mlp_channels[-2], mlp_channels[-1], bias=bias))
+
+        return mlp
 
     '''
     Get Gaussian quadrature weights and nodes.

@@ -93,7 +93,7 @@ class GridDataModule(pl.LightningDataModule):
             data_list.append( torch.from_numpy(np.float32(np.load(df))) )
 
         if len(data_list) == 0:
-            raise Exception('No data has been found in the path given!')
+            raise Exception(f'No data has been found in: {data_path} !')
 
         data = torch.cat(data_list, 0)
 

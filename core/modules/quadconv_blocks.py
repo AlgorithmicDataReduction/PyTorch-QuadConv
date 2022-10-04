@@ -4,6 +4,7 @@
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 from .quadconv import QuadConvLayer
 
@@ -139,6 +140,8 @@ class PoolQuadConvBlock(nn.Module):
         #set hyperparameters
         self.adjoint = adjoint
 
+        self.spatial_dim = spatial_dim
+
         layer_lookup = { 1 : (nn.MaxPool1d),
                          2 : (nn.MaxPool2d),
                          3 : (nn.MaxPool3d),
@@ -183,13 +186,22 @@ class PoolQuadConvBlock(nn.Module):
         x2 = self.conv2(x1)
         x2 = self.activation2(self.batchnorm2(x2) + x)
 
-        return self.resample(x2)
+        sq_shape = int(np.sqrt(x2.shape[-1]))
+
+        dim_pack = [sq_shape] * self.spatial_dim
+
+        return self.resample(x2.reshape(x2.shape[0], x2.shape[1], *dim_pack)).reshape(x2.shape[0], x2.shape[1], -1)
 
     '''
     Adjoint mode
     '''
     def adjoint_op(self, data):
-        x = self.resample(data)
+
+        sq_shape = int(np.sqrt(data.shape[-1]))
+
+        dim_pack = [sq_shape] * self.spatial_dim
+
+        x = self.resample(data.reshape(data.shape[0], data.shape[1], *dim_pack)).reshape(data.shape[0], data.shape[1], -1)
 
         x1 = self.conv1(x)
         x1 = self.activation1(self.batchnorm1(x1))
