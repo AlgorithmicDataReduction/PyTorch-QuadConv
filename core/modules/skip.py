@@ -36,10 +36,8 @@ class Encoder(nn.Module):
         #establish block type and output shape
         if conv_type == 'standard':
             Block = ConvBlock
-            self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
         elif conv_type == 'quadrature':
             Block = QuadConvBlock
-            self.conv_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]))
         else:
             raise ValueError(f'Convolution type {conv_type} not supported.')
 
@@ -53,6 +51,8 @@ class Encoder(nn.Module):
                                     out_channels = channel_seq[i+1],
                                     **kwargs
                                     ))
+
+        self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
 

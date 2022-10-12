@@ -1,6 +1,3 @@
-'''
-'''
-
 import numpy as np
 from pathlib import Path
 
@@ -33,7 +30,7 @@ class GridDataModule(pl.LightningDataModule):
             spatial_dim,
             batch_size,
             size,
-            stride,
+            stride = None,
             flatten = True,
             channels = (),
             normalize = True,
@@ -58,7 +55,7 @@ class GridDataModule(pl.LightningDataModule):
     '''
     @staticmethod
     def add_args(parent_parser):
-        parser = parent_parser.add_argument_group("GridDataModule")
+        parser = parent_parser.add_argument_group("StructuredDataModule")
 
         parser.add_argument('--data_dir', type=str)
 
@@ -73,34 +70,31 @@ class GridDataModule(pl.LightningDataModule):
         if len(self.channels) != 0:
             data = data[...,self.channels]
 
-        #per spatial_dim
-        self.num_tiles = int(np.floor(((data.shape[1]-self.size)/self.stride)+1))
-
-        #reshape
-        if len(self.channels) != 1:
-            data = torch.movedim(data, -1, 0)
-            data = data.reshape(-1, **data.shape[-self.spatial_dim:])
-
-        for i in range(1, self.spatial_dim+1):
-            data = data.unfold(i, self.size, self.stride)
-
-        data = data.reshape(tuple([-1]+[self.size for i in range(self.spatial_dim)])).reshape(-1, 1, self.size**self.spatial_dim)
+            if len(self.channels) == 1:
+                data = torch.unsqueeze(data, -1)
 
         #normalize
-        #NOTE: This might need to change for 3D data
         if self.normalize:
-            mean = torch.mean(data, dim=(0,1,2), keepdim=True)
-            std_dev = torch.sqrt(torch.var(data, dim=(0,1,2), keepdim=True))
-            std_dev = torch.max(std_dev, torch.tensor(1e-3))
+            dim = tuple([i for i in range(self.spatial_dim+1)])
+
+            mean = torch.mean(data, dim=dim, keepdim=True)
+            std_dev = torch.sqrt(torch.var(data, dim=dim, keepdim=True))
 
             data = (data-mean)/std_dev
 
-            max_val = torch.max(torch.abs(data))
+            data = data/(torch.max(torch.abs(data)))
 
-            data = data/(torch.max(torch.abs(data))+1e-4)
+        #channels first
+        data = torch.movedim(data, -1, 1)
 
-        #NOTE: It would be better if we normalized before flattening
-        if self.flatten == False:
+        #tile
+        for i in range(2, self.spatial_dim+1):
+            data = data.unfold(i, self.size, self.stride)
+
+        #reshape
+        if self.flatten:
+            data = data.reshape(-1, 1, self.size**self.spatial_dim)
+        else:
             data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.spatial_dim)]))
 
         return data
@@ -117,19 +111,28 @@ class GridDataModule(pl.LightningDataModule):
         data_files = data_path.glob('*.npy')
         data_list = []
 
+        #load data
         for df in data_files:
-            data_list.append( torch.from_numpy(np.float32(np.load(df))) )
+            data_list.append(torch.from_numpy(np.float32(np.load(df))))
 
         if len(data_list) == 0:
             raise Exception(f'No data has been found in: {data_path} !')
 
+        #concatenate data
         data = torch.cat(data_list, 0)
 
         #setup
         if stage == "fit" or stage is None:
-
             self.data_shape = data.shape[1:-1]
 
+            #tiling
+            if self.stride == None:
+                self.stride = data.shape[1]
+
+            #NOTE: This is the number of tiles per spatial dim
+            self.num_tiles = int(np.floor(((data.shape[1]-self.size)/self.stride)+1))
+
+            #pre-process data
             data = self.transform(data)
 
             train_size = int(self.split*data.shape[0])
@@ -138,11 +141,9 @@ class GridDataModule(pl.LightningDataModule):
             self.train, self.val = random_split(data, [train_size, val_size])
 
         elif stage == "test" or stage is None:
-
             self.test = self.transform(data)
 
         elif stage == "predict" or stage is None:
-
             self.predict = self.transform(data)
 
         else:
@@ -195,6 +196,11 @@ class GridDataModule(pl.LightningDataModule):
     def get_sample(self, idx):
         return self.predict[idx,...].reshape(self.data_shape)
 
+    '''
+    Get the data shape
+
+    NOTE: Not sure if this works with multichannel
+    '''
     def get_shape(self):
         if self.flatten:
             return (1, 1, self.size**self.spatial_dim)
@@ -233,15 +239,19 @@ class GridDataModule(pl.LightningDataModule):
 
         #if data wasn't tiled then dont bother stitching
         if self.num_tiles == 1:
-            return data.reshape(tuple([-1]+list(self.data_shape)))
+            data = data.reshape(tuple([-1]+list(self.data_shape)))
 
-        #do some other stuff
-        data = data.reshape(tuple([-1]+[self.num_tiles for i in range(self.spatial_dim)]+[self.size for i in range(self.spatial_dim)]))
+        else:
+            #do some other stuff
+            data = data.reshape(tuple([-1]+[self.num_tiles for i in range(self.spatial_dim)]+[self.size for i in range(self.spatial_dim)]))
 
-        #create mask
-        mask = self._stitch(torch.ones(tuple([1]+[self.num_tiles for i in range(self.spatial_dim)]+[self.size for i in range(self.spatial_dim)])))
+            #create mask
+            mask = self._stitch(torch.ones(tuple([1]+[self.num_tiles for i in range(self.spatial_dim)]+[self.size for i in range(self.spatial_dim)])))
 
-        #stich everything back together
-        quilt = self._stitch(data)
+            #stich everything back together
+            quilt = self._stitch(data)
 
-        return quilt/mask
+            #normalize
+            data =  quilt/mask
+
+        return data

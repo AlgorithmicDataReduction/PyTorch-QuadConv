@@ -72,6 +72,15 @@ class ConvBlock(nn.Module):
             Norm = nn.InstanceNorm3d
 
         #build convolution layers, normalization layers, and activations
+        kw = {}
+        if self.adjoint:
+            conv1_channel_num = out_channels
+            kw['stride'] = int(np.floor((num_points_out-1-(kernel_size-1))/(num_points_in-1)))
+            kw['output_padding'] = kw['stride']-1
+        else:
+            conv1_channel_num = in_channels
+            kw['stride'] = int(np.floor((num_points_in-1-(kernel_size-1))/(num_points_out-1)))
+
         self.conv1 = Conv1(conv1_channel_num,
                             conv1_channel_num,
                             kernel_size,
@@ -80,23 +89,11 @@ class ConvBlock(nn.Module):
         self.norm1 = Norm(conv1_channel_num)
         self.activation1 = activation1()
 
-        if self.adjoint:
-            conv1_channel_num = out_channels
-            stride = int(np.floor((um_points_out-1-(kernel_size-1))/(num_points_in-1)))
-            self.conv2 = Conv2(in_channels,
-                                out_channels,
-                                kernel_size,
-                                stride=stride,
-                                output_padding=stride-1
-                                )
-        else:
-            conv1_channel_num = in_channels
-            stride = int(np.floor((num_points_in-1-(kernel_size-1))/(num_points_out-1)))
-            self.conv2 = Conv2(in_channels,
-                                out_channels,
-                                kernel_size,
-                                stride=stride
-                                )
+        self.conv2 = Conv2(in_channels,
+                            out_channels,
+                            kernel_size,
+                            **kw
+                            )
         self.norm2 = Norm(out_channels)
         self.activation2 = activation2()
 
