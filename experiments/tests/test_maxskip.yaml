@@ -46,7 +46,7 @@ data:
   num_workers: 4
 
 #Extra arguments
-extra:
+misc:
   make_gif: False #bool
   compute_stats: False #bool
   early_stopping: False #bool

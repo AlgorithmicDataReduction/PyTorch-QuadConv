@@ -44,7 +44,7 @@ data:
   channels: [1] #list
 
 #Extra arguments
-extra:
+misc:
   make_gif: True #bool
   compute_stats: True #bool
   early_stopping: False #bool

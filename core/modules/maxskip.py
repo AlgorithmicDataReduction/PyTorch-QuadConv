@@ -1,19 +1,30 @@
 '''
-
+Encoder and decoder modules based on the convolution block with skips and pooling.
 '''
+
+from typing import List
 
 import torch
 from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
-
-from typing import List
 
 from .quadconv import QuadConvLayer
 from .quadconv_blocks import PoolQuadConvBlock
 from .conv_blocks import PoolConvBlock
 
 '''
-Encoder module
+Encoder module.
+
+Input:
+    conv_type: convolution type
+    conv_params: convolution parameters
+    spatial_dim: spatial dimension of input data
+    latent_dim: dimension of latent representation
+    stages: number of blocks
+    input_shape: input data shape
+    forward_activation: block activations
+    latent_activation: mlp activations
+    kwargs: keyword arguments for convolution blocks
 '''
 class Encoder(nn.Module):
 
@@ -34,8 +45,10 @@ class Encoder(nn.Module):
         self.activation1 = latent_activation()
         self.activation2 = latent_activation()
 
+        #block arguments
         arg_stack = self.package_args(conv_params, stages)
 
+        #set block type
         if conv_type == 'standard':
             Block = PoolConvBlock
 
@@ -78,6 +91,9 @@ class Encoder(nn.Module):
 
         self.out_shape = self.linear(self.flat(torch.zeros(self.conv_out_shape))).shape
 
+    '''
+    Forward
+    '''
     def forward(self, x):
         x = self.cnn(x)
         x = self.flat(x)
@@ -85,6 +101,8 @@ class Encoder(nn.Module):
 
         return output
 
+    '''
+    '''
     def package_args(self, args : dict, stages : int):
         for key in args:
             if isinstance(args[key],List) and len(args[key]) == 1:
@@ -96,6 +114,17 @@ class Encoder(nn.Module):
 
 '''
 Decoder module
+
+Input:
+    conv_type: convolution type
+    conv_params: convolution parameters
+    spatial_dim: spatial dimension of input data
+    latent_dim: dimension of latent representation
+    stages: number of blocks
+    input_shape: input data shape
+    forward_activation: block activations
+    latent_activation: mlp activations
+    kwargs: keyword arguments for convolution blocks
 '''
 class Decoder(nn.Module):
 
@@ -116,8 +145,10 @@ class Decoder(nn.Module):
         self.activation1 = latent_activation()
         self.activation2 = latent_activation()
 
+        #block arguments
         arg_stack = self.package_args(conv_params, stages)
 
+        #set block type
         if conv_type == 'standard':
             Block = PoolConvBlock
 
@@ -159,6 +190,9 @@ class Decoder(nn.Module):
 
         self.cnn.append(init_layer)
 
+    '''
+    Forward
+    '''
     def forward(self, x):
         x = self.linear(x)
         x = self.unflat(x)
@@ -166,6 +200,8 @@ class Decoder(nn.Module):
 
         return output
 
+    '''
+    '''
     def package_args(self, args : dict, stages : int):
         in_channels = args['in_channels']
         out_channels = args['out_channels']

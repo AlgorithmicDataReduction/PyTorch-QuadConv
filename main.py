@@ -1,16 +1,11 @@
 '''
-Builds and trains a model based on input parameters, which are specified via a
-YAML configuration file and optional command line arguments.
+Builds, trains, and tests an autoencoder model based on input parameters, which
+are specified via a YAML configuration file and optional command line arguments.
 
 Example usage:
-
-- Run the test found in experiments/test.yaml
-    python main.py --experiment test.yaml
+    - Run the test found in experiments/tests/test.yaml
+        python main.py --experiment tests/test.yaml
 '''
-
-import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 import argparse
 import yaml
@@ -18,29 +13,33 @@ import os
 import platform
 from pathlib import Path
 
+import torch
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+
 from core.autoencoder import AutoEncoder
 from core.structured_data import GridDataModule
 from core.utilities import Logger, make_gif
 
 '''
-Build and train a model.
+Build, train, and test a model.
 
 Input:
     experiment: experiment name
     trainer_args: PT Lightning Trainer arguments
     model_args: QCNN or CNN model arguments
     data_args: dataset arguments
-    extra_args: other arguments
+    misc_args: miscellaneous arguments
 '''
-def main(experiment, trainer_args, model_args, data_args, extra_args):
-    #Setup data
+def main(experiment, trainer_args, model_args, data_args, misc_args):
+    #setup datamodule
     datamodule = GridDataModule(**data_args)
     model_args['input_shape'] = datamodule.get_shape()
 
-    #Build model
+    #build model
     model = AutoEncoder(**model_args)
 
-    #Callbacks
+    #callbacks
     callbacks=[]
     if trainer_args['enable_checkpointing']:
         callbacks.append(ModelCheckpoint(monitor="val_err",
@@ -48,13 +47,14 @@ def main(experiment, trainer_args, model_args, data_args, extra_args):
                                             save_top_k=1,
                                             mode='min',
                                             filename='{epoch}'))
-    if extra_args['early_stopping']:
+    if misc_args['early_stopping']:
         callbacks.append(EarlyStopping(monitor="val_err",
                                         patience=5,
                                         strict=False))
 
-    #Logger
+    #logger
     if trainer_args['logger']:
+        #save the configuration details
         exp_dir, exp_name = os.path.split(experiment)
         exp_name = os.path.splitext(exp_name)[0]
 
@@ -69,26 +69,33 @@ def main(experiment, trainer_args, model_args, data_args, extra_args):
         #add logger to trainer args
         trainer_args['logger'] = logger
 
-    #Train model
+    #build trainer
     trainer = Trainer(**trainer_args, callbacks=callbacks)
 
+    #
+    #NOTE: When I tried to implement this, it wasn't working, not a major
+    #priority, but something to figure out
     # if trainer_args['auto_scale_batch_size']:
     #     trainer.tune(model, datamodule=datamodule)
 
+    #train model
     trainer.fit(model=model, datamodule=datamodule, ckpt_path=None)
 
-    #Make GIF
-    if extra_args['make_gif']:
+    #make GIF
+    if misc_args['make_gif']:
         make_gif(trainer, datamodule, None if trainer_args['enable_checkpointing'] else model)
 
-    #compute stats
-    if extra_args['compute_stats']:
+    #compute testing statistics
+    if misc_args['compute_stats']:
         trainer.test(model=None if trainer_args['enable_checkpointing'] else model,
                         ckpt_path='best' if trainer_args['enable_checkpointing'] else None,
                         datamodule=datamodule)
 
+    return 
+
 '''
-Parse arguments -- note that .yaml args override command line args
+Parse arguments from configuration file and command line. Command line arguments
+will override their config file counterparts.
 '''
 if __name__ == "__main__":
     #windows setup
@@ -97,7 +104,7 @@ if __name__ == "__main__":
 
     #look for config
     parser = argparse.ArgumentParser()
-    parser.add_argument("--experiment", type=str, default=None)
+    parser.add_argument("--experiment", type=str, default=None, help='YAML configuration file path relative to ./experiments with or without extension.')
     experiment = vars(parser.parse_known_args()[0])['experiment']
 
     #load YAML config
@@ -116,7 +123,7 @@ if __name__ == "__main__":
             trainer_args = config['train']
             model_args = config['model']
             data_args = config['data']
-            extra_args = config['extra']
+            misc_args = config['misc']
 
         except Exception as e:
             raise ValueError(f"Experiment {experiment} is invalid.")
@@ -143,4 +150,4 @@ if __name__ == "__main__":
     data_args.update(vars(data_parser.parse_known_args()[0]))
 
     #run main script
-    main(experiment, trainer_args, model_args, data_args, extra_args)
+    main(experiment, trainer_args, model_args, data_args, misc_args)

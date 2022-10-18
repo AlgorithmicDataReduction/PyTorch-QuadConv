@@ -23,17 +23,17 @@ train:
 
 #Model arguments
 model:
-  module: #str, encoder and decoder
-  conv_type: #str, "standard" or "quadrature"
+  module: #str
+  conv_type: #str <standard|quadrature>
   spatial_dim: #int
   latent_dim: #int
   point_seq: #list
   channel_seq: #list
-  filter_seq: #list, only for quadconv
-  filter_mode: #string, only for quadconv
-  quad_weights: #string, only for quadconv
-  loss_fn: #str, from torch.nn
-  optimizer: #str, from torch.optim
+  filter_seq: #list, quadconv only
+  filter_mode: #string <single|share_in|nested>, quadconv only
+  quad_weights: #string <implicit|quadrature>, quadconv only
+  loss_fn: #str, SobolevLoss or loss from torch.nn
+  optimizer: #str, optimizer from torch.optim
   learning_rate: #float
 
 #PT LightningDataModule arguments
@@ -43,12 +43,12 @@ data:
   batch_size: #int
   size: #int
   stride: #int
-  flatten: #bool, flatten for quadconv
+  flatten: #bool, True for quadconv only
   channels: #list
   shuffle: #bool
 
-#Extra arguments
-extra:
+#Miscellaneous arguments
+misc:
   make_gif: #bool
   compute_stats: #bool
   early_stopping: #bool

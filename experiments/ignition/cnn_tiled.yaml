@@ -35,6 +35,6 @@ data:
   shuffle: False
 
 #Extra arguments
-extra:
+misc:
   make_gif: True #bool
   early_stopping: False #bool
