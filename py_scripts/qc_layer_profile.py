@@ -4,7 +4,7 @@ from torch.profiler import profile, record_function, ProfilerActivity
 from torch.profiler import tensorboard_trace_handler as tth
 
 from core.modules.quadconv import QuadConvLayer as QL
-from core.utilities import SobolevLoss
+from core.utilities import SobolevLoss, newton_cotes_quad
 
 point_dim = 2
 N_in = 50**point_dim
@@ -14,8 +14,8 @@ channels_out = 4
 batch_size = 2
 filter_seq = [4, 4]
 
-# loss_fn = nn.functional.mse_loss
-loss_fn = SobolevLoss(spatial_dim=point_dim).cuda()
+loss_fn = nn.functional.mse_loss
+# loss_fn = SobolevLoss(spatial_dim=point_dim).cuda()
 
 #create data
 data = torch.ones(batch_size, channels_in, N_in).cuda()
@@ -32,8 +32,9 @@ layer = QL(spatial_dim=point_dim,
             num_points_out=N_out,
             in_channels=channels_in,
             out_channels=channels_out,
-            filter_seq=filter_seq,
-            quad_mode='quadrature')
+            filter_seq=filter_seq)
+
+layer.cache(newton_cotes_quad(point_dim, N_in)[0], None)
 
 layer.cuda()
 

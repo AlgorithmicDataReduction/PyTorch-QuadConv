@@ -58,6 +58,10 @@ class AutoEncoder(pl.LightningModule):
         else:
             self.loss_fn = getattr(nn, loss_fn)()
 
+        if kwargs['conv_type'] == 'quadrature':
+            input_points = kwargs.pop('input_points')
+            quad_map = kwargs.pop('quad_map')
+
         #model pieces
         self.output_activation = output_activation()
 
@@ -67,6 +71,10 @@ class AutoEncoder(pl.LightningModule):
         self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape,
                                         spatial_dim=spatial_dim,
                                         **kwargs)
+
+        if kwargs['conv_type'] == 'quadrature':
+            input_points = self.encoder.cache(input_points, quad_map)
+            self.decoder.cache(input_points, quad_map)
 
         return
 

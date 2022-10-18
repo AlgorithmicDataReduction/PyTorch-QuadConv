@@ -31,19 +31,19 @@ model:
   channel_seq: #list
   filter_seq: #list, quadconv only
   filter_mode: #string <single|share_in|nested>, quadconv only
-  quad_weights: #string <implicit|quadrature>, quadconv only
   loss_fn: #str, SobolevLoss or loss from torch.nn
   optimizer: #str, optimizer from torch.optim
   learning_rate: #float
 
 #PT LightningDataModule arguments
 data:
+  module: #str <structured_data|unstructured_data>
   data_dir: #str
   spatial_dim: #int
+  num_points: #int, unstructured_data only
   batch_size: #int
-  size: #int
-  stride: #int
-  flatten: #bool, True for quadconv only
+  size: #int, structured_data only
+  stride: #int, structured_data only
   channels: #list
   shuffle: #bool
 

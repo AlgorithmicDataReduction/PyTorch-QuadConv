@@ -69,6 +69,16 @@ class QuadConvBlock(nn.Module):
 
         return
 
+    def cache(self, nodes, weight_map):
+        if self.adjoint:
+            output_points = self.conv2.cache(nodes, weight_map)
+            self.conv1.cache(output_points, weight_map)
+        else:
+            self.conv1.cache(nodes, weight_map)
+            output_points = self.conv2.cache(nodes, weight_map)
+
+        return output_points
+
     '''
     Forward mode
     '''

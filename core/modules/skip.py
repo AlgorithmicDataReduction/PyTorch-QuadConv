@@ -45,14 +45,18 @@ class Encoder(nn.Module):
         self.cnn = nn.Sequential()
 
         for i in range(len(point_seq)-1):
-            self.cnn.append(Block(num_points_in = point_seq[i],
-                                    num_points_out = point_seq[i+1],
-                                    in_channels = channel_seq[i],
-                                    out_channels = channel_seq[i+1],
-                                    **kwargs
-                                    ))
+            block = Block(num_points_in = point_seq[i],
+                            num_points_out = point_seq[i+1],
+                            in_channels = channel_seq[i],
+                            out_channels = channel_seq[i+1],
+                            **kwargs
+                            )
+            self.cnn.append(block)
 
-        self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
+        if conv_type == 'standard':
+            self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
+        else:
+            self.conv_out_shape = torch.Size((1, channel_seq[-1], point_seq[-1]))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
 
@@ -64,6 +68,12 @@ class Encoder(nn.Module):
         self.linear.append(latent_activation())
 
         self.linear(self.flat(torch.zeros(self.conv_out_shape)))
+
+    def cache(self, input_points, quad_map):
+        for block in self.cnn:
+            input_points = block.cache(input_points, quad_map)
+
+        return input_points
 
     def forward(self, x):
         x = self.cnn(x)
@@ -123,15 +133,22 @@ class Decoder(nn.Module):
         self.cnn = nn.Sequential()
 
         for i in range(len(point_seq)-1, 0, -1):
-            self.cnn.append(Block(num_points_in = point_seq[i],
-                                    num_points_out = point_seq[i-1],
-                                    in_channels = channel_seq[i],
-                                    out_channels = channel_seq[i-1],
-                                    adjoint = True,
-                                    activation1 = activation1 if i!=1 else nn.Identity,
-                                    activation2 = activation2 if i!=1 else nn.Identity,
-                                    **kwargs
-                                    ))
+            block = Block(num_points_in = point_seq[i],
+                            num_points_out = point_seq[i-1],
+                            in_channels = channel_seq[i],
+                            out_channels = channel_seq[i-1],
+                            adjoint = True,
+                            activation1 = activation1 if i!=1 else nn.Identity,
+                            activation2 = activation2 if i!=1 else nn.Identity,
+                            **kwargs
+                            )
+            self.cnn.append(block)
+
+    def cache(self, input_points, quad_map):
+        for block in self.cnn:
+            input_points = block.cache(input_points, quad_map)
+
+        return
 
     def forward(self, x):
         x = self.linear(x)

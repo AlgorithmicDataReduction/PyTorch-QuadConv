@@ -11,10 +11,9 @@ PT Lightning data module for grid based time series data.
 Input:
     data_dir: data directory
     spatial_dim: spatial dimension of data
-    batch_size: batch size
     size: number of points along each spatial dimension for a single sample
+    batch_size: batch size
     stride: stride along each spatial dimension between samples
-    flatten: whether or not to flatten spatial dimensions
     channels: which data channels to use
     normalize: whether or not to normalize the data
     split: percentage of data to use in training
@@ -23,15 +22,14 @@ Input:
     persistent_workers: whether or not to maintain data loading processes
     pin_memory: whether or not to pin data loading memory
 '''
-class GridDataModule(pl.LightningDataModule):
+class DataModule(pl.LightningDataModule):
 
     def __init__(self,*,
             data_dir,
             spatial_dim,
-            batch_size,
             size,
+            batch_size,
             stride = None,
-            flatten = True,
             channels = (),
             normalize = True,
             split = 0.8,
@@ -62,8 +60,7 @@ class GridDataModule(pl.LightningDataModule):
         return parent_parser
 
     '''
-    Transform data by selecting channels, tiling, reshaping, normalizing, and
-    flattening.
+    Transform data by selecting channels, tiling, reshaping, normalizing.
     '''
     def transform(self, data):
         #extract channels
@@ -92,10 +89,7 @@ class GridDataModule(pl.LightningDataModule):
             data = data.unfold(i, self.size, self.stride)
 
         #reshape
-        if self.flatten:
-            data = data.reshape(-1, 1, self.size**self.spatial_dim)
-        else:
-            data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.spatial_dim)]))
+        data = data.reshape(tuple([-1, 1]+[self.size for i in range(self.spatial_dim)]))
 
         return data
 
@@ -201,11 +195,8 @@ class GridDataModule(pl.LightningDataModule):
 
     NOTE: Not sure if this works with multichannel
     '''
-    def get_shape(self):
-        if self.flatten:
-            return (1, 1, self.size**self.spatial_dim)
-        else:
-            return tuple([1, 1]+[self.size for i in range(self.spatial_dim)])
+    def get_data_info(self):
+        return {'input_shape': tuple([1, 1]+[self.size for i in range(self.spatial_dim)])}
 
     '''
     Stitch tiled data back together.
@@ -231,9 +222,6 @@ class GridDataModule(pl.LightningDataModule):
         data: all batched data
     '''
     def agglomerate(self, data):
-        if self.flatten:
-            data = [t.reshape(tuple([-1, 1]+[self.size for i in range(self.spatial_dim)])) for t in data]
-
         #first, concatenate all the batches
         data = torch.cat(data)
 

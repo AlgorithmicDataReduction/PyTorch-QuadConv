@@ -11,10 +11,10 @@ train:
   # precision: #str
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
-  enable_checkpointing: True #bool
+  enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "./lightning_logs" #str
-  logger: True #bool
+  logger: False #bool
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
@@ -31,19 +31,19 @@ model:
   channel_seq: [1, 2, 3, 4] #list
   optimizer: "Adam" #str
   learning_rate: 0.01 #lfoat
-  loss_fn: "SobolevLoss"
+  loss_fn: "MSELoss"
 
 #PT LightningDataModule arguments
 data:
+  module: "structured_data"
   data_dir: "data/ignition_center_cut" #str
   spatial_dim: 2 #int
-  batch_size: 16 #int
   size: 50 #int
-  flatten: False #bool, flatten for quadrature
+  batch_size: 16 #int
   channels: [1] #list
 
 #Extra arguments
 misc:
-  make_gif: True #bool
+  make_gif: False #bool
   compute_stats: False #bool
   early_stopping: False #bool

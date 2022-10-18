@@ -2,14 +2,11 @@
 Learned quadrature convolutions.
 '''
 
-from core.FastGL.glpair import glpair
-from scipy.integrate import newton_cotes
-
 import torch
 import torch.nn as nn
 import torch_scatter
 
-from core.utilities import Sin
+from core.utilities import Sin, newton_cotes_quad
 
 '''
 Quadrature convolution operator.
@@ -21,9 +18,8 @@ Input:
     in_channels: input feature channels
     out_channels: output feature channels
     filter_seq: number of features at each filter stage
+    output_map: maps number of output points to their location
     filter_mode: type of point to filter operation
-    quad_mode: how to compute quadrature weights
-    composite_quad_order: composite qudrature order
     use_bias: whether or not to use bias
 '''
 class QuadConvLayer(nn.Module):
@@ -35,9 +31,8 @@ class QuadConvLayer(nn.Module):
             in_channels,
             out_channels,
             filter_seq,
+            output_map = None,
             filter_mode = 'single',
-            quad_mode = 'quadrature',
-            composite_quad_order = 2,
             use_bias = False
         ):
         super().__init__()
@@ -51,26 +46,20 @@ class QuadConvLayer(nn.Module):
         self.num_points_out = num_points_out
         self.out_channels = out_channels
         self.in_channels = in_channels
-        self.quad_mode = quad_mode
-        self.composite_quad_order = composite_quad_order
         self.use_bias = use_bias
+
+        if output_map == None:
+            self.output_map = lambda x: newton_cotes_quad(spatial_dim, x)[0]
+        else:
+            self.output_map = output_map
 
         #decay parameter
         self.decay_param = (self.num_points_in/16)**2
-
-        #quadrature
-        #NOTE: In the future we need to be able to handle different quadratures
-        #and arbitrary point cloud input. For now, we just assume that the data
-        #on a grid, so we use newton, and only change how the weights are computed.
-        self.quad = self.newton_cotes_quad
 
         #bias
         if self.use_bias:
             bias = torch.empty(1, self.out_channels, self.num_points_out)
             self.bias = nn.Parameter(nn.init.xavier_uniform_(bias, gain=2), requires_grad=True)
-
-        #cache indices
-        self.cache()
 
         #initialize filter
         self.init_filter(filter_seq, filter_mode)
@@ -145,69 +134,20 @@ class QuadConvLayer(nn.Module):
         return mlp
 
     '''
-    Get Gaussian quadrature weights and nodes.
+    Compute indices associated with non-zero filters.
 
     Input:
-        num_points: number of points
+        nodes: quadrature nodes
+        weight_map: maps nodes to quadrature weights
     '''
-    def gauss_quad(self, num_points):
-        num_points = int(num_points**(1/self.spatial_dim))
-
-        quad_weights = torch.zeros(num_points)
-        quad_nodes = torch.zeros(num_points)
-
-        for i in range(num_points):
-            _, quad_weights[i], quad_nodes[i] = glpair(num_points, i+1)
-
-        return quad_weights, quad_nodes
-
-    '''
-    Get Newton-Cotes quadrature weights and nodes.
-    NOTE: This function returns the composite rule, so its required that the order
-    of the quadrature rule divides evenly into N.
-
-    Input:
-        num_points: number of points
-        x0: left end point
-        x1: right end point
-    '''
-    def newton_cotes_quad(self, num_points, x0=0, x1=1):
-        num_points = int(num_points**(1/self.spatial_dim))
-        rep = [int(num_points/self.composite_quad_order)]
-
-        dx = (x1-x0)/(self.composite_quad_order-1)
-
-        weights, _ = newton_cotes(self.composite_quad_order-1, 1)
-        weights = torch.tile(torch.Tensor(dx*weights), rep)
-
-        return weights, torch.linspace(x0, x1, num_points)
-
-    '''
-    Compute convolution output locations.
-    '''
-    def output_locs(self):
-        _, mesh_nodes = self.quad(self.num_points_out)
-
-        node_list = [mesh_nodes]*self.spatial_dim
-
-        output_locs = torch.dstack(torch.meshgrid(*node_list, indexing='xy')).view(-1, self.spatial_dim)
-
-        return output_locs
-
-    '''
-    Compute indices associated with non-zero filters
-    '''
-    def cache(self):
-        quad_weights, quad_nodes = self.quad(self.num_points_in)
-        output_locs = self.output_locs()
-
-        #create mesh
-        node_list = [quad_nodes]*self.spatial_dim
-        nodes = torch.meshgrid(*node_list, indexing='xy')
-        nodes = torch.dstack(nodes).view(-1, self.spatial_dim)
+    def cache(self, nodes, weight_map):
+        #output locations
+        if self.num_points_in != self.num_points_out:
+            output_locs = self.output_map(self.num_points_out)
+        else:
+            output_locs = nodes
 
         #determine indices
-        #NOTE: This seems to be the source of the memory issues
         locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.spatial_dim)
 
         bump_arg = torch.linalg.vector_norm(locs, dim=(2), keepdims = True)**4
@@ -218,22 +158,18 @@ class QuadConvLayer(nn.Module):
         self.eval_locs = nn.Parameter(locs[tf_vec, :], requires_grad=False)
         self.eval_indices = nn.Parameter(idx, requires_grad=False)
 
-        if self.quad_mode == 'quadrature':
-            weight_list = [quad_weights]*self.spatial_dim
-            weights =  torch.meshgrid(*weight_list, indexing='xy')
-            weights = torch.dstack(weights).reshape(-1, self.spatial_dim)
+        #learn the weights
+        if weight_map == None:
+            weights = torch.zeros(nodes.shape[0])
+            self.quad_weights = nn.Parameter(weights, requires_grad=True)
 
-            weights = torch.prod(weights[self.eval_indices[:,1],...], dim=1)
+        #weights are specified
+        else:
+            weights = weight_map(nodes)
 
             self.quad_weights = nn.Parameter(weights, requires_grad=False)
 
-        elif self.quad_mode == 'implicit':
-            self.quad_weights = None
-
-        else:
-            raise ValueError(f'Quadrature mode {self.quad_mode} is not supported.')
-
-        return
+        return output_locs
 
     '''
     Apply operator via quadrature approximation of convolution with features and learned filter.
@@ -251,13 +187,12 @@ class QuadConvLayer(nn.Module):
         #compute filter
         filters = self.G(self.eval_locs)
 
-        #multiply by quadrature weights
-        if self.quad_weights != None:
-            filters = torch.einsum('n, nij -> nij', self.quad_weights, filters)
-            filters = filters*self.quad_weights.view(-1, 1, 1)
-
-        #compute filter feature mat-vec products
-        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.in_channels), filters).reshape(features.shape[0], self.out_channels, -1)
+        #compute quadrature as weights*filters*features
+        values = torch.einsum('n, bni, nij -> bnj',
+                                self.quad_weights[self.eval_indices[:,1]],
+                                features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.in_channels),
+                                filters)
+        values = values.reshape(features.shape[0], self.out_channels, -1)
 
         #both of the following are valid
         torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), integral, reduce="sum")
