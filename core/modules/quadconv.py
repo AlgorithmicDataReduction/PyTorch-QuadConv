@@ -254,7 +254,6 @@ class QuadConvLayer(nn.Module):
         #multiply by quadrature weights
         if self.quad_weights != None:
             filters = torch.einsum('n, nij -> nij', self.quad_weights, filters)
-            filters = filters*self.quad_weights.view(-1, 1, 1)
 
         #compute filter feature mat-vec products
         values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.in_channels), filters).reshape(features.shape[0], self.out_channels, -1)
