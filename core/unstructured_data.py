@@ -93,7 +93,7 @@ class DataModule(pl.LightningDataModule):
 
         except FileNotFoundError:
             self.points = None
-            
+
         except Exception as e:
             raise e
 
@@ -197,6 +197,10 @@ class DataModule(pl.LightningDataModule):
 
     Input:
         data: all batched data
+
+    NOTE: I dont think this will work properly when points is None
+    NOTE: There is probably a better way to do this histogram stuff, but unfortunately
+    histogramdd doesn't broadcast.
     '''
     def agglomerate(self, data):
         #first, concatenate all the batches
@@ -206,10 +210,16 @@ class DataModule(pl.LightningDataModule):
         data = torch.movedim(data, 1, -1)
 
         #bin to transform into grid
-        #NOTE: This bins value is specific to the ignition center cut data
-        #NOTE: Not sure this will work with batches and multichannel
-        hist = torch.histogramdd(self.points, bins=50, weight=data)['hist']
-        count = torch.histogramdd(self.points, bins=50)['hist']
+        glom = [self.to_grid(sample) for sample in data]
+
+        return torch.stack(glom)
+
+    '''
+    NOTE: Not accounting for multichannel
+    '''
+    def to_grid(self, data):
+        hist = torch.histogramdd(self.points, bins=50, weight=data.squeeze())[0]
+        count = torch.histogramdd(self.points, bins=50)[0]
 
         return hist/count
 
@@ -220,4 +230,4 @@ class DataModule(pl.LightningDataModule):
         idx: sample index
     '''
     def get_sample(self, idx):
-        return self.agglomerate(self.predict[idx,...])
+        return self.to_grid(self.predict[idx,...])
