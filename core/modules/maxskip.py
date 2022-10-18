@@ -38,7 +38,16 @@ class Encoder(nn.Module):
 
         if conv_type == 'standard':
             Block = PoolConvBlock
-            init_layer = nn.Conv1d(**arg_stack[0])
+
+            layer_lookup = {
+            1 : (nn.Conv1d),
+            2 : (nn.Conv2d),
+            3 : (nn.Conv3d),
+            }
+
+            Conv = layer_lookup[spatial_dim]
+
+            init_layer = Conv(**arg_stack[0])
 
         elif conv_type == 'quadrature':
             Block = PoolQuadConvBlock
@@ -67,7 +76,7 @@ class Encoder(nn.Module):
         self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
         self.linear.append(self.activation2)
 
-        self.out_shape = self.linear(self.flat(torch.zeros(self.conv_out_shape)))
+        self.out_shape = self.linear(self.flat(torch.zeros(self.conv_out_shape))).shape
 
     def forward(self, x):
         x = self.cnn(x)
@@ -111,7 +120,16 @@ class Decoder(nn.Module):
 
         if conv_type == 'standard':
             Block = PoolConvBlock
-            init_layer = nn.Conv1d(**arg_stack[0] )
+
+            layer_lookup = {
+            1 : (nn.Conv1d),
+            2 : (nn.Conv2d),
+            3 : (nn.Conv3d),
+            }
+
+            Conv = layer_lookup[spatial_dim]
+
+            init_layer = Conv(**arg_stack[0] )
 
         elif conv_type == 'quadrature':
             Block = PoolQuadConvBlock

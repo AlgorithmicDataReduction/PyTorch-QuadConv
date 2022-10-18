@@ -33,6 +33,9 @@ class GridDataModule(pl.LightningDataModule):
         args = locals()
         args.pop('self')
 
+        self.analyze = None
+        self.original_shape = None
+
         for key, value in args.items():
             setattr(self, key, value)
 
@@ -97,6 +100,8 @@ class GridDataModule(pl.LightningDataModule):
 
         data = torch.cat(data_list, 0)
 
+        self.original_shape = data.shape
+
         #setup
         if stage == "fit" or stage is None:
 
@@ -116,6 +121,10 @@ class GridDataModule(pl.LightningDataModule):
         elif stage == "predict" or stage is None:
 
             self.predict = self.transform(data)
+
+        elif stage == "analyze" or stage is None:
+
+            self.analyze = self.transform(data)
 
         else:
             raise ValueError("Invalid stage.")
@@ -150,6 +159,9 @@ class GridDataModule(pl.LightningDataModule):
                             num_workers=self.num_workers,
                             pin_memory=self.pin_memory,
                             persistent_workers=self.persistent_workers)
+
+    def analyze_data(self):
+        return self.analyze
 
     def teardown(self, stage=None):
         return

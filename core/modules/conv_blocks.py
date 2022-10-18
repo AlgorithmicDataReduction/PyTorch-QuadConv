@@ -70,7 +70,7 @@ class ConvBlock(nn.Module):
 
         if self.adjoint:
             conv1_channel_num = out_channels
-            stride = int(np.floor((um_points_out-1-(kernel_size-1))/(num_points_in-1)))
+            stride = int(np.floor((num_points_out-1-(kernel_size-1))/(num_points_in-1)))
             self.conv2 = Conv2(in_channels,
                                 out_channels,
                                 kernel_size,

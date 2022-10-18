@@ -96,6 +96,7 @@ class SobolevLoss(nn.Module):
 
     def __init__(self,*,
             spatial_dim,
+            flatten = False,
             order = 1,
             lambda_r = torch.tensor(0.25)
         ):
@@ -120,6 +121,7 @@ class SobolevLoss(nn.Module):
         self.spatial_dim = spatial_dim
         self.order = order
         self.lambda_r = lambda_r
+        self.flatten = flatten
 
         return
 
@@ -134,7 +136,7 @@ class SobolevLoss(nn.Module):
         channels = pred.shape[1]
 
         #compute function l2 error
-        loss = nn.functional.mse_loss(pred, target)
+        loss = nn.functional.mse_loss(pred, target)**(0.5)
 
         #copy predictions and target
         _pred = pred
@@ -147,10 +149,12 @@ class SobolevLoss(nn.Module):
             stencil = self.stencil.repeat(channels, channels, 1)
 
         elif self.spatial_dim == 2:
-            sq_shape = np.sqrt(_pred.shape[2]).astype(int)
 
-            _pred = torch.reshape(_pred, (_pred.shape[0], _pred.shape[1], sq_shape, sq_shape))
-            _target = torch.reshape(_target, (_target.shape[0], _target.shape[1], sq_shape, sq_shape))
+            if self.flatten:
+                sq_shape = np.sqrt(_pred.shape[2]).astype(int)
+
+                _pred = torch.reshape(_pred, (_pred.shape[0], _pred.shape[1], sq_shape, sq_shape))
+                _target = torch.reshape(_target, (_target.shape[0], _target.shape[1], sq_shape, sq_shape))
 
             conv = nn.functional.conv2d
 
@@ -161,7 +165,7 @@ class SobolevLoss(nn.Module):
             _pred = conv(_pred, stencil)
             _target = conv(_target, stencil)
 
-            loss += torch.sqrt(self.lambda_r**(i+1)) * nn.functional.mse_loss(_pred, _target)
+            loss += torch.sqrt(self.lambda_r**(i+1)) * nn.functional.mse_loss(_pred, _target)**(0.5)
 
         return loss/pred.shape[0]
 

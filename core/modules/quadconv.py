@@ -104,7 +104,7 @@ class QuadConvLayer(nn.Module):
             for j in range(self.out_channels):
                 self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat(module(z) for module in self.filter).reshape(-1, self.channels_in, self.channels_out)
+            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).reshape(-1, self.in_channels, self.out_channels)
 
         elif filter_mode == 'nested':
             self.filter = nn.ModuleList()
@@ -115,7 +115,7 @@ class QuadConvLayer(nn.Module):
                 for j in range(self.out_channels):
                     self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat(module(z) for module in self.filter).reshape(-1, self.channels_in, self.channels_out)
+            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).reshape(-1, self.in_channels, self.out_channels)
 
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')

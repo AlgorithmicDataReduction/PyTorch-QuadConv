@@ -181,10 +181,10 @@ class PoolQuadConvBlock(nn.Module):
         x = data
 
         x1 = self.conv1(x)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.batchnorm1(self.activation1(x1))
 
         x2 = self.conv2(x1)
-        x2 = self.activation2(self.batchnorm2(x2) + x)
+        x2 = self.batchnorm2(self.activation2(x2 + x))
 
         sq_shape = int(np.sqrt(x2.shape[-1]))
 
@@ -204,10 +204,10 @@ class PoolQuadConvBlock(nn.Module):
         x = self.resample(data.reshape(data.shape[0], data.shape[1], *dim_pack)).reshape(data.shape[0], data.shape[1], -1)
 
         x1 = self.conv1(x)
-        x1 = self.activation1(self.batchnorm1(x1))
+        x1 = self.batchnorm1(self.activation1(x1))
 
         x2 = self.conv2(x1)
-        x2 = self.activation2(self.batchnorm2(x2) + x)
+        x2 = self.batchnorm2(self.activation2(x2 + x))
 
         return x2
 

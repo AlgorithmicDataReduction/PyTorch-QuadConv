@@ -68,6 +68,12 @@ class AutoEncoder(pl.LightningModule):
 
         return parent_parser
 
+    def compress(self,x):
+        return self.encoder(x)
+
+    def decompress(self,x):
+        return self.output_activation(self.decoder(x))
+
     def forward(self, x):
         return self.output_activation(self.decoder(self.encoder(x)))
 
