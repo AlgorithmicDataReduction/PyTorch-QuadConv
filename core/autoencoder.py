@@ -54,12 +54,7 @@ class AutoEncoder(pl.LightningModule):
         #NOTE: There is probably a bit of a better way to do this, but this
         #should work for now.
         if loss_fn == 'SobolevLoss':
-            if kwargs['conv_type'] == 'quadrature':
-                flatten = True
-            else:
-                flatten = False
-
-            self.loss_fn = SobolevLoss(spatial_dim=spatial_dim, flatten=flatten)
+            self.loss_fn = SobolevLoss(spatial_dim=spatial_dim)
         else:
             self.loss_fn = getattr(nn, loss_fn)()
 

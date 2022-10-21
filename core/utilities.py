@@ -98,7 +98,6 @@ class SobolevLoss(nn.Module):
 
     def __init__(self,*,
             spatial_dim,
-            flatten = False,
             order = 1,
             lambda_r = torch.tensor(0.25)
         ):
@@ -125,7 +124,6 @@ class SobolevLoss(nn.Module):
         self.spatial_dim = spatial_dim
         self.order = order
         self.lambda_r = lambda_r
-        self.flatten = flatten
 
         return
 
@@ -154,11 +152,11 @@ class SobolevLoss(nn.Module):
         if self.spatial_dim == 1:
             conv = nn.functional.conv1d
 
-            stencil = self.stencil.repeat(channels, channels, 1)
+            stencil = self.stencil.expand(channels, channels, -1)
 
         elif self.spatial_dim == 2:
 
-            if self.flatten:
+            if _target.dim() == 3:
                 sq_shape = np.sqrt(_pred.shape[2]).astype(int)
 
                 _pred = torch.reshape(_pred, (_pred.shape[0], _pred.shape[1], sq_shape, sq_shape))
@@ -166,7 +164,7 @@ class SobolevLoss(nn.Module):
 
             conv = nn.functional.conv2d
 
-            stencil = self.stencil.repeat(1, channels, 1, 1)
+            stencil = self.stencil.expand(1, channels, -1, -1)
 
         #compute derivative l2 losses
         for i in range(self.order):
