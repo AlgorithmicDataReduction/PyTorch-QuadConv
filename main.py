@@ -148,13 +148,13 @@ if __name__ == "__main__":
 
     #data specific args
     #NOTE: I removed this for now because of how we dynamically importing the module
-    # data_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    # data_parser = GridDataModule.add_args(data_parser)
+    data_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    data_parser = DataModule.add_args(data_parser)
 
     #look for other CL arguments
     trainer_args.update(vars(trainer_parser.parse_known_args()[0]))
     model_args.update(vars(model_parser.parse_known_args()[0]))
-    # data_args.update(vars(data_parser.parse_known_args()[0]))
+    data_args.update(vars(data_parser.parse_known_args()[0]))
 
     #run main script
     main(experiment, trainer_args, model_args, data_args, misc_args)
