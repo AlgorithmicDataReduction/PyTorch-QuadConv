@@ -30,10 +30,11 @@ model:
   point_seq: [2500, 900, 625, 100] #list
   channel_seq: [1, 4, 16, 32] #list
   filter_seq: [100, 100, 100] #list
-  optimizer: "Adam" #str
+  optimizer: "AdamW" #str
   learning_rate: 0.01 #foat
-  use_bias: True
+  use_bias: False
   loss_fn: "MSELoss"
+  noise_scale: 0.001
 
 #PT LightningDataModule arguments
 data:
