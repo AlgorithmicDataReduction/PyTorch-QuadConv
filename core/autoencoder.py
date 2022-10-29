@@ -73,7 +73,13 @@ class AutoEncoder(pl.LightningModule):
                                         **kwargs)
 
         if kwargs['conv_type'] == 'quadrature':
-            self.decoder.cnn[-1].conv2.output_map = lambda x: input_points
+            input_map = torch.clone(input_points)
+            self.encoder.cnn[0].conv1.output_map = lambda x: input_map
+            self.encoder.cnn[0].conv1.out_grid = False
+            self.decoder.cnn[-1].conv2.output_map = lambda x: input_map
+            self.decoder.cnn[-1].conv2.out_grid = False
+            self.decoder.cnn[-1].conv1.output_map = lambda x: input_map
+            self.decoder.cnn[-1].conv1.out_grid = False
             input_points, grid = self.encoder.cache(input_points, quad_map)
             self.decoder.cache(input_points, quad_map, grid=grid)
 

@@ -50,9 +50,10 @@ class QuadConvLayer(nn.Module):
 
         if output_map == None:
             self.output_map = lambda x: newton_cotes_quad(spatial_dim, x)[0]
-            self.grid = True
+            self.out_grid = True
         else:
             self.output_map = output_map
+            self.out_grid = False
 
         #decay parameter
         self.decay_param = (self.num_points_in/16)**2
@@ -143,11 +144,7 @@ class QuadConvLayer(nn.Module):
     '''
     def cache(self, nodes, weight_map, grid=False):
         #output locations
-        if self.num_points_in != self.num_points_out:
-            output_locs = self.output_map(self.num_points_out)
-        else:
-            output_locs = nodes
-            self.grid = False
+        output_locs = self.output_map(self.num_points_out)
 
         #determine indices
         locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.spatial_dim)
@@ -160,22 +157,25 @@ class QuadConvLayer(nn.Module):
         self.eval_locs = nn.Parameter(locs[tf_vec, :], requires_grad=False)
         self.eval_indices = nn.Parameter(idx, requires_grad=False)
 
+        print(f"Grid: {grid}")
+        print(f"Input points: {nodes.shape[0]}, Output points: {output_locs.shape[0]}")
+
         #use NC quad if input is grid
         if grid == True:
             weight_map = lambda x: newton_cotes_quad(self.spatial_dim, x)[1]
 
         #learn the weights
         if weight_map == None:
+            print("Learning weights")
             weights = torch.zeros(nodes.shape[0])
             self.quad_weights = nn.Parameter(weights, requires_grad=True)
 
         #weights are specified
         else:
             weights = weight_map(nodes.shape[0])
-
             self.quad_weights = nn.Parameter(weights, requires_grad=False)
 
-        return output_locs, self.grid
+        return output_locs, self.out_grid
 
     '''
     Apply operator via quadrature approximation of convolution with features and learned filter.

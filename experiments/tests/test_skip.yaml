@@ -27,7 +27,7 @@ model:
   conv_type: "quadrature" #str "standard" or "quadrature"
   spatial_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [2500, 100] #list
+  point_seq: [2500, 64] #list
   channel_seq: [1, 2] #list
   filter_seq: [4, 4] #list
   optimizer: "AdamW" #str
