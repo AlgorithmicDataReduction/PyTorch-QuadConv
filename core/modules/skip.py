@@ -69,11 +69,11 @@ class Encoder(nn.Module):
 
         self.linear(self.flat(torch.zeros(self.conv_out_shape)))
 
-    def cache(self, input_points, quad_map):
+    def cache(self, input_points, quad_map, grid=False):
         for block in self.cnn:
-            input_points = block.cache(input_points, quad_map)
+            input_points, grid = block.cache(input_points, quad_map, grid=grid)
 
-        return input_points
+        return input_points, grid
 
     def forward(self, x):
         x = self.cnn(x)
@@ -144,9 +144,9 @@ class Decoder(nn.Module):
                             )
             self.cnn.append(block)
 
-    def cache(self, input_points, quad_map):
+    def cache(self, input_points, quad_map, grid=False):
         for block in self.cnn:
-            input_points = block.cache(input_points, quad_map)
+            input_points, grid = block.cache(input_points, quad_map, grid=grid)
 
         return
 

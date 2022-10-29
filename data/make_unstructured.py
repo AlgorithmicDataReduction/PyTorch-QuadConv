@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    domain = 'ignition_center_cut'
+    domain = 'grid_ignition_center_cut'
     data_dir = f'data/{domain}/train.npy'
 
     data = np.load(data_dir)
@@ -25,10 +25,25 @@ if __name__ == '__main__':
     #determine sample points
     num_points = x_n*y_n
 
+################################################################################
+
     sample_points = np.zeros((num_points, 2))
 
-    sample_points[:,0] = np.random.uniform(0, x_lim, num_points)
-    sample_points[:,1] = y_lim*np.random.beta(3, 3, size=num_points)
+    # sample_points[:,0] = np.random.uniform(0, x_lim, num_points)
+    # sample_points[:,1] = y_lim*np.random.beta(3, 3, size=num_points)
+
+    x = np.arange(0.5, x_lim+0.5, 1)
+    y = np.arange(0.5, y_lim+0.5, 1)
+
+    for i in range(x_n):
+        for j in range(y_n):
+            sample_points[j+y_n*i,0] = x[i]
+            sample_points[j+y_n*i,1] = y[j]
+
+    sample_points[:,0] += np.random.uniform(-0.45, 0.45, num_points)
+    sample_points[:,1] += np.random.uniform(-0.45, 0.45, num_points)
+
+################################################################################
 
     #interpolate
     sample_features = np.zeros((time_steps, num_points, channels))
@@ -44,5 +59,5 @@ if __name__ == '__main__':
     plt.show()
 
     #save data
-    # np.save('data/unstructured_ignition_center_cut/points', sample_points)
-    # np.save('data/unstructured_ignition_center_cut/features', sample_features)
+    np.save('data/unstructured_ignition_center_cut_2/points', sample_points)
+    np.save('data/unstructured_ignition_center_cut_2/features', sample_features)
