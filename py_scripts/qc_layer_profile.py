@@ -22,7 +22,7 @@ data = torch.ones(batch_size, channels_in, N_in).cuda()
 ref = torch.ones(batch_size, channels_out, N_out).cuda()
 
 record_shapes = False
-profile_memory = False
+profile_memory = True
 with_stack = False
 
 ###############################################################################
@@ -44,10 +44,10 @@ loss_fn(layer(data), ref)
 
 ###############################################################################
 
-# with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-#                 record_shapes=record_shapes,
-#                 profile_memory=profile_memory,
-#                 with_stack=with_stack,
-#                 on_trace_ready=tth('../lightning_logs/profiles/quad_conv')) as prof:
-#
-#     loss_fn(layer(data), ref).backward()
+with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+                record_shapes=record_shapes,
+                profile_memory=profile_memory,
+                with_stack=with_stack,
+                on_trace_ready=tth('./lightning_logs/profiles/quad_conv')) as prof:
+
+    loss_fn(layer(data), ref).backward()
