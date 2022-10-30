@@ -167,7 +167,7 @@ class QuadConvLayer(nn.Module):
         #learn the weights
         if weight_map == None:
             print("Learning weights")
-            weights = torch.zeros(nodes.shape[0])
+            weights = torch.ones(nodes.shape[0])
             self.quad_weights = nn.Parameter(weights, requires_grad=True)
 
         #weights are specified

@@ -74,8 +74,8 @@ class QuadConvBlock(nn.Module):
             output_points, grid = self.conv2.cache(nodes, weight_map, grid=grid)
             self.conv1.cache(output_points, weight_map, grid=grid)
         else:
-            output_points, grid = self.conv1.cache(nodes, weight_map, grid=grid)
-            output_points, grid = self.conv2.cache(output_points, weight_map, grid=grid)
+            self.conv1.cache(nodes, weight_map, grid=grid)
+            output_points, grid = self.conv2.cache(nodes, weight_map, grid=grid)
 
         return output_points, grid
 

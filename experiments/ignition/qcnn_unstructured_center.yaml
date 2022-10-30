@@ -27,14 +27,14 @@ model:
   conv_type: "quadrature" #str "standard" or "quadrature"
   spatial_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [2500, 900, 625, 100] #list
+  point_seq: [1740, 900, 676, 100] #list
   channel_seq: [1, 4, 16, 32] #list
   filter_seq: [100, 100, 100] #list
   optimizer: "AdamW" #str
   learning_rate: 0.01 #foat
   use_bias: False
   loss_fn: "MSELoss"
-  noise_scale: 0.001
+  # noise_scale: 0.001
 
 #PT LightningDataModule arguments
 data:
@@ -42,8 +42,8 @@ data:
   data_dir: "data/unstructured_ignition_center_cut" #str
   spatial_dim: 2 #int
   batch_size: 64 #int
-  num_points: 2500 #int
-  channels: [1] #list
+  num_points: 1740 #int
+  channels: [0] #list
 
 #Extra arguments
 misc:
