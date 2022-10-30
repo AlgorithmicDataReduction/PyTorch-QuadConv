@@ -1,15 +1,13 @@
 #!/bin/bash
 
-### LSF syntax
-#BSUB -B
-#BSUB -N
-#BSUB -eo mystderr_%J.txt
-#BSUB -cwd
-#BSUB -nnodes 2                   #number of nodes
-#BSUB -W 120                      #walltime in minutes
-#BSUB -G doherty8                 #account
-#BSUB -J qcnn                     #name of job
-#BSUB -q pbatch                   #queue to use
+	### LSF syntax
+	#BSUB -e mystderr.txt
+	#BSUB -o mystdout.txt
+	#BSUB -nnodes 1                   #number of nodes
+	#BSUB -W 12:00                      #walltime in minutes
+	#BSUB -J qcnn                     #name of job
+	#BSUB -q pbatch                   #queue to use
+	#BSUB -G uco
 
     ### Shell scripting
     date; hostname
@@ -22,7 +20,8 @@
 
     module load cuda/11.3.0
 
-    conda activate compression
+    conda activate torch
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/torch/bin
     conda info
 
     #Confirm pytorch detects GPUs
@@ -31,4 +30,7 @@
     #remove old logs
     #rm -r $REPO/lightning_logs/$TEST/*
 
-    lrun ~/.conda/envs/compression/bin/python ~/QuadConv/main.py --experiment ignition_maxskip_qcnn --default_root_dir ~/QuadConv --data_dir /usr/workspace/doherty8/data/ignition_center_cut
+
+    echo "=== STARTING JOB ==="    
+
+    jsrun -n 1 -r 1 -a 4 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/QuadConv/main.py --experiment ignition_maxskip_qcnn --default_root_dir ~/QuadConv/lightning_logs --data_dir /usr/workspace/doherty8/data/ignition_center_cut
