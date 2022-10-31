@@ -66,15 +66,6 @@ class QuadConvLayer(nn.Module):
         #initialize filter
         self.init_filter(filter_seq, filter_mode)
 
-    def bump_arg(self, z):
-        return torch.linalg.vector_norm(z, dim=(2), keepdims = True)**4
-
-    def bump(self, z):
-        bump_arg = torch.linalg.vector_norm(z, dim=(1), keepdims = False)**4
-        bump = torch.exp(-1/1-self.decay_param*bump_arg).view(-1, 1, 1)
-
-        return bump
-
     '''
     Initialize the layer filter.
 
@@ -91,7 +82,7 @@ class QuadConvLayer(nn.Module):
 
             self.filter.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
 
-            self.G = lambda z: self.bump(z)*self.filter(z)
+            self.G = lambda z: self.filter(z)
 
         elif filter_mode == 'share_in':
             self.filter = nn.ModuleList()
@@ -101,7 +92,7 @@ class QuadConvLayer(nn.Module):
             for j in range(self.out_channels):
                 self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: self.bump(z)*(torch.cat(module(z) for module in self.filter).view(-1, self.channels_in, self.channels_out))
+            self.G = lambda z: torch.cat(module(z) for module in self.filter).view(-1, self.channels_in, self.channels_out)
 
         elif filter_mode == 'nested':
             self.filter = nn.ModuleList()
@@ -112,7 +103,7 @@ class QuadConvLayer(nn.Module):
                 for j in range(self.out_channels):
                     self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: self.bump(z)*(torch.cat(module(z) for module in self.filter).view(-1, self.channels_in, self.channels_out))
+            self.G = lambda z: torch.cat(module(z) for module in self.filter).view(-1, self.channels_in, self.channels_out)
 
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
@@ -140,6 +131,18 @@ class QuadConvLayer(nn.Module):
         mlp.append(nn.Linear(mlp_channels[-2], mlp_channels[-1], bias=bias))
 
         return mlp
+
+    '''
+    Bump stuff
+    '''
+    def bump_arg(self, z):
+        return torch.linalg.vector_norm(z, dim=(2), keepdims = True)**4
+
+    def bump(self, z):
+        bump_arg = torch.linalg.vector_norm(z, dim=(1), keepdims = False)**4
+        bump = torch.exp(-1/1-self.decay_param*bump_arg)
+
+        return bump
 
     '''
     Compute indices associated with non-zero filters.
@@ -202,8 +205,12 @@ class QuadConvLayer(nn.Module):
         #compute filter
         filters = self.G(self.eval_locs)
 
+        #compute bump
+        bump = self.bump(self.eval_locs)
+
         #compute quadrature as weights*filters*features
-        values = torch.einsum('n, bni, nij -> bnj',
+        values = torch.einsum('n, n, bni, nij -> bnj',
+                                bump,
                                 self.quad_weights[self.eval_indices[:,1]],
                                 features[:,:,self.eval_indices[:,1]].view(features.shape[0], -1, self.in_channels),
                                 filters)
