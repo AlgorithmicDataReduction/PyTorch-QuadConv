@@ -66,6 +66,15 @@ class QuadConvLayer(nn.Module):
         #initialize filter
         self.init_filter(filter_seq, filter_mode)
 
+    def bump_arg(self, z):
+        return torch.linalg.vector_norm(z, dim=(2), keepdims = True)**4
+
+    def bump(self, z):
+        bump_arg = torch.linalg.vector_norm(z, dim=(1), keepdims = False)**4
+        bump = torch.exp(-1/1-self.decay_param*bump_arg).view(-1, 1, 1)
+
+        return bump
+
     '''
     Initialize the layer filter.
 
@@ -74,18 +83,15 @@ class QuadConvLayer(nn.Module):
         filter_mode: type of filter operation
     '''
     def init_filter(self, filter_seq, filter_mode):
-        #NOTE: If we were actually gonne use this one, this would be a bad way to
-        #use it as it has a bunch of redundant memory usage.
-        if filter_mode == 'static':
-            self.G = lambda z: nn.Parameter(torch.randn(self.out_channels, self.in_channels), requires_grad=True).expand(self.idx.shape[0], -1, -1)
-
-        elif filter_mode == 'single':
+        if filter_mode == 'single':
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
-            self.G = self.create_mlp(mlp_spec)
+            self.filter = self.create_mlp(mlp_spec)
 
-            self.G.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
+            self.filter.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
+
+            self.G = lambda z: self.bump(z)*self.filter(z)
 
         elif filter_mode == 'share_in':
             self.filter = nn.ModuleList()
@@ -95,7 +101,7 @@ class QuadConvLayer(nn.Module):
             for j in range(self.out_channels):
                 self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat(module(z) for module in self.filter).reshape(-1, self.channels_in, self.channels_out)
+            self.G = lambda z: self.bump(z)*(torch.cat(module(z) for module in self.filter).view(-1, self.channels_in, self.channels_out))
 
         elif filter_mode == 'nested':
             self.filter = nn.ModuleList()
@@ -106,7 +112,7 @@ class QuadConvLayer(nn.Module):
                 for j in range(self.out_channels):
                     self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat(module(z) for module in self.filter).reshape(-1, self.channels_in, self.channels_out)
+            self.G = lambda z: self.bump(z)*(torch.cat(module(z) for module in self.filter).view(-1, self.channels_in, self.channels_out))
 
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
@@ -149,7 +155,7 @@ class QuadConvLayer(nn.Module):
         #determine indices
         locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.spatial_dim)
 
-        bump_arg = torch.linalg.vector_norm(locs, dim=(2), keepdims = True)**4
+        bump_arg = self.bump_arg(locs)
 
         tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
         idx = torch.nonzero(tf_vec, as_tuple=False)
@@ -172,8 +178,11 @@ class QuadConvLayer(nn.Module):
 
         #weights are specified
         else:
+            print("Static weights")
             weights = weight_map(nodes.shape[0])
             self.quad_weights = nn.Parameter(weights, requires_grad=False)
+
+        print("\n")
 
         return output_locs, self.out_grid
 
@@ -196,9 +205,9 @@ class QuadConvLayer(nn.Module):
         #compute quadrature as weights*filters*features
         values = torch.einsum('n, bni, nij -> bnj',
                                 self.quad_weights[self.eval_indices[:,1]],
-                                features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.in_channels),
+                                features[:,:,self.eval_indices[:,1]].view(features.shape[0], -1, self.in_channels),
                                 filters)
-        values = values.reshape(features.shape[0], self.out_channels, -1)
+        values = values.view(features.shape[0], self.out_channels, -1)
 
         #both of the following are valid
         torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), integral, reduce="sum")

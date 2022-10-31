@@ -14,11 +14,11 @@ train:
   enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "./lightning_logs" #str
-  logger: True #bool
+  logger: False #bool
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
-  max_epochs: 50 #int
+  max_epochs: 5 #int
   # max_steps: #int
 
 #Model arguments
@@ -47,6 +47,6 @@ data:
 
 #Extra arguments
 misc:
-  make_gif: True #bool
-  compute_stats: False #bool
+  make_gif: False #bool
+  compute_stats: True #bool
   early_stopping: False #bool
