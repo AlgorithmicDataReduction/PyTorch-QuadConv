@@ -140,7 +140,7 @@ class QuadConvLayer(nn.Module):
 
     def bump(self, z):
         bump_arg = torch.linalg.vector_norm(z, dim=(1), keepdims = False)**4
-        bump = torch.exp(-1/1-self.decay_param*bump_arg)
+        bump = torch.exp(1-1/(1-self.decay_param*bump_arg))
 
         return bump
 
