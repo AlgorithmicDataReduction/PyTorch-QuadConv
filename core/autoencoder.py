@@ -185,10 +185,12 @@ class AutoEncoder(pl.LightningModule):
 
     '''
     Instantiates optimizer
-
     Output: pytorch optimizer
     '''
     def configure_optimizers(self):
         optimizer = getattr(torch.optim, self.optimizer)(self.parameters(), lr=self.learning_rate)
 
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=250, factor=0.5)
+        scheduler_config = {"scheduler": scheduler, "monitor": "val_err"}
+
+        return {"optimizer": optimizer, "lr_scheduler": scheduler_config}
