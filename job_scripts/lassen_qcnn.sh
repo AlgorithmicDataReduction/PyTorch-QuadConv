@@ -1,6 +1,7 @@
 #!/bin/bash
 
 	### LSF syntax
+	#BSUB -env "all"
 	#BSUB -e mystderr.txt
 	#BSUB -o mystdout.txt
 	#BSUB -nnodes 1                   #number of nodes
@@ -33,4 +34,4 @@
 
     echo "=== STARTING JOB ==="    
 
-    jsrun -n 1 -r 1 -a 4 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/QuadConv/main.py --experiment ignition_maxskip_qcnn --default_root_dir ~/QuadConv/lightning_logs --data_dir /usr/workspace/doherty8/data/ignition_center_cut
+    jsrun -n 1 -r 1 -a 4 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/QuadConv/main.py --experiment ignition_maxskip_qcnn --default_root_dir ~/branch_dir/QuadConv/lightning_logs --data_dir /usr/workspace/doherty8/data/ignition_center_cut
