@@ -1,0 +1,53 @@
+#Experiment configuration file.
+
+#PT Lightning trainer arguments.
+#Documentation: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html
+#Comment out options you aren't using
+train:
+  accelerator: "gpu" #str e.g. "gpu"
+  devices: -1 #int
+  # num_nodes: #int
+  # strategy: #str
+  # precision: #str
+  # auto_scale_batch_size: #bool
+  # auto_select_gpus: #bool
+  enable_checkpointing: False #bool
+  check_val_every_n_epoch: 1 #int
+  default_root_dir: "./lightning_logs" #str
+  logger: False #bool
+  # log_every_n_steps: #int
+  enable_progress_bar: True #bool
+  # profiler: #str
+  max_epochs: 1 #int
+  # max_steps: #int
+
+#Model arguments
+model:
+  module: "skip" #str, encoder and decoder
+  conv_type: "quadrature" #str "standard" or "quadrature"
+  spatial_dim: 2 #int
+  latent_dim: 10 #int
+  point_seq: [2500, 100] #list
+  channel_seq: [1, 2] #list
+  filter_seq: [4, 4] #list
+  optimizer: "Adam" #str
+  learning_rate: 0.01 #foat
+  use_bias: True
+  quad_mode: "implicit"
+  loss_fn: "SobolevLoss"
+
+#PT LightningDataModule arguments
+data:
+  data_dir: "data/grid_ignition_center_cut" #str
+  spatial_dim: 2 #int
+  batch_size: 16 #int
+  size: 50 #int
+  stride: 50 #int
+  flatten: True #bool, flatten for quadrature
+  channels: [1] #list
+
+#Extra arguments
+misc:
+  make_gif: False #bool
+  compute_stats: False #bool
+  early_stopping: False #bool
