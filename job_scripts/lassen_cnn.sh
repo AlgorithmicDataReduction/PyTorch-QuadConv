@@ -1,11 +1,11 @@
 #!/bin/bash
 
 	### LSF syntax
-    #BSUB -env "all"
+	#BSUB -env "all"
 	#BSUB -e mystderr.txt
 	#BSUB -o mystdout.txt
 	#BSUB -nnodes 1                   #number of nodes
-	#BSUB -W 12:00                    #walltime in minutes
+	#BSUB -W 12:00                      #walltime in minutes
 	#BSUB -J qcnn                     #name of job
 	#BSUB -q pbatch                   #queue to use
 	#BSUB -G uco
@@ -33,4 +33,4 @@
 
     echo "=== STARTING JOB ==="    
 
-    jsrun -n 1 -r 1 -a 4 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/branch_dir/QuadConv/main.py --experiment ignition_maxskip_qcnn.yml --default_root_dir ~/branch_dir/QuadConv/lightning_logs --data_dir /usr/workspace/doherty8/data/ignition_center_cut
+    jsrun -n 1 -r 1 -a 4 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/branch_dir/QuadConv/main.py --experiment ignition_maxskip_cnn --default_root_dir ~/branch_dir/QuadConv/lightning_logs --data_dir /usr/workspace/doherty8/data/ignition_center_cut

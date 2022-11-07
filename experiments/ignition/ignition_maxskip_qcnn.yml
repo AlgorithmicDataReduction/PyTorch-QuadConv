@@ -45,7 +45,7 @@ data:
   flatten: True #bool, flatten for quadrature
   channels: [1] #list
   shuffle: True
-  num_workers: 2
+  num_workers: 4
 
 #Extra arguments
 misc:

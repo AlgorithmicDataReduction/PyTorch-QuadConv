@@ -54,12 +54,7 @@ class AutoEncoder(pl.LightningModule):
         #NOTE: There is probably a bit of a better way to do this, but this
         #should work for now.
         if loss_fn == 'SobolevLoss':
-            if kwargs['conv_type'] == 'quadrature':
-                flatten = True
-            else:
-                flatten = False
-
-            self.loss_fn = SobolevLoss(spatial_dim=spatial_dim, flatten=flatten)
+            self.loss_fn = SobolevLoss(spatial_dim=spatial_dim)
         else:
             self.loss_fn = getattr(nn, loss_fn)()
 
@@ -190,10 +185,12 @@ class AutoEncoder(pl.LightningModule):
 
     '''
     Instantiates optimizer
-
     Output: pytorch optimizer
     '''
     def configure_optimizers(self):
         optimizer = getattr(torch.optim, self.optimizer)(self.parameters(), lr=self.learning_rate)
 
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=250, factor=0.5)
+        scheduler_config = {"scheduler": scheduler, "monitor": "val_err"}
+
+        return {"optimizer": optimizer, "lr_scheduler": scheduler_config}

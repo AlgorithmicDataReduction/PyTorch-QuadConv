@@ -104,7 +104,7 @@ class QuadConvLayer(nn.Module):
             for j in range(self.out_channels):
                 self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).reshape(-1, self.in_channels, self.out_channels)
+            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).view(-1, self.in_channels, self.out_channels)
 
         elif filter_mode == 'nested':
             self.filter = nn.ModuleList()
@@ -115,7 +115,7 @@ class QuadConvLayer(nn.Module):
                 for j in range(self.out_channels):
                     self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).reshape(-1, self.in_channels, self.out_channels)
+            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).view(-1, self.in_channels, self.out_channels)
 
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
@@ -208,7 +208,8 @@ class QuadConvLayer(nn.Module):
 
         #determine indices
         #NOTE: This seems to be the source of the memory issues
-        locs = (output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)).view(output_locs.shape[0], nodes.shape[0], self.spatial_dim)
+        locs = output_locs.repeat_interleave(nodes.shape[0], dim=0) - nodes.repeat(output_locs.shape[0], 1)
+        locs = locs.view(output_locs.shape[0], nodes.shape[0], self.spatial_dim)
 
         bump_arg = torch.linalg.vector_norm(locs, dim=(2), keepdims = True)**4
 
@@ -221,14 +222,15 @@ class QuadConvLayer(nn.Module):
         if self.quad_mode == 'quadrature':
             weight_list = [quad_weights]*self.spatial_dim
             weights =  torch.meshgrid(*weight_list, indexing='xy')
-            weights = torch.dstack(weights).reshape(-1, self.spatial_dim)
+            weights = torch.dstack(weights).view(-1, self.spatial_dim)
 
             weights = torch.prod(weights[self.eval_indices[:,1],...], dim=1)
 
             self.quad_weights = nn.Parameter(weights, requires_grad=False)
 
         elif self.quad_mode == 'implicit':
-            self.quad_weights = None
+            weights = torch.zeros(quad_nodes.shape[0])
+            self.quad_weights = nn.Parameter(weights, requires_grad=True)
 
         else:
             raise ValueError(f'Quadrature mode {self.quad_mode} is not supported.')
@@ -251,14 +253,14 @@ class QuadConvLayer(nn.Module):
         #compute filter
         filters = self.G(self.eval_locs)
 
-        #multiply by quadrature weights
-        if self.quad_weights != None:
-            filters = torch.einsum('n, nij -> nij', self.quad_weights, filters)
+        #compute quadrature as weights*filters*features
+        values = torch.einsum('n, bni, nij -> bnj',
+                                self.quad_weights[self.eval_indices[:,1]],
+                                features[:,:,self.eval_indices[:,1]].view(features.shape[0], -1, self.in_channels),
+                                filters)
+        values = values.view(features.shape[0], self.out_channels, -1)
 
-        #compute filter feature mat-vec products
-        values = torch.einsum('bni, nij -> bnj', features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.in_channels), filters).reshape(features.shape[0], self.out_channels, -1)
-
-        #both of the following are valid
+        #scatter and reduce results
         torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), integral, reduce="sum")
 
         #add bias

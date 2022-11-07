@@ -34,6 +34,7 @@ class ConvBlock(nn.Module):
             adjoint = False,
             activation1 = nn.CELU,
             activation2 = nn.CELU,
+            **kwargs
         ):
         super().__init__()
 
@@ -72,14 +73,6 @@ class ConvBlock(nn.Module):
             Norm = nn.InstanceNorm3d
 
         #build convolution layers, normalization layers, and activations
-        self.conv1 = Conv1(conv1_channel_num,
-                            conv1_channel_num,
-                            kernel_size,
-                            padding='same'
-                            )
-        self.norm1 = Norm(conv1_channel_num)
-        self.activation1 = activation1()
-
         if self.adjoint:
             conv1_channel_num = out_channels
             stride = int(np.floor((num_points_out-1-(kernel_size-1))/(num_points_in-1)))
@@ -97,6 +90,15 @@ class ConvBlock(nn.Module):
                                 kernel_size,
                                 stride=stride
                                 )
+
+        self.conv1 = Conv1(conv1_channel_num,
+                            conv1_channel_num,
+                            kernel_size,
+                            padding='same'
+                            )
+        self.norm1 = Norm(conv1_channel_num)
+        self.activation1 = activation1()
+
         self.norm2 = Norm(out_channels)
         self.activation2 = activation2()
 
