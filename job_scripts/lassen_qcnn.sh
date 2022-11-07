@@ -1,15 +1,14 @@
 #!/bin/bash
 
-### LSF syntax
-#BSUB -B
-#BSUB -N
-#BSUB -eo mystderr_%J.txt
-#BSUB -cwd
-#BSUB -nnodes 2                   #number of nodes
-#BSUB -W 120                      #walltime in minutes
-#BSUB -G doherty8                 #account
-#BSUB -J qcnn                     #name of job
-#BSUB -q pbatch                   #queue to use
+	### LSF syntax
+    #BSUB -env "all"
+	#BSUB -e mystderr.txt
+	#BSUB -o mystdout.txt
+	#BSUB -nnodes 1                   #number of nodes
+	#BSUB -W 12:00                    #walltime in minutes
+	#BSUB -J qcnn                     #name of job
+	#BSUB -q pbatch                   #queue to use
+	#BSUB -G uco
 
     ### Shell scripting
     date; hostname
