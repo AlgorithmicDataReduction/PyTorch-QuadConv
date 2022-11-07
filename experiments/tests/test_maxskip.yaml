@@ -16,34 +16,31 @@ train:
 #Model building arguments
 model:
   module: "maxskip"
-  spatial_dim: 1 #int dimension the convolution in the CNN
+  spatial_dim: 2 #int dimension the convolution in the CNN
   latent_dim: 10 #int
-  stages: 2
+  stages: 1
   learning_rate: 0.01
   noise_scale : 0.0
 
   conv_type: "quadrature" #str "standard" or "quadrature"
 
   conv_params:
-    num_points_in: [100, 100, 50]
-    num_points_out: [100, 100, 50]
+    num_points_in: [2500, 50]
+    num_points_out: [2500, 50]
     filter_seq: [[8,8,8]]
-    in_channels: [1, 16, 16] #list of length == stages+1
-    out_channels: [16, 16, 16] #list of length == stages+1 or length == 1
-    use_bias: [False, True, True] #list of length == stages+1 or length == 1
+    in_channels: [1, 2, 2] #list of length == stages+1
+    out_channels: [2, 2, 2] #list of length == stages+1 or length == 1
+    use_bias: [False, True] #list of length == stages+1 or length == 1
     # mlp_mode: ['share_in']
 
 #Data loader arguments
 data:
-  data_dir: "data/simple_transport" #str
-  spatial_dim: 1 #int
+  module: "unstructured_data"
+  data_dir: "data/ignition_center_cut" #str
+  spatial_dim: 2 #int
   batch_size: 16 #int
-  size: 100 #int
-  stride: 100 #int
-  flatten: True #bool, flatten for quadrature
-  channels: [0] #list
-  shuffle: True
-  num_workers: 4
+  num_points: 2500 #int
+  channels: [1] #list
 
 #Extra arguments
 misc:

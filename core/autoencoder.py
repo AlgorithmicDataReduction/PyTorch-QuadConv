@@ -61,6 +61,7 @@ class AutoEncoder(pl.LightningModule):
         if kwargs['conv_type'] == 'quadrature':
             input_points = kwargs.pop('input_points')
             quad_map = kwargs.pop('quad_map')
+            grid = kwargs.pop('grid')
 
         #model pieces
         self.output_activation = output_activation()
@@ -85,7 +86,7 @@ class AutoEncoder(pl.LightningModule):
             self.decoder.cnn[-1].conv1.output_map = map
             self.decoder.cnn[-1].conv1.out_grid = False
 
-            input_points, grid = self.encoder.cache(torch.clone(input_points), quad_map)
+            input_points, grid = self.encoder.cache(torch.clone(input_points), quad_map, grid=grid)
             self.decoder.cache(input_points, quad_map, grid=grid)
 
         return

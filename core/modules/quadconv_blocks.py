@@ -124,7 +124,6 @@ class QuadConvBlock(nn.Module):
 
 '''
 Quadrature convolution block with skip connections and pooling.
-
 Input:
     spatial_dim: spatial dimension of input data
     num_points_in: number of input points
@@ -173,7 +172,7 @@ class PoolQuadConvBlock(nn.Module):
         else:
             self.resample = Pool(2)
 
-        #buid layers, normalizations, and activations
+        #build layers, normalizations, and activations
         self.conv1 = QuadConvLayer(spatial_dim = spatial_dim,
                                     num_points_in = num_points_in,
                                     num_points_out = num_points_in,
@@ -193,6 +192,14 @@ class PoolQuadConvBlock(nn.Module):
         self.activation2 = activation2()
 
         return
+
+
+    def cache(self, nodes, weight_map, grid = False):
+
+        output_points, grid = self.conv1.cache(nodes, weight_map, grid=grid)
+        output_points, grid = self.conv2.cache(nodes, weight_map, grid=grid)
+
+        return output_points, grid
 
     '''
     Forward mode
@@ -230,6 +237,99 @@ class PoolQuadConvBlock(nn.Module):
         x2 = self.activation2(self.batchnorm2(x2) + x)
 
         return x2
+
+    '''
+    Apply operator
+    '''
+    def forward(self, data):
+        if self.adjoint:
+            output = self.adjoint_op(data)
+        else:
+            output = self.forward_op(data)
+
+        return output
+
+
+
+
+class QuadPool(nn.Module):
+
+    def __init__(self,*,
+            spatial_dim,
+            mesh_points,
+            channels,
+            adjoint = False,
+            **kwargs,
+        ):
+        super().__init__()
+
+
+        #set attributes
+        self.adjoint = adjoint
+
+        #set pool type
+        self.spatial_dim = spatial_dim
+
+        num_points = mesh_points.shape[0]
+
+        layer_lookup = { 1 : (nn.MaxPool1d),
+                         2 : (nn.MaxPool2d),
+                         3 : (nn.MaxPool3d),
+        }
+
+        Pool = layer_lookup[spatial_dim]
+
+        self.grid_dimensions = int((num_points)**(1/spatial_dim))
+
+        #pooling or upsamling
+        if self.adjoint:
+            self.resample = nn.Upsample(scale_factor=2)
+        else:
+            self.resample = Pool(2)
+
+        #buid layers, normalizations, and activations
+        self.conv = QuadConvLayer(spatial_dim = spatial_dim,
+                                    num_points_in = num_points,
+                                    num_points_out = self.grid_dimensions**spatial_dim,
+                                    in_channels = channels,
+                                    out_channels = channels,
+                                    **kwargs)
+
+
+        return
+
+
+    def cache(self, input_points, quad_map):
+        output_points = self.conv.cache(input_points, quad_map)
+
+        return output_points
+
+    '''
+    Forward mode
+    '''
+    def forward_op(self, data):
+        x = data
+
+        x1 = self.conv(x)
+
+        dim_pack = [self.grid_dimensions] * self.spatial_dim
+
+        self.resample(x1.reshape(x1.shape[0], x1.shape[1], *dim_pack)).reshape(x1.shape[0], x1.shape[1], -1)
+
+        return
+
+    '''
+    Adjoint mode
+    '''
+    def adjoint_op(self, data):
+
+        sq_shape = int(np.sqrt(data.shape[-1]))
+
+        dim_pack = [sq_shape] * self.spatial_dim
+
+        x = self.resample(data.reshape(data.shape[0], data.shape[1], *dim_pack)).reshape(data.shape[0], data.shape[1], -1)
+
+        return x
 
     '''
     Apply operator

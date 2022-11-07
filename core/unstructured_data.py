@@ -190,7 +190,7 @@ class DataModule(pl.LightningDataModule):
         else:
             input_points = self.points
 
-        return {'input_shape': input_shape, 'input_points': input_points, 'quad_map': self.quad_map}
+        return {'input_shape': input_shape, 'input_points': input_points, 'quad_map': self.quad_map, 'grid': self.points == None}
 
     '''
     Agglomerate data by concatenating and bining.

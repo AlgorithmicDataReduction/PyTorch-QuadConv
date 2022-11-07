@@ -9,7 +9,7 @@ from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
 
 from .quadconv import QuadConvLayer
-from .quadconv_blocks import PoolQuadConvBlock
+from .quadconv_blocks import PoolQuadConvBlock, QuadPool
 from .conv_blocks import PoolConvBlock
 
 '''
@@ -56,6 +56,7 @@ class Encoder(nn.Module):
         elif conv_type == 'quadrature':
             Block = PoolQuadConvBlock
             init_layer = QuadConvLayer(spatial_dim = spatial_dim, **arg_stack[0])
+            #ds_layer = QuadPool(spatial_dim = spatial_dim, num_points_in=, num_points_out=, channels= , adjoint=False)
 
         #build network
         self.cnn = nn.Sequential()
@@ -69,7 +70,14 @@ class Encoder(nn.Module):
                                     activation2 = forward_activation
                                     ))
 
-        self.conv_out_shape = self.cnn(torch.randn(size=input_shape)).shape
+        #self.cnn.append(ds_layer)
+
+        if conv_type == 'standard':
+            self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
+        else:
+            self.conv_out_shape = torch.Size((1, conv_params['out_channels'][-1], int(conv_params['num_points_out'][-1]/4)))
+            print(self.conv_out_shape)
+
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
 
@@ -91,6 +99,12 @@ class Encoder(nn.Module):
         output = self.linear(x)
 
         return output
+
+    def cache(self, input_points, quad_map, grid= False):
+        for block in self.cnn:
+            input_points, grid = block.cache(input_points, quad_map, grid=grid)
+
+        return input_points , grid
 
     '''
     '''
@@ -181,6 +195,12 @@ class Decoder(nn.Module):
         output = self.cnn(x)
 
         return output
+
+    def cache(self, input_points, quad_map, grid=False):
+        for block in self.cnn:
+            input_points, grid = block.cache(input_points, quad_map)
+
+        return input_points
 
     '''
     '''
