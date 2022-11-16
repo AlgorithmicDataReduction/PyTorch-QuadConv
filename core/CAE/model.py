@@ -13,7 +13,7 @@ Convolutional autoencoder.
 
 Input:
     spatial_dim: spatial dimension of data
-    input_shape: input shape of data
+    data_info:
     loss_fn: loss function specification
     optimizer: optimizer specification
     learning_rate: learning rate
@@ -25,7 +25,7 @@ class Model(pl.LightningModule):
 
     def __init__(self,*,
             spatial_dim,
-            input_shape,
+            data_info,
             loss_fn = "MSELoss",
             optimizer = "Adam",
             learning_rate = 1e-2,
@@ -51,15 +51,18 @@ class Model(pl.LightningModule):
         else:
             self.loss_fn = getattr(nn, loss_fn)()
 
+        #unpack data info
+        input_shape = data_info['input_shape']
+
         #model pieces
         self.output_activation = output_activation()
 
-        self.encoder = module.Encoder(input_shape=input_shape,
-                                        spatial_dim=spatial_dim,
-                                        **kwargs)
-        self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape,
-                                        spatial_dim=spatial_dim,
-                                        **kwargs)
+        self.encoder = Encoder(input_shape=input_shape,
+                                spatial_dim=spatial_dim,
+                                **kwargs)
+        self.decoder = Decoder(input_shape=self.encoder.conv_out_shape,
+                                spatial_dim=spatial_dim,
+                                **kwargs)
 
         return
 

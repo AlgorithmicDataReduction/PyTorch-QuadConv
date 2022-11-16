@@ -7,7 +7,7 @@ from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
 
 from core.utilities import package_args
-from .conv_blocks import PoolBlock
+from core.conv_blocks import PoolBlock
 
 '''
 Encoder module.
@@ -38,8 +38,6 @@ class Encoder(nn.Module):
         arg_stack = package_args(stages, conv_params)
 
         #build network
-        self.cnn = nn.Sequential()
-
         init_layer = nn.Conv1d(**arg_stack[0])
 
         self.cnn.append(init_layer)

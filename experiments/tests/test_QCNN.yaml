@@ -26,20 +26,18 @@ model:
   type: #str <CAE|QCAE|QCNN>
   spatial_dim: #int
   latent_dim: #int
-  point_seq: #list[int], QC only
   stages: #int
   loss_fn: #str, SobolevLoss or loss from torch.nn
   optimizer: #str, optimizer from torch.optim
   learning_rate: #float
 
   conv_params:
-    num_points_in: #list[int], length stages+1 or 1
-    num_points_out: #list[int], length stages+1 or 1
-    in_channels: #list[int], length stages+1 or 1
-    out_channels: #list[int], length stages+1 or 1
-    use_bias: #list[bool], length stages+1 or 1
+    point_seq: #list[int]
+    channel_seq: #list[int]
+    use_bias: #list[bool]
     filter_seq: #list[int], QC only
-    filter_mode: #[string] <single|share_in|nested>, QC only
+    filter_mode: #string <single|share_in|nested>, QC only
+
 
 #PT LightningDataModule arguments
 data:

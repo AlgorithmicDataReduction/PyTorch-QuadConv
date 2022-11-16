@@ -18,7 +18,6 @@ import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from core.autoencoder import AutoEncoder
 from core.utilities import Logger, make_gif
 
 '''
@@ -37,8 +36,8 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     datamodule = data_module.DataModule(**data_args)
 
     #build model
-    model_module = import_module('core.' + model_args.pop('type') + 'model')
-    model = model_module.Model(**model_args, **datamodule.get_data_info())
+    model_module = import_module('core.' + model_args.pop('type') + '.model')
+    model = model_module.Model(**model_args, data_info = datamodule.get_data_info())
 
     #callbacks
     callbacks=[]
@@ -138,19 +137,8 @@ if __name__ == "__main__":
     trainer_parser.add_argument("--default_root_dir", type=str)
     trainer_parser.add_argument("--max_time", type=str)
 
-    #model specific args
-    model_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    model_parser = AutoEncoder.add_args(model_parser)
-
-    #data specific args
-    #NOTE: I removed this for now because of how we dynamically importing the module
-    # data_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    # data_parser = DataModule.add_args(data_parser)
-
     #look for other CL arguments
     trainer_args.update(vars(trainer_parser.parse_known_args()[0]))
-    model_args.update(vars(model_parser.parse_known_args()[0]))
-    # data_args.update(vars(data_parser.parse_known_args()[0]))
 
     #run main script
     main(experiment, trainer_args, model_args, data_args, misc_args)

@@ -9,7 +9,7 @@ from torch.nn.utils.parametrizations import spectral_norm as spn
 from torch_quadconv import QuadConv
 
 from core.utilities import package_args
-from .quadconv_blocks import PoolBlock
+from core.quadconv_blocks import PoolBlock
 
 '''
 Encoder module.
@@ -68,7 +68,7 @@ class Encoder(nn.Module):
     Forward
     '''
     def forward(self, mesh, x):
-        x = self.init_layer(x)
+        x = self.init_layer(mesh, x)
         x = self.qcnn(mesh, x)
         x = self.flat(x)
         output = self.linear(x)
@@ -134,6 +134,6 @@ class Decoder(nn.Module):
         x = self.linear(x)
         x = self.unflat(x)
         x = self.qcnn(mesh, x)
-        output = self.init_layer(x)
+        output = self.init_layer(mesh, x)
 
         return output

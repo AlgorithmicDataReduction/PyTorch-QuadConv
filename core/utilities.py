@@ -13,9 +13,6 @@ import torch.nn as nn
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities import rank_zero_only
 
-from core.FastGL.glpair import glpair
-from scipy.integrate import newton_cotes
-
 '''
 Generates a side-by-side GIF of the raw data and the model reconstruction for the
 test dataset; logs the result.

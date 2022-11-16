@@ -15,9 +15,8 @@ Quadrature convolution autoencoder.
 
 Input:
     spatial_dim: spatial dimension of data
-    mesh: MeshHandler object
-    input_shape: input shape of data
-    conv_params: convolution parameters
+    point_seq:
+    data_info:
     loss_fn: loss function specification
     optimizer: optimizer specification
     learning_rate: learning rate
@@ -29,14 +28,14 @@ class Model(pl.LightningModule):
 
     def __init__(self,*,
             spatial_dim,
-            mesh,
-            input_shape,
-            conv_params,
+            point_seq,
+            data_info,
             loss_fn = "MSELoss",
             optimizer = "Adam",
             learning_rate = 1e-2,
             noise_scale = 0.0,
-            output_activation = nn.Tanh
+            output_activation = nn.Tanh,
+            **kwargs
         ):
         super().__init__()
 
@@ -56,17 +55,22 @@ class Model(pl.LightningModule):
         else:
             self.loss_fn = getattr(nn, loss_fn)()
 
+        #unpack data info
+        input_shape = data_info['input_shape']
+        input_nodes = data_info['input_nodes']
+        input_weights = data_info['input_weights']
+
         #model pieces
-        self.mesh = mesh.cache(conv_params['point_seq'], mirror=True)
+        self.mesh = MeshHandler(input_nodes, input_weights).cache(point_seq, mirror=True)
 
         self.output_activation = output_activation()
 
-        self.encoder = module.Encoder(input_shape=input_shape,
-                                        spatial_dim=spatial_dim,
-                                        **kwargs)
-        self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape,
-                                        spatial_dim=spatial_dim,
-                                        **kwargs)
+        self.encoder = Encoder(input_shape=input_shape,
+                                spatial_dim=spatial_dim,
+                                **kwargs)
+        self.decoder = Decoder(input_shape=self.encoder.conv_out_shape,
+                                spatial_dim=spatial_dim,
+                                **kwargs)
 
         return
 
