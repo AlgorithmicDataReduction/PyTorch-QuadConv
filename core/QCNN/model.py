@@ -15,7 +15,7 @@ from core.utilities import SobolevLoss
 
 Input:
 '''
-class Classifier(pl.LightningModule):
+class Model(pl.LightningModule):
 
     def __init__(self):
         super().__init__()

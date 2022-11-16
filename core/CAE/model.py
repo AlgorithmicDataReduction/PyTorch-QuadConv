@@ -1,20 +1,15 @@
 '''
 '''
 
-from importlib import import_module
-
 import torch
 from torch import nn
 import pytorch_lightning as pl
-
-from torch_quadconv import MeshHandler
 
 from .utilities import SobolevLoss
 from .modules import Encoder, Decoder
 
 '''
-High-level convolution based autoencoder; the specific encoder and decoder are
-specified separately.
+Convolutional autoencoder.
 
 Input:
     spatial_dim: spatial dimension of data
@@ -26,10 +21,9 @@ Input:
     output_activation: final activation
     kwargs: keyword arguments to be passed to encoder and decoder
 '''
-class AutoEncoder(pl.LightningModule):
+class Model(pl.LightningModule):
 
     def __init__(self,*,
-            module,
             spatial_dim,
             input_shape,
             loss_fn = "MSELoss",
@@ -88,6 +82,28 @@ class AutoEncoder(pl.LightningModule):
     '''
     def forward(self, x):
         return self.output_activation(self.decoder(self.encoder(x)))
+
+    '''
+    Forward pass of encoder.
+
+    Input:
+        x: input data
+
+    Output: compressed data
+    '''
+    def encode(self, x):
+        return self.encoder(x)
+
+    '''
+    Forward pass of decoder.
+
+    Input:
+        z: compressed data
+
+    Output: compressed data reconstruction
+    '''
+    def decode(self, z):
+        return self.output_activation(self.decoder(z))
 
     '''
     Single training step.

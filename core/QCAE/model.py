@@ -1,8 +1,6 @@
 '''
 '''
 
-from importlib import import_module
-
 import torch
 from torch import nn
 import pytorch_lightning as pl
@@ -13,13 +11,13 @@ from .modules import Encoder, Decoder
 from core.utilities import SobolevLoss
 
 '''
-High-level convolution based autoencoder; the specific encoder and decoder are
-specified separately.
+Quadrature convolution autoencoder.
 
 Input:
-    module: python module to import containing encoder and decoder classes
     spatial_dim: spatial dimension of data
+    mesh: MeshHandler object
     input_shape: input shape of data
+    conv_params: convolution parameters
     loss_fn: loss function specification
     optimizer: optimizer specification
     learning_rate: learning rate
@@ -27,18 +25,18 @@ Input:
     output_activation: final activation
     kwargs: keyword arguments to be passed to encoder and decoder
 '''
-class AutoEncoder(pl.LightningModule):
+class Model(pl.LightningModule):
 
     def __init__(self,*,
-            module,
             spatial_dim,
+            mesh,
             input_shape,
+            conv_params,
             loss_fn = "MSELoss",
             optimizer = "Adam",
             learning_rate = 1e-2,
             noise_scale = 0.0,
-            output_activation = nn.Tanh,
-            **kwargs
+            output_activation = nn.Tanh
         ):
         super().__init__()
 
@@ -59,6 +57,8 @@ class AutoEncoder(pl.LightningModule):
             self.loss_fn = getattr(nn, loss_fn)()
 
         #model pieces
+        self.mesh = mesh.cache(conv_params['point_seq'], mirror=True)
+
         self.output_activation = output_activation()
 
         self.encoder = module.Encoder(input_shape=input_shape,
@@ -88,7 +88,29 @@ class AutoEncoder(pl.LightningModule):
     Output: compressed data reconstruction
     '''
     def forward(self, x):
-        return self.output_activation(self.decoder(self.encoder(x)))
+        return self.output_activation(self.decoder(self.mesh, self.encoder(self.mesh, x)))
+
+    '''
+    Forward pass of encoder.
+
+    Input:
+        x: input data
+
+    Output: compressed data
+    '''
+    def encode(self, x):
+        return self.encoder(self.mesh, x)
+
+    '''
+    Forward pass of decoder.
+
+    Input:
+        z: compressed data
+
+    Output: compressed data reconstruction
+    '''
+    def decode(self, z):
+        return self.output_activation(self.decoder(self.mesh, z))
 
     '''
     Single training step.

@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import gif
 import warnings
+from typing import List
 
 import torch
 import torch.nn as nn
@@ -195,3 +196,19 @@ class Logger(TensorBoardLogger):
     @rank_zero_only
     def save(self):
         pass
+
+'''
+Package conv parameters.
+
+Input:
+    kwargs: keyword arguments
+'''
+def package_args(stages:int, kwargs:dict):
+
+    for key, arg in kwargs.items():
+        if isinstance(arg, List) and len(arg) == 1:
+            kwargs[key] = arg*(stages+1)
+
+    arg_stack = [{ key : arg[i] for key, arg in kwargs.items() } for i in range(stages+1)]
+
+    return arg_stack

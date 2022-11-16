@@ -53,6 +53,7 @@ class SkipBlock(nn.Module):
                                 num_points_out = conv1_point_num,
                                 in_channels = conv1_channel_num,
                                 out_channels = conv1_channel_num,
+                                output_same = True,
                                 **kwargs
                                 )
         self.norm1 = nn.BatchNorm1d(conv1_channel_num)
@@ -72,41 +73,41 @@ class SkipBlock(nn.Module):
     '''
     Forward mode
     '''
-    def forward_op(self, data):
+    def forward_op(self, mesh, data):
         x = data
 
-        x1 = self.conv1(x)
+        x1 = self.conv1(mesh, x)
         x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x
 
-        x2 = self.conv2(x1)
+        x2 = self.conv2(mesh, x1)
         x2 = self.activation2(self.norm2(x2))
 
-        return x2
+        return mesh, x2
 
     '''
     Adjoint mode
     '''
-    def adjoint_op(self, data):
+    def adjoint_op(self, mesh, data):
         x = data
 
-        x2 = self.conv2(x)
+        x2 = self.conv2(mesh, x)
         x2 = self.activation2(self.norm2(x2))
 
-        x1 = self.conv1(x2)
+        x1 = self.conv1(mesh, x2)
         x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x2
 
-        return x1
+        return mesh, x1
 
     '''
     Apply operator
     '''
-    def forward(self, data):
+    def forward(self, mesh, data):
         if self.adjoint:
-            output = self.adjoint_op(data)
+            output = self.adjoint_op(mesh, data)
         else:
-            output = self.forward_op(data)
+            output = self.forward_op(mesh, data)
 
         return output
 
@@ -168,6 +169,7 @@ class PoolBlock(nn.Module):
                                 num_points_out = num_points_in,
                                 in_channels = in_channels,
                                 out_channels = in_channels,
+                                output_same = True,
                                 **kwargs)
         self.batchnorm1 = nn.InstanceNorm1d(in_channels)
         self.activation1 = activation1()
@@ -177,6 +179,7 @@ class PoolBlock(nn.Module):
                                 num_points_out = num_points_in,
                                 in_channels = in_channels,
                                 out_channels = out_channels,
+                                output_same = True,
                                 **kwargs)
         self.batchnorm2 = nn.InstanceNorm1d(out_channels)
         self.activation2 = activation2()
@@ -186,13 +189,13 @@ class PoolBlock(nn.Module):
     '''
     Forward mode
     '''
-    def forward_op(self, data):
+    def forward_op(self, mesh, data):
         x = data
 
-        x1 = self.conv1(x)
+        x1 = self.conv1(mesh, x)
         x1 = self.activation1(self.batchnorm1(x1))
 
-        x2 = self.conv2(x1)
+        x2 = self.conv2(mesh, x1)
         x2 = self.activation2(self.batchnorm2(x2) + x)
 
         sq_shape = int(np.sqrt(x2.shape[-1]))
@@ -212,10 +215,10 @@ class PoolBlock(nn.Module):
 
         x = self.resample(data.reshape(data.shape[0], data.shape[1], *dim_pack)).reshape(data.shape[0], data.shape[1], -1)
 
-        x1 = self.conv1(x)
+        x1 = self.conv1(mesh, x)
         x1 = self.activation1(self.batchnorm1(x1))
 
-        x2 = self.conv2(x1)
+        x2 = self.conv2(mesh, x1)
         x2 = self.activation2(self.batchnorm2(x2) + x)
 
         return x2
@@ -223,96 +226,10 @@ class PoolBlock(nn.Module):
     '''
     Apply operator
     '''
-    def forward(self, data):
+    def forward(self, mesh, data):
         if self.adjoint:
-            output = self.adjoint_op(data)
+            output = self.adjoint_op(mesh, data)
         else:
-            output = self.forward_op(data)
-
-        return output
-
-################################################################################
-
-class PoolBlock2(nn.Module):
-
-    def __init__(self,*,
-            spatial_dim,
-            mesh_points,
-            channels,
-            adjoint = False,
-            **kwargs,
-        ):
-        super().__init__()
-
-
-        #set attributes
-        self.adjoint = adjoint
-
-        #set pool type
-        self.spatial_dim = spatial_dim
-
-        num_points = mesh_points.shape[0]
-
-        layer_lookup = { 1 : (nn.MaxPool1d),
-                         2 : (nn.MaxPool2d),
-                         3 : (nn.MaxPool3d),
-        }
-
-        Pool = layer_lookup[spatial_dim]
-
-        self.grid_dimensions = int((num_points)**(1/spatial_dim))
-
-        #pooling or upsamling
-        if self.adjoint:
-            self.resample = nn.Upsample(scale_factor=2)
-        else:
-            self.resample = Pool(2)
-
-        #buid layers, normalizations, and activations
-        self.conv = QuadConv(spatial_dim = spatial_dim,
-                                num_points_in = num_points,
-                                num_points_out = self.grid_dimensions**spatial_dim,
-                                in_channels = channels,
-                                out_channels = channels,
-                                **kwargs)
-
-
-        return
-
-    '''
-    Forward mode
-    '''
-    def forward_op(self, data):
-        x = data
-
-        x1 = self.conv(x)
-
-        dim_pack = [self.grid_dimensions] * self.spatial_dim
-
-        self.resample(x1.reshape(x1.shape[0], x1.shape[1], *dim_pack)).reshape(x1.shape[0], x1.shape[1], -1)
-
-        return
-
-    '''
-    Adjoint mode
-    '''
-    def adjoint_op(self, data):
-
-        sq_shape = int(np.sqrt(data.shape[-1]))
-
-        dim_pack = [sq_shape] * self.spatial_dim
-
-        x = self.resample(data.reshape(data.shape[0], data.shape[1], *dim_pack)).reshape(data.shape[0], data.shape[1], -1)
-
-        return x
-
-    '''
-    Apply operator
-    '''
-    def forward(self, data):
-        if self.adjoint:
-            output = self.adjoint_op(data)
-        else:
-            output = self.forward_op(data)
+            output = self.forward_op(mesh, data)
 
         return output

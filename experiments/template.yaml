@@ -32,9 +32,9 @@ model:
   learning_rate: #float
 
   conv_params:
-    point_seq: #list[int], length stages+1 or 1
-    channel_seq: #list[int], length stages+1 or 1
-    use_bias: #list[bool], length stages+1 or 1
+    point_seq: #list[int]
+    channel_seq: #list[int]
+    use_bias: #list[bool]
     filter_seq: #list[int], QC only
     filter_mode: #string <single|share_in|nested>, QC only
 

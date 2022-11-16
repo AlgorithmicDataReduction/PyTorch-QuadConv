@@ -33,16 +33,12 @@ Input:
 '''
 def main(experiment, trainer_args, model_args, data_args, misc_args):
     #setup datamodule
-    module = import_module('core.' + data_args.pop('module'))
-    datamodule = module.DataModule(**data_args)
-
-    #NOTE: This is a bit wonky, but we need to load the data in order to get the
-    #data info in the unstructured case
-    if model_args['conv_type'] == "quadrature":
-        datamodule.setup(stage="fit")
+    data_module = import_module('core.' + data_args.pop('module'))
+    datamodule = data_module.DataModule(**data_args)
 
     #build model
-    model = AutoEncoder(**model_args, **datamodule.get_data_info())
+    model_module = import_module('core.' + model_args.pop('type') + 'model')
+    model = model_module.Model(**model_args, **datamodule.get_data_info())
 
     #callbacks
     callbacks=[]
