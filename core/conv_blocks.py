@@ -22,7 +22,7 @@ Input:
     activation1:
     activation2:
 '''
-class ConvBlock(nn.Module):
+class SkipBlock(nn.Module):
 
     def __init__(self,*,
             spatial_dim,
@@ -156,7 +156,7 @@ Input:
     activation2:
 '''
 
-class PoolConvBlock(nn.Module):
+class PoolBlock(nn.Module):
 
     def __init__(self,*,
             spatial_dim,

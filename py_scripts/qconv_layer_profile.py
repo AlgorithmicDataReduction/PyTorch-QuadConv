@@ -27,7 +27,7 @@ ref = torch.ones(batch_size, channels_out, N_out).cuda()
 ###############################################################################
 
 #pofiling options
-profile = False
+compute_profile = False
 record_shapes = False
 profile_memory = False
 with_stack = False
@@ -55,7 +55,7 @@ loss_fn(layer(data), ref)
 
 ###############################################################################
 
-if profile:
+if compute_profile:
     with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
                     record_shapes=record_shapes,
                     profile_memory=profile_memory,

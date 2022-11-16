@@ -23,28 +23,32 @@ train:
 
 #Model arguments
 model:
-  module: #str
-  conv_type: #str <standard|quadrature>
+  type: #str <CAE|QCAE|QCNN>
   spatial_dim: #int
   latent_dim: #int
-  point_seq: #list
-  channel_seq: #list
-  filter_seq: #list, quadconv only
-  filter_mode: #string <single|share_in|nested>, quadconv only
+  stages: #int
   loss_fn: #str, SobolevLoss or loss from torch.nn
   optimizer: #str, optimizer from torch.optim
   learning_rate: #float
 
+  conv_params:
+    point_seq: #list[int], length stages+1 or 1
+    channel_seq: #list[int], length stages+1 or 1
+    use_bias: #list[bool], length stages+1 or 1
+    filter_seq: #list[int], QC only
+    filter_mode: #string <single|share_in|nested>, QC only
+
+
 #PT LightningDataModule arguments
 data:
-  module: #str <structured_data|unstructured_data>
+  module: #str <grid_data|mesh_data>
   data_dir: #str
   spatial_dim: #int
-  num_points: #int, unstructured_data only
+  num_points: #int, mesh only
   batch_size: #int
-  size: #int, structured_data only
-  stride: #int, structured_data only
-  channels: #list
+  size: #int, grid only
+  stride: #int, grid only
+  channels: #list[int]
   shuffle: #bool
 
 #Miscellaneous arguments

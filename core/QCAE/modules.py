@@ -8,15 +8,14 @@ import torch
 from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
 
-from .quadconv import QuadConvLayer
-from .quadconv_blocks import PoolQuadConvBlock, QuadPool
-from .conv_blocks import PoolConvBlock
+from torch_quadconv import QuadConv
+
+from .quadconv_blocks import PoolBlock, PoolBlock2
 
 '''
 Encoder module.
 
 Input:
-    conv_type: convolution type
     conv_params: convolution parameters
     spatial_dim: spatial dimension of input data
     latent_dim: dimension of latent representation
@@ -29,7 +28,6 @@ Input:
 class Encoder(nn.Module):
 
     def __init__(self,*,
-            conv_type,
             conv_params,
             spatial_dim,
             latent_dim,
@@ -48,15 +46,9 @@ class Encoder(nn.Module):
         #block arguments
         arg_stack = self.package_args(conv_params, stages)
 
-        #set block type
-        if conv_type == 'standard':
-            Block = PoolConvBlock
-            init_layer = nn.Conv1d(**arg_stack[0])
-
-        elif conv_type == 'quadrature':
-            Block = PoolQuadConvBlock
-            init_layer = QuadConvLayer(spatial_dim = spatial_dim, **arg_stack[0])
-            #ds_layer = QuadPool(spatial_dim = spatial_dim, num_points_in=, num_points_out=, channels= , adjoint=False)
+        #block type
+        Block = PoolBlock
+        init_layer = QuadConv(spatial_dim = spatial_dim, **arg_stack[0])
 
         #build network
         self.cnn = nn.Sequential()
@@ -70,14 +62,7 @@ class Encoder(nn.Module):
                                     activation2 = forward_activation
                                     ))
 
-        #self.cnn.append(ds_layer)
-
-        if conv_type == 'standard':
-            self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
-        else:
-            self.conv_out_shape = torch.Size((1, conv_params['out_channels'][-1], int(conv_params['num_points_out'][-1]/4)))
-            print(self.conv_out_shape)
-
+        self.conv_out_shape = torch.Size((1, conv_params['out_channels'][-1], int(conv_params['num_points_out'][-1]/4)))
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
 
@@ -100,12 +85,6 @@ class Encoder(nn.Module):
 
         return output
 
-    def cache(self, input_points, quad_map, grid= False):
-        for block in self.cnn:
-            input_points, grid = block.cache(input_points, quad_map, grid=grid)
-
-        return input_points , grid
-
     '''
     '''
     def package_args(self, args : dict, stages : int):
@@ -121,7 +100,6 @@ class Encoder(nn.Module):
 Decoder module
 
 Input:
-    conv_type: convolution type
     conv_params: convolution parameters
     spatial_dim: spatial dimension of input data
     latent_dim: dimension of latent representation
@@ -134,7 +112,6 @@ Input:
 class Decoder(nn.Module):
 
     def __init__(self,*,
-            conv_type,
             conv_params,
             spatial_dim,
             latent_dim,
@@ -153,14 +130,9 @@ class Decoder(nn.Module):
         #block arguments
         arg_stack = self.package_args(conv_params, stages)
 
-        #set block type
-        if conv_type == 'standard':
-            Block = PoolConvBlock
-            init_layer = nn.Conv1d(**arg_stack[0])
-
-        elif conv_type == 'quadrature':
-            Block = PoolQuadConvBlock
-            init_layer = QuadConvLayer(spatial_dim = spatial_dim, **arg_stack[0])
+        #block type
+        Block = PoolBlock
+        init_layer = QuadConv(spatial_dim = spatial_dim, **arg_stack[0])
 
         #build network
         self.unflat = nn.Unflatten(1, input_shape[1:])
@@ -195,12 +167,6 @@ class Decoder(nn.Module):
         output = self.cnn(x)
 
         return output
-
-    def cache(self, input_points, quad_map, grid=False):
-        for block in self.cnn:
-            input_points, grid = block.cache(input_points, quad_map)
-
-        return input_points
 
     '''
     '''

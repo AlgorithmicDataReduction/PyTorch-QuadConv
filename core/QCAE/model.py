@@ -7,7 +7,10 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 
-from .utilities import SobolevLoss
+from torch_quadconv import MeshHandler
+
+from .modules import Encoder, Decoder
+from core.utilities import SobolevLoss
 
 '''
 High-level convolution based autoencoder; the specific encoder and decoder are
@@ -42,9 +45,6 @@ class AutoEncoder(pl.LightningModule):
         #save hyperparameters for checkpoint loading
         self.save_hyperparameters()
 
-        #import the encoder and decoder
-        module = import_module('core.modules.' + module)
-
         #training hyperparameters
         self.optimizer = optimizer
         self.learning_rate = learning_rate
@@ -58,11 +58,6 @@ class AutoEncoder(pl.LightningModule):
         else:
             self.loss_fn = getattr(nn, loss_fn)()
 
-        if kwargs['conv_type'] == 'quadrature':
-            input_points = kwargs.pop('input_points')
-            quad_map = kwargs.pop('quad_map')
-            grid = kwargs.pop('grid')
-
         #model pieces
         self.output_activation = output_activation()
 
@@ -72,22 +67,6 @@ class AutoEncoder(pl.LightningModule):
         self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape,
                                         spatial_dim=spatial_dim,
                                         **kwargs)
-
-        if kwargs['conv_type'] == 'quadrature':
-            input_map = torch.clone(input_points)
-            map = lambda x: torch.clone(input_map)
-
-            self.encoder.cnn[0].conv1.output_map = map
-            self.encoder.cnn[0].conv1.out_grid = False
-
-            self.decoder.cnn[-1].conv2.output_map = map
-            self.decoder.cnn[-1].conv2.out_grid = False
-
-            self.decoder.cnn[-1].conv1.output_map = map
-            self.decoder.cnn[-1].conv1.out_grid = False
-
-            input_points, grid = self.encoder.cache(torch.clone(input_points), quad_map, grid=grid)
-            self.decoder.cache(input_points, quad_map, grid=grid)
 
         return
 

@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .quadconv import QuadConvLayer
+from torch_quadconv import QuadConv
 
 '''
 Quadrature convolution block with skip connections.
@@ -23,7 +23,7 @@ Input:
     activation2:
     kwargs: quadrature convolution layer arguments
 '''
-class QuadConvBlock(nn.Module):
+class SkipBlock(nn.Module):
 
     def __init__(self,*,
             num_points_in,
@@ -49,35 +49,25 @@ class QuadConvBlock(nn.Module):
             conv1_channel_num = in_channels
 
         #buid layers, normalizations, and activations
-        self.conv1 = QuadConvLayer(num_points_in = conv1_point_num,
-                                    num_points_out = conv1_point_num,
-                                    in_channels = conv1_channel_num,
-                                    out_channels = conv1_channel_num,
-                                    **kwargs
-                                    )
+        self.conv1 = QuadConv(num_points_in = conv1_point_num,
+                                num_points_out = conv1_point_num,
+                                in_channels = conv1_channel_num,
+                                out_channels = conv1_channel_num,
+                                **kwargs
+                                )
         self.norm1 = nn.BatchNorm1d(conv1_channel_num)
         self.activation1 = activation1()
 
-        self.conv2 = QuadConvLayer(num_points_in = num_points_in,
-                                    num_points_out = num_points_out,
-                                    in_channels = in_channels,
-                                    out_channels = out_channels,
-                                    **kwargs
-                                    )
+        self.conv2 = QuadConv(num_points_in = num_points_in,
+                                num_points_out = num_points_out,
+                                in_channels = in_channels,
+                                out_channels = out_channels,
+                                **kwargs
+                                )
         self.norm2 = nn.BatchNorm1d(out_channels)
         self.activation2 = activation2()
 
         return
-
-    def cache(self, nodes, weight_map, grid=False):
-        if self.adjoint:
-            output_points, grid = self.conv2.cache(nodes, weight_map, grid=grid)
-            self.conv1.cache(output_points, weight_map, grid=grid)
-        else:
-            self.conv1.cache(nodes, weight_map, grid=grid)
-            output_points, grid = self.conv2.cache(nodes, weight_map, grid=grid)
-
-        return output_points, grid
 
     '''
     Forward mode
@@ -135,7 +125,7 @@ Input:
     activation2:
     kwargs: quadrature convolution layer arguments
 '''
-class PoolQuadConvBlock(nn.Module):
+class PoolBlock(nn.Module):
 
     def __init__(self,*,
             spatial_dim,
@@ -173,33 +163,25 @@ class PoolQuadConvBlock(nn.Module):
             self.resample = Pool(2)
 
         #build layers, normalizations, and activations
-        self.conv1 = QuadConvLayer(spatial_dim = spatial_dim,
-                                    num_points_in = num_points_in,
-                                    num_points_out = num_points_in,
-                                    in_channels = in_channels,
-                                    out_channels = in_channels,
-                                    **kwargs)
+        self.conv1 = QuadConv(spatial_dim = spatial_dim,
+                                num_points_in = num_points_in,
+                                num_points_out = num_points_in,
+                                in_channels = in_channels,
+                                out_channels = in_channels,
+                                **kwargs)
         self.batchnorm1 = nn.InstanceNorm1d(in_channels)
         self.activation1 = activation1()
 
-        self.conv2 = QuadConvLayer(spatial_dim = spatial_dim,
-                                    num_points_in = num_points_in,
-                                    num_points_out = num_points_in,
-                                    in_channels = in_channels,
-                                    out_channels = out_channels,
-                                    **kwargs)
+        self.conv2 = QuadConv(spatial_dim = spatial_dim,
+                                num_points_in = num_points_in,
+                                num_points_out = num_points_in,
+                                in_channels = in_channels,
+                                out_channels = out_channels,
+                                **kwargs)
         self.batchnorm2 = nn.InstanceNorm1d(out_channels)
         self.activation2 = activation2()
 
         return
-
-
-    def cache(self, nodes, weight_map, grid = False):
-
-        output_points, grid = self.conv1.cache(nodes, weight_map, grid=grid)
-        output_points, grid = self.conv2.cache(nodes, weight_map, grid=grid)
-
-        return output_points, grid
 
     '''
     Forward mode
@@ -249,10 +231,9 @@ class PoolQuadConvBlock(nn.Module):
 
         return output
 
+################################################################################
 
-
-
-class QuadPool(nn.Module):
+class PoolBlock2(nn.Module):
 
     def __init__(self,*,
             spatial_dim,
@@ -288,21 +269,15 @@ class QuadPool(nn.Module):
             self.resample = Pool(2)
 
         #buid layers, normalizations, and activations
-        self.conv = QuadConvLayer(spatial_dim = spatial_dim,
-                                    num_points_in = num_points,
-                                    num_points_out = self.grid_dimensions**spatial_dim,
-                                    in_channels = channels,
-                                    out_channels = channels,
-                                    **kwargs)
+        self.conv = QuadConv(spatial_dim = spatial_dim,
+                                num_points_in = num_points,
+                                num_points_out = self.grid_dimensions**spatial_dim,
+                                in_channels = channels,
+                                out_channels = channels,
+                                **kwargs)
 
 
         return
-
-
-    def cache(self, input_points, quad_map):
-        output_points = self.conv.cache(input_points, quad_map)
-
-        return output_points
 
     '''
     Forward mode
