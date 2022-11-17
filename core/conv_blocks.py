@@ -12,8 +12,8 @@ Convolution block with skip connections
 
 Input:
     spatial_dim: spatial dimension of input data
-    num_points_in: number of input points
-    num_points_out: number of output points
+    in_points: number of input points
+    out_points: number of output points
     in_channels: input feature channels
     out_channels: output feature channels
     kernel_size: convolution kernel size
@@ -26,14 +26,15 @@ class SkipBlock(nn.Module):
 
     def __init__(self,*,
             spatial_dim,
-            num_points_in,
-            num_points_out,
+            in_points,
+            out_points,
             in_channels,
             out_channels,
             kernel_size = 3,
             adjoint = False,
             activation1 = nn.CELU,
             activation2 = nn.CELU,
+            **kwargs
         ):
         super().__init__()
 
@@ -75,16 +76,17 @@ class SkipBlock(nn.Module):
         kw = {}
         if self.adjoint:
             conv1_channel_num = out_channels
-            kw['stride'] = int(np.floor((num_points_out-1-(kernel_size-1))/(num_points_in-1)))
+            kw['stride'] = int(np.floor((out_points-kernel_size)/(in_points-1)))
             kw['output_padding'] = kw['stride']-1
         else:
             conv1_channel_num = in_channels
-            kw['stride'] = int(np.floor((num_points_in-1-(kernel_size-1))/(num_points_out-1)))
+            kw['stride'] = int(np.ceil((in_points-kernel_size)/(out_points-1)))
 
         self.conv1 = Conv1(conv1_channel_num,
                             conv1_channel_num,
                             kernel_size,
-                            padding='same'
+                            padding='same',
+                            **kwargs
                             )
         self.norm1 = Norm(conv1_channel_num)
         self.activation1 = activation1()
@@ -92,7 +94,8 @@ class SkipBlock(nn.Module):
         self.conv2 = Conv2(in_channels,
                             out_channels,
                             kernel_size,
-                            **kw
+                            **kw,
+                            **kwargs
                             )
         self.norm2 = Norm(out_channels)
         self.activation2 = activation2()

@@ -1,17 +1,19 @@
 '''
 '''
 
+from importlib import import_module
+
 import torch
 from torch import nn
 import pytorch_lightning as pl
 
-from .utilities import SobolevLoss
-from .modules import Encoder, Decoder
+from core.utilities import SobolevLoss
 
 '''
 Convolutional autoencoder.
 
 Input:
+    module: python module to import containing encoder and decoder classes
     spatial_dim: spatial dimension of data
     data_info:
     loss_fn: loss function specification
@@ -24,6 +26,7 @@ Input:
 class Model(pl.LightningModule):
 
     def __init__(self,*,
+            module,
             spatial_dim,
             data_info,
             loss_fn = "MSELoss",
@@ -37,6 +40,9 @@ class Model(pl.LightningModule):
 
         #save hyperparameters for checkpoint loading
         self.save_hyperparameters()
+
+        #import the encoder and decoder
+        module = import_module('core.CAE.' + module)
 
         #training hyperparameters
         self.optimizer = optimizer
@@ -57,12 +63,13 @@ class Model(pl.LightningModule):
         #model pieces
         self.output_activation = output_activation()
 
-        self.encoder = Encoder(input_shape=input_shape,
-                                spatial_dim=spatial_dim,
-                                **kwargs)
-        self.decoder = Decoder(input_shape=self.encoder.conv_out_shape,
-                                spatial_dim=spatial_dim,
-                                **kwargs)
+        self.encoder = module.Encoder(input_shape=input_shape,
+                                        spatial_dim=spatial_dim,
+                                        **kwargs)
+        print(self.encoder.conv_out_shape)
+        self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape,
+                                        spatial_dim=spatial_dim,
+                                        **kwargs)
 
         return
 

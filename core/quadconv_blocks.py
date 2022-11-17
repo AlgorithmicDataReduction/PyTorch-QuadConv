@@ -1,5 +1,16 @@
 '''
 Various quadrature convolution blocks.
+
+Input:
+    in_points: number of input points
+    out_points: number of output points
+    in_channels: input feature channels
+    out_channels: output feature channels
+    use_bias: whether or not to use bias
+    adjoint: downsample or upsample
+    activation1:
+    activation2:
+    kwargs: quadrature convolution layer arguments
 '''
 
 import numpy as np
@@ -9,25 +20,13 @@ import torch.nn as nn
 
 from torch_quadconv import QuadConv
 
-'''
-Quadrature convolution block with skip connections.
+################################################################################
 
-Input:
-    num_points_in: number of input points
-    num_points_out: number of output points
-    in_channels: input feature channels
-    out_channels: output feature channels
-    use_bias: whether or not to use bias
-    adjoint: downsample or upsample
-    activation1:
-    activation2:
-    kwargs: quadrature convolution layer arguments
-'''
 class SkipBlock(nn.Module):
 
     def __init__(self,*,
-            num_points_in,
-            num_points_out,
+            in_points,
+            out_points,
             in_channels,
             out_channels,
             adjoint = False,
@@ -42,15 +41,15 @@ class SkipBlock(nn.Module):
 
         #block details
         if self.adjoint:
-            conv1_point_num = num_points_out
+            conv1_point_num = out_points
             conv1_channel_num = out_channels
         else:
-            conv1_point_num = num_points_in
+            conv1_point_num = in_points
             conv1_channel_num = in_channels
 
         #buid layers, normalizations, and activations
-        self.conv1 = QuadConv(num_points_in = conv1_point_num,
-                                num_points_out = conv1_point_num,
+        self.conv1 = QuadConv(in_points = conv1_point_num,
+                                out_points = conv1_point_num,
                                 in_channels = conv1_channel_num,
                                 out_channels = conv1_channel_num,
                                 output_same = True,
@@ -59,8 +58,8 @@ class SkipBlock(nn.Module):
         self.norm1 = nn.BatchNorm1d(conv1_channel_num)
         self.activation1 = activation1()
 
-        self.conv2 = QuadConv(num_points_in = num_points_in,
-                                num_points_out = num_points_out,
+        self.conv2 = QuadConv(in_points = in_points,
+                                out_points = out_points,
                                 in_channels = in_channels,
                                 out_channels = out_channels,
                                 **kwargs
@@ -83,7 +82,7 @@ class SkipBlock(nn.Module):
         x2 = self.conv2(mesh, x1)
         x2 = self.activation2(self.norm2(x2))
 
-        return mesh, x2
+        return x2
 
     '''
     Adjoint mode
@@ -98,46 +97,36 @@ class SkipBlock(nn.Module):
         x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x2
 
-        return mesh, x1
+        return x1
 
     '''
     Apply operator
     '''
-    def forward(self, mesh, data):
-        if self.adjoint:
-            output = self.adjoint_op(mesh, data)
-        else:
-            output = self.forward_op(mesh, data)
+    def forward(self, input):
 
-        return output
+        mesh, data = input[0], input[1]
+
+        if self.adjoint:
+            data = self.adjoint_op(mesh, data)
+        else:
+            data = self.forward_op(mesh, data)
+
+        return (mesh, data)
 
 ################################################################################
 
-'''
-Quadrature convolution block with skip connections and pooling.
-Input:
-    spatial_dim: spatial dimension of input data
-    num_points_in: number of input points
-    num_points_out: number of output points
-    in_channels: input feature channels
-    out_channels: output feature channels
-    adjoint: downsample or upsample
-    activation1:
-    activation2:
-    kwargs: quadrature convolution layer arguments
-'''
 class PoolBlock(nn.Module):
 
     def __init__(self,*,
             spatial_dim,
-            num_points_in,
-            num_points_out,
+            in_points,
+            out_points,
             in_channels,
             out_channels,
             adjoint = False,
             activation1 = nn.CELU,
             activation2 = nn.CELU,
-            **kwargs,
+            **kwargs
         ):
         super().__init__()
 
@@ -165,8 +154,8 @@ class PoolBlock(nn.Module):
 
         #build layers, normalizations, and activations
         self.conv1 = QuadConv(spatial_dim = spatial_dim,
-                                num_points_in = num_points_in,
-                                num_points_out = num_points_in,
+                                in_points = in_points,
+                                out_points = in_points,
                                 in_channels = in_channels,
                                 out_channels = in_channels,
                                 output_same = True,
@@ -175,8 +164,8 @@ class PoolBlock(nn.Module):
         self.activation1 = activation1()
 
         self.conv2 = QuadConv(spatial_dim = spatial_dim,
-                                num_points_in = num_points_in,
-                                num_points_out = num_points_in,
+                                in_points = in_points,
+                                out_points = in_points,
                                 in_channels = in_channels,
                                 out_channels = out_channels,
                                 output_same = True,
@@ -207,7 +196,7 @@ class PoolBlock(nn.Module):
     '''
     Adjoint mode
     '''
-    def adjoint_op(self, data):
+    def adjoint_op(self, mesh, data):
 
         sq_shape = int(np.sqrt(data.shape[-1]))
 
@@ -226,10 +215,13 @@ class PoolBlock(nn.Module):
     '''
     Apply operator
     '''
-    def forward(self, mesh, data):
-        if self.adjoint:
-            output = self.adjoint_op(mesh, data)
-        else:
-            output = self.forward_op(mesh, data)
+    def forward(self, input):
 
-        return output
+        mesh, data = input[0], input[1]
+
+        if self.adjoint:
+            data = self.adjoint_op(mesh, data)
+        else:
+            data = self.forward_op(mesh, data)
+
+        return (mesh, data)

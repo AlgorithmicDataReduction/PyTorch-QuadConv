@@ -24,6 +24,7 @@ train:
 #Model arguments
 model:
   type: #str <CAE|QCAE|QCNN>
+  module: #str <skip|pool>, CAE and QCAE only
   spatial_dim: #int
   latent_dim: #int
   point_seq: #list[int], QC only
@@ -33,12 +34,12 @@ model:
   learning_rate: #float
 
   conv_params:
-    num_points_in: #list[int], length stages+1 or 1
-    num_points_out: #list[int], length stages+1 or 1
-    in_channels: #list[int], length stages+1 or 1
-    out_channels: #list[int], length stages+1 or 1
-    use_bias: #list[bool], length stages+1 or 1
-    filter_seq: #list[int], QC only
+    in_points: #list[int]
+    out_points: #list[int]
+    in_channels: #list[int]
+    out_channels: #list[int]
+    bias: #list[bool]
+    filter_seq: #[list[int]], QC only
     filter_mode: #[string] <single|share_in|nested>, QC only
 
 #PT LightningDataModule arguments

@@ -24,20 +24,21 @@ train:
 #Model arguments
 model:
   type: "QCAE" #str <CAE|QCAE|QCNN>
+  module: "skip" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [2500, 100] #list[int], QC only
+  point_seq: [2500, 169] #list[int], QC only
   stages: 1 #int
   loss_fn: "SobolevLoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
 
   conv_params:
-    num_points_in: [2500, 100] #list[int], length stages+1 or 1
-    num_points_out: [100, 25] #list[int], length stages+1 or 1
-    in_channels: [1, 2] #list[int], length stages+1 or 1
-    out_channels: [2, 2] #list[int], length stages+1 or 1
-    use_bias: [True, True] #list[bool], length stages+1 or 1
+    in_points: [2500] #list[int]
+    out_points: [169] #list[int]
+    in_channels: [1] #list[int]
+    out_channels: [2] #list[int]
+    bias: [True] #list[bool]
     filter_seq: [[4, 4]] #[list[int]], QC only
     filter_mode: ["single"] #string <single|share_in|nested>, QC only
 
@@ -49,7 +50,7 @@ data:
   spatial_dim: 2 #int
   num_points: 2500 #int, mesh only
   batch_size: 16 #int
-  channels: [0] #list[int]
+  channels: [1] #list[int]
   shuffle: True #bool
 
 #Miscellaneous arguments

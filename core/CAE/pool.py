@@ -1,28 +1,26 @@
 '''
 Encoder and decoder modules based on the convolution block with skips and pooling.
+
+Input:
+    spatial_dim: spatial dimension of input data
+    stages: number of convolution block stages
+    conv_params: convolution parameters
+    latent_dim: dimension of latent representation
+    input_shape: input data shape
+    forward_activation: block activations
+    latent_activation: mlp activations
+    kwargs: keyword arguments for conv block
 '''
 
 import torch
 from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
 
-from torch_quadconv import QuadConv
+from core.utilities import package_args, swap
+from core.conv_blocks import PoolBlock
 
-from core.utilities import package_args
-from core.quadconv_blocks import PoolBlock
+################################################################################
 
-'''
-Encoder module.
-
-Input:
-    spatial_dim: spatial dimension of input data
-    stages: number of convolution stages
-    conv_params: convolution parameters
-    latent_dim: dimension of latent representation
-    input_shape: input data shape
-    forward_activation: block activations
-    latent_activation: mlp activations
-'''
 class Encoder(nn.Module):
 
     def __init__(self,*,
@@ -32,26 +30,28 @@ class Encoder(nn.Module):
             latent_dim,
             input_shape,
             forward_activation = nn.CELU,
-            latent_activation = nn.CELU
+            latent_activation = nn.CELU,
+            **kwargs
         ):
         super().__init__()
 
         #block arguments
-        arg_stack = package_args(stages, conv_params)
+        arg_stack = package_args(stages+1, conv_params)
 
         #build network
-        self.init_layer = QuadConv(spatial_dim = spatial_dim, **arg_stack[0])
+        init_layer = nn.Conv1d(**arg_stack[0])
 
-        self.qcnn = nn.Sequential()
+        self.cnn.append(init_layer)
 
         for i in range(1, stages):
-            self.qcnn.append(PoolBlock(spatial_dim = spatial_dim,
-                                        **arg_stack[i],
+            self.cnn.append(PoolBlock(spatial_dim = spatial_dim,
+                                        **arg_stack[i]
                                         activation1 = forward_activation,
-                                        activation2 = forward_activation
+                                        activation2 = forward_activation,
+                                        **kwargs
                                         ))
 
-        self.conv_out_shape = torch.Size((1, conv_params['out_channels'][-1], int(conv_params['num_points_out'][-1]/4)))
+        self.conv_out_shape = self.cnn(torch.zeros(input_shape)).shape
 
         self.flat = nn.Flatten(start_dim=1, end_dim=-1)
 
@@ -67,26 +67,15 @@ class Encoder(nn.Module):
     '''
     Forward
     '''
-    def forward(self, mesh, x):
-        x = self.init_layer(mesh, x)
-        x = self.qcnn(mesh, x)
+    def forward(self, x):
+        x = self.cnn(x)
         x = self.flat(x)
         output = self.linear(x)
 
         return output
 
-'''
-Decoder module
+################################################################################
 
-Input:
-    spatial_dim: spatial dimension of input data
-    stages: number of convolution stages
-    conv_params: convolution parameters
-    latent_dim: dimension of latent representation
-    input_shape: input data shape
-    forward_activation: block activations
-    latent_activation: mlp activations
-'''
 class Decoder(nn.Module):
 
     def __init__(self,*,
@@ -96,12 +85,13 @@ class Decoder(nn.Module):
             latent_dim,
             input_shape,
             forward_activation = nn.CELU,
-            latent_activation = nn.CELU
+            latent_activation = nn.CELU,
+            **kwargs
         ):
         super().__init__()
 
         #block arguments
-        arg_stack = package_args(stages, conv_params)
+        arg_stack = package_args(stages+1, swap(conv_params), mirror=True)
 
         #build network
         self.unflat = nn.Unflatten(1, input_shape[1:])
@@ -115,25 +105,27 @@ class Decoder(nn.Module):
 
         self.linear(torch.zeros(latent_dim))
 
-        self.qcnn = nn.Sequential()
+        self.cnn = nn.Sequential()
 
-        for i in range(stages, 0, -1):
-            self.qcnn.append(PoolBlock(spatial_dim = spatial_dim,
-                                        **arg_stack[i],
+        for i in range(stages-1):
+            self.cnn.append(PoolBlock(spatial_dim = spatial_dim,
+                                        **arg_stack[i]
                                         activation1 = forward_activation,
                                         activation2 = forward_activation,
-                                        adjoint = True
+                                        adjoint = True,
+                                        **kwargs
                                         ))
 
-        self.init_layer = QuadConv(spatial_dim = spatial_dim, **arg_stack[0])
+        init_layer = nn.Conv1d(**arg_stack[0])
+
+        self.cnn.append(init_layer)
 
     '''
     Forward
     '''
-    def forward(self, mesh, x):
+    def forward(self, x):
         x = self.linear(x)
         x = self.unflat(x)
-        x = self.qcnn(mesh, x)
-        output = self.init_layer(mesh, x)
+        output = self.cnn(x)
 
         return output

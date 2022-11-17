@@ -200,12 +200,28 @@ Package conv parameters.
 Input:
     kwargs: keyword arguments
 '''
-def package_args(stages:int, kwargs:dict):
+def package_args(stages:int, kwargs:dict, mirror=False):
 
-    for key, arg in kwargs.items():
-        if isinstance(arg, List) and len(arg) == 1:
-            kwargs[key] = arg*(stages+1)
+    for key, value in kwargs.items():
+        if len(value) == 1:
+            kwargs[key] = value*(stages)
+        elif mirror:
+            value.reverse() #inplace
 
-    arg_stack = [{ key : arg[i] for key, arg in kwargs.items() } for i in range(stages+1)]
+    arg_stack = [{ key : value[i] for key, value in kwargs.items() } for i in range(stages)]
 
     return arg_stack
+
+'''
+Swap input and output points and channels
+'''
+def swap(conv_params):
+    temp = conv_params["in_points"]
+    conv_params["in_points"] = conv_params["out_points"]
+    conv_params["out_points"] = temp
+
+    temp = conv_params["in_channels"]
+    conv_params["in_channels"] = conv_params["out_channels"]
+    conv_params["out_channels"] = temp
+
+    return conv_params
