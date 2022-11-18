@@ -14,7 +14,7 @@ train:
   enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "./lightning_logs" #str
-  logger: False #bool
+  logger: True #bool
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
@@ -52,6 +52,6 @@ data:
 
 #Miscellaneous arguments
 misc:
-  make_gif: False #bool
-  compute_stats: False #bool
+  make_gif: True #bool
+  compute_stats: True #bool
   early_stopping: False #bool
