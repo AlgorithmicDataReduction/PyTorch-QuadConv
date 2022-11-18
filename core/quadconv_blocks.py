@@ -191,7 +191,9 @@ class PoolBlock(nn.Module):
 
         dim_pack = [sq_shape] * self.spatial_dim
 
-        return self.resample(x2.reshape(x2.shape[0], x2.shape[1], *dim_pack)).reshape(x2.shape[0], x2.shape[1], -1)
+        output = self.resample(x2.reshape(x2.shape[0], x2.shape[1], *dim_pack)).reshape(x2.shape[0], x2.shape[1], -1)
+
+        return
 
     '''
     Adjoint mode

@@ -66,6 +66,9 @@ class Model(pl.LightningModule):
         input_nodes = data_info['input_nodes']
         input_weights = data_info['input_weights']
 
+        #
+        self.example_input_array = torch.zeros(input_shape)
+
         #model pieces
         self.mesh = MeshHandler(input_nodes, input_weights).cache(point_seq, mirror=True)
 
@@ -133,12 +136,12 @@ class Model(pl.LightningModule):
     '''
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
-        latent = self.encoder(batch)
+        latent = self.encode(batch)
         if self.noise_scale != 0.0:
             latent = latent + self.noise_scale*torch.randn(latent.shape, device=self.device)
 
         #decode
-        pred = self.output_activation(self.decoder(latent))
+        pred = self.output_activation(self.decode(latent))
 
         #compute loss
         loss = self.loss_fn(pred, batch)

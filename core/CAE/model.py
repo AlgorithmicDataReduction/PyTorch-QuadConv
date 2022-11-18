@@ -66,7 +66,7 @@ class Model(pl.LightningModule):
         self.encoder = module.Encoder(input_shape=input_shape,
                                         spatial_dim=spatial_dim,
                                         **kwargs)
-        print(self.encoder.conv_out_shape)
+
         self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape,
                                         spatial_dim=spatial_dim,
                                         **kwargs)

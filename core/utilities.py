@@ -143,7 +143,7 @@ class SobolevLoss(nn.Module):
         channels = pred.shape[1]
 
         #compute function l2 error
-        loss = nn.functional.mse_loss(pred, target)
+        loss = nn.functional.mse_loss(pred, target)**(0.5)
 
         #copy predictions and target
         _pred = pred
@@ -153,24 +153,26 @@ class SobolevLoss(nn.Module):
         if self.spatial_dim == 1:
             conv = nn.functional.conv1d
 
-            stencil = self.stencil.repeat(channels, channels, 1)
+            stencil = self.stencil.expand(channels, channels, -1)
 
         elif self.spatial_dim == 2:
-            sq_shape = np.sqrt(_pred.shape[2]).astype(int)
 
-            _pred = torch.reshape(_pred, (_pred.shape[0], _pred.shape[1], sq_shape, sq_shape))
-            _target = torch.reshape(_target, (_target.shape[0], _target.shape[1], sq_shape, sq_shape))
+            if _target.dim() == 3:
+                sq_shape = np.sqrt(_pred.shape[2]).astype(int)
+
+                _pred = torch.reshape(_pred, (_pred.shape[0], _pred.shape[1], sq_shape, sq_shape))
+                _target = torch.reshape(_target, (_target.shape[0], _target.shape[1], sq_shape, sq_shape))
 
             conv = nn.functional.conv2d
 
-            stencil = self.stencil.repeat(1, channels, 1, 1)
+            stencil = self.stencil.expand(1, channels, -1, -1)
 
         #compute derivative l2 losses
         for i in range(self.order):
             _pred = conv(_pred, stencil)
             _target = conv(_target, stencil)
 
-            loss += torch.sqrt(self.lambda_r**(i+1)) * nn.functional.mse_loss(_pred, _target)
+            loss += torch.sqrt(self.lambda_r**(i+1)) * nn.functional.mse_loss(_pred, _target)**(0.5)
 
         #return average loss w.r.t batch
         return loss/pred.shape[0]

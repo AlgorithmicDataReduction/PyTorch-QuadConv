@@ -80,7 +80,7 @@ class SkipBlock(nn.Module):
             kw['output_padding'] = kw['stride']-1
         else:
             conv1_channel_num = in_channels
-            kw['stride'] = int(np.ceil((in_points-kernel_size)/(out_points-1)))
+            kw['stride'] = int(np.floor((in_points-kernel_size)/(out_points-1)))
 
         self.conv1 = Conv1(conv1_channel_num,
                             conv1_channel_num,

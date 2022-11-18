@@ -15,7 +15,7 @@ class DataModule(MeshDataModule):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
+        
     '''
     Agglomerate data by concatenating and bining.
 
