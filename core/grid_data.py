@@ -1,5 +1,9 @@
+'''
+'''
+
 import numpy as np
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 import torch
 from torch.utils.data import random_split, DataLoader
@@ -243,3 +247,16 @@ class DataModule(pl.LightningDataModule):
             data =  quilt/mask
 
         return data
+
+    '''
+    Returns a method for plotting a set of features.
+    '''
+    def get_plot_func(self):
+        if self.spatial_dim == 1:
+            plot_func = lambda f, ax: ax.plot(f)
+        elif self.spatial_dim == 2:
+            plot_func = lambda f, ax: ax.imshow(f, vmin=-1, vmax=1, origin='lower')
+        else:
+            warnings.warn("Plotting for 3D data not supported.", )
+
+        return plot_func

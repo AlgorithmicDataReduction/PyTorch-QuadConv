@@ -32,40 +32,32 @@ def make_gif(trainer, datamodule, model):
     #agglomerate the data if necessary (if tiling was used)
     data = datamodule.agglomerate(results)
 
+    print(data.shape)
+
     #if multichannel then just take first channel
     if data.dim() > datamodule.spatial_dim+1:
         data = data[...,0]
 
-    #GIF logic depending on the spatial dimension
-    if datamodule.spatial_dim == 1:
-        #gif frame closure
-        @gif.frame
-        def plot(i):
-            fig, ax = plt.subplots(1, 2)
+    #get plotting function
+    plot_func = datamodule.get_plot_func()
 
-            ax[0].plot(datamodule.get_sample(i))
-            ax[0].set_title("Uncompressed")
-
-            ax[1].plot(data[i,:])
-            ax[1].set_title("Reconstructed")
-
-    elif datamodule.spatial_dim == 2:
-        #gif frame closure
-        @gif.frame
-        def plot(i):
-            fig, ax = plt.subplots(1, 2)
-
-            ax[0].imshow(datamodule.get_sample(i), vmin=-1, vmax=1, origin='lower')
-            ax[0].set_title("Uncompressed")
-
-            im = ax[1].imshow(data[i,:,:], vmin=-1, vmax=1, origin='lower')
-            ax[1].set_title("Reconstructed")
-
-            fig.colorbar(im, ax=ax.ravel().tolist(), location='bottom')
-
-    elif datamodule.spatial_dim == 3:
-        warnings.warn("Warning...GIF create for 3d data not supported.", )
+    if plot_func == None:
         return
+
+    #gif frame closure
+    @gif.frame
+    def plot(i):
+        fig, ax = plt.subplots(1, 2)
+
+        plot_func(datamodule.get_sample(i), ax[0])
+        ax[0].set_title("Uncompressed")
+
+        im = plot_func(data[i,...], ax[1])
+        ax[1].set_title("Reconstructed")
+
+        if datamodule.spatial_dim == 2:
+            # mappable = cm.ScalarMappable(norm=norm, cmap=cmap)
+            fig.colorbar(im, ax=ax.ravel().tolist(), location='bottom')
 
     #build frames
     frames = [plot(i) for i in range(data.shape[0])]

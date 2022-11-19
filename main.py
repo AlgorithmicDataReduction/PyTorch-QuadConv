@@ -32,12 +32,14 @@ Input:
 '''
 def main(experiment, trainer_args, model_args, data_args, misc_args):
     #setup datamodule
-    data_module = import_module('core.' + data_args.pop('module'))
-    datamodule = data_module.DataModule(**data_args)
+    module = import_module('core.' + data_args.pop('module'))
+    datamodule = module.DataModule(**data_args)
+
+    print(type(datamodule))
 
     #build model
-    model_module = import_module('core.' + model_args.pop('type') + '.model')
-    model = model_module.Model(**model_args, data_info = datamodule.get_data_info())
+    module = import_module('core.' + model_args.pop('type') + '.model')
+    model = module.Model(**model_args, data_info = datamodule.get_data_info())
 
     #callbacks
     callbacks=[]
