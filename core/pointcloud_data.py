@@ -3,14 +3,14 @@
 
 import numpy as np
 from pathlib import Path
-import matplotlib.pyplot as plt
 
 import torch
+import torch.nn as nn
 from torch.utils.data import random_split, DataLoader
 import pytorch_lightning as pl
 
 '''
-PT Lightning data module for grid based time series data.
+PT Lightning data module for point cloud data.
 
 Input:
     data_dir: data directory
@@ -57,7 +57,7 @@ class DataModule(pl.LightningDataModule):
     '''
     @staticmethod
     def add_args(parent_parser):
-        parser = parent_parser.add_argument_group("GridDataModule")
+        parser = parent_parser.add_argument_group("PointCloudModule")
 
         parser.add_argument('--data_dir', type=str)
 
@@ -181,82 +181,19 @@ class DataModule(pl.LightningDataModule):
     def teardown(self, stage=None):
         return
 
-    ############################################################################
-
     '''
-    Get a single data sample.
+    Get all data details necessary for building network.
 
-    NOTE: this may not be the best way to do this and it doesn't account for multichannel
-
-    Input:
-        idx: sample index
-    '''
-    def get_sample(self, idx):
-        return self.predict[idx,...].reshape(self.data_shape)
-
-    '''
-    Get the data shape
-
-    NOTE: Not sure if this works with multichannel
+    Ouput: (input_shape, input_nodes, input_weights)
     '''
     def get_data_info(self):
-        return {'input_shape': tuple([1, 1]+[self.size for i in range(self.spatial_dim)])}
+        input_shape = (1, len(self.channels), self.num_points)
 
-    '''
-    Stitch tiled data back together.
-
-    Input:
-        data: tiled data
-    '''
-    def _stitch(self, data):
-        time_steps = data.shape[0]
-        processed = torch.zeros([time_steps]+[d for d in self.data_shape])
-
-        for t in range(time_steps):
-            for i in range(self.num_tiles):
-                for j in range(self.num_tiles):
-                    processed[t,self.stride*i:self.stride*i+self.size,self.stride*j:self.stride*j+self.size] += data[t,i,j,:,:]
-
-        return processed
-
-    '''
-    Agglomerate data if it was tiled by stitching and normalizing.
-
-    Input:
-        data: all batched data
-    '''
-    def agglomerate(self, data):
-        #first, concatenate all the batches
-        data = torch.cat(data)
-
-        #if data wasn't tiled then dont bother stitching
-        if self.num_tiles == 1:
-            data = data.reshape(tuple([-1]+list(self.data_shape)))
-
+        if self.points == None:
+            input_points, input_weights = newton_cotes_quad(self.spatial_dim, self.num_points)
         else:
-            #do some other stuff
-            data = data.reshape(tuple([-1]+[self.num_tiles for i in range(self.spatial_dim)]+[self.size for i in range(self.spatial_dim)]))
+            input_points, input_weights = self.points, self.weights
 
-            #create mask
-            mask = self._stitch(torch.ones(tuple([1]+[self.num_tiles for i in range(self.spatial_dim)]+[self.size for i in range(self.spatial_dim)])))
-
-            #stich everything back together
-            quilt = self._stitch(data)
-
-            #normalize
-            data =  quilt/mask
-
-        return data
-
-    '''
-    Returns a method for plotting a set of features.
-    '''
-    def get_plot_func(self):
-        if self.spatial_dim == 1:
-            plot_func = lambda f, ax: ax.plot(f)
-        elif self.spatial_dim == 2:
-            plot_func = lambda f, ax: ax.imshow(f, vmin=-1, vmax=1, origin='lower')
-        else:
-            warnings.warn("Plotting for 3D data not supported.", )
-
-        return plot_func
+        data_info = {'input_shape': input_shape,
+                        'input_nodes': input_points,
+                        'input_weights': input_weights}

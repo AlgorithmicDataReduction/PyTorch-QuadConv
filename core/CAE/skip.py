@@ -53,6 +53,7 @@ class Encoder(nn.Module):
         self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
         self.linear.append(latent_activation())
 
+        #dry run
         self.linear(self.flat(torch.zeros(self.conv_out_shape)))
 
     def forward(self, x):
@@ -91,6 +92,7 @@ class Decoder(nn.Module):
         self.linear.append(spn(nn.Linear(latent_dim, input_shape.numel())))
         self.linear.append(latent_activation())
 
+        #dry run
         self.linear(torch.zeros(latent_dim))
 
         self.cnn = nn.Sequential()
