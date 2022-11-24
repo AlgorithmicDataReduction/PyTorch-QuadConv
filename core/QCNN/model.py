@@ -61,7 +61,7 @@ class Model(pl.LightningModule):
         self.qcnn = nn.Sequential()
 
         for i in range(stages):
-            self.qcnn.append(SkipBlock(**arg_stack[i], **kwargs))
+            self.qcnn.append(SkipBlock(**arg_stack[i], **kwargs, cache=False))
 
         self.conv_out_shape = torch.Size((1, conv_params['out_channels'][-1], conv_params['out_points'][-1]))
 

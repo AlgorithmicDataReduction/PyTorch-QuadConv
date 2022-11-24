@@ -43,7 +43,7 @@ layer = QuadConv(spatial_dim=spatial_dim,
                     in_channels=in_channels,
                     out_channels=out_channels,
                     filter_seq=filter_seq,
-                    cache=True).cuda()
+                    cache=False).cuda()
 
 #print layer data
 # summary(layer, input_size=(batch_size, in_channels, in_points))
