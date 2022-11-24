@@ -7,7 +7,7 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 
-from torch_quadconv import MeshHandler
+from core.torch_quadconv import MeshHandler
 
 from core.utilities import SobolevLoss
 

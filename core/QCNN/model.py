@@ -6,7 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 import pytorch_lightning as pl
 
-from torch_quadconv import MeshHandler
+from core.torch_quadconv import PointCloudHandler
 
 '''
 Quadrature convolution classification model for.

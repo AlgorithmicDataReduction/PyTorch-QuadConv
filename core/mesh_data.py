@@ -1,7 +1,7 @@
 '''
 '''
 
-from torch_quadconv import MeshDataModule
+from core.torch_quadconv import MeshDataModule
 
 '''
 Extension of MeshDataModule.

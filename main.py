@@ -35,6 +35,7 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     module = import_module('core.' + data_args.pop('module'))
     datamodule = module.DataModule(**data_args)
 
+    #This is so weird, the type isn't what it should be
     print(type(datamodule))
 
     #build model
