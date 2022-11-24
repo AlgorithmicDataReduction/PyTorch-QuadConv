@@ -104,7 +104,7 @@ class QuadConvLayer(nn.Module):
             for j in range(self.out_channels):
                 self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).view(-1, self.in_channels, self.out_channels)
+            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).reshape(-1, self.in_channels, self.out_channels)
 
         elif filter_mode == 'nested':
             self.filter = nn.ModuleList()
@@ -115,7 +115,7 @@ class QuadConvLayer(nn.Module):
                 for j in range(self.out_channels):
                     self.filter.append(self.create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).view(-1, self.in_channels, self.out_channels)
+            self.G = lambda z: torch.cat(list(module(z) for module in self.filter)).reshape(-1, self.in_channels, self.out_channels)
 
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
@@ -256,9 +256,9 @@ class QuadConvLayer(nn.Module):
         #compute quadrature as weights*filters*features
         values = torch.einsum('n, bni, nij -> bnj',
                                 self.quad_weights[self.eval_indices[:,1]],
-                                features[:,:,self.eval_indices[:,1]].view(features.shape[0], -1, self.in_channels),
+                                features[:,:,self.eval_indices[:,1]].reshape(features.shape[0], -1, self.in_channels),
                                 filters)
-        values = values.view(features.shape[0], self.out_channels, -1)
+        values = values.reshape(features.shape[0], self.out_channels, -1)
 
         #scatter and reduce results
         torch_scatter.segment_coo(values, self.eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), integral, reduce="sum")
