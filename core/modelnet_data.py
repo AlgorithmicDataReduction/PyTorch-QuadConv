@@ -39,8 +39,12 @@ class Dataset(td.Dataset):
     def _transform(self, points, features):
 
         #sub-sample points
+        idxs = torch.randperm(points.shape[0])[:1024]
+        points = points[idxs,:]
+        features = features[:,idxs]
 
         #put point cloud on unit sphere
+        nn.functional.normalize(points, out=points)
 
         #apply random rotation
 
@@ -65,7 +69,9 @@ class Dataset(td.Dataset):
                 points[i,:] = torch.Tensor([float(element) for element in data[:3]])
                 features[:,i] = torch.Tensor([float(element) for element in data[3:]])
 
-        return self._transform(points, features), label
+        points, features = self._transform(points, features)
+
+        return points, features, label
 
 '''
 PT Lightning data module for ModelNet dataset.
@@ -87,7 +93,7 @@ class DataModule(pl.LightningDataModule):
             batch_size,
             objects = 10,
             split = 0.8,
-            shuffle = False,
+            shuffle = True,
             num_workers = 4,
             persistent_workers = True,
             pin_memory = True,

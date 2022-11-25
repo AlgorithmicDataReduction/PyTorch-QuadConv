@@ -1,3 +1,4 @@
+import torch
 from core.modelnet_data import DataModule
 
 if __name__=="__main__":
@@ -9,8 +10,9 @@ if __name__=="__main__":
 
     dl = dm.val_dataloader()
 
-    (points, features), label = next(iter(dl))
+    points, features, label = next(iter(dl))
 
     print(points.shape)
     print(features.shape)
+    print(torch.norm(points[0, 0,:]))
     print(label)
