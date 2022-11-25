@@ -70,12 +70,6 @@ class QuadConv(nn.Module):
         else:
             self.bias = None
 
-        #optimized einsum contraction expression
-        # self.contraction = contract_expression('n, nij, bin -> bjn',
-        #                                         (self.in_points,),
-        #                                         (self.in_points, self.in_channels, self.out_channels),
-        #                                         (1, self.in_channels, self.in_points))
-
         return
 
     '''
@@ -175,20 +169,20 @@ class QuadConv(nn.Module):
     Compute indices associated with non-zero filters.
 
     Input:
-        mesh: MeshHandler object
+        handler: MeshHandler or PointCloudHandler object
     '''
-    def _compute_eval_indices(self, mesh):
+    def _compute_eval_indices(self, handler):
 
-        #get output nodes
-        input_nodes = mesh.input_nodes
-        output_nodes = input_nodes if self.output_same else mesh.output_nodes
+        #get output points
+        input_points = handler.input_points
+        output_points = input_points if self.output_same else handler.output_points
 
         #check
-        assert input_nodes.shape[0] == self.in_points
-        assert output_nodes.shape[0] == self.out_points
+        assert input_points.shape[0] == self.in_points
+        assert output_points.shape[0] == self.out_points
 
         #determine indices
-        locs = (output_nodes.repeat_interleave(input_nodes.shape[0], dim=0) - input_nodes.repeat(output_nodes.shape[0], 1)).reshape(output_nodes.shape[0], input_nodes.shape[0], self.spatial_dim)
+        locs = (output_points.repeat_interleave(input_points.shape[0], dim=0) - input_points.repeat(output_points.shape[0], 1)).reshape(output_points.shape[0], input_points.shape[0], self.spatial_dim)
 
         bump_arg = self._bump_arg(locs)
 
@@ -205,12 +199,12 @@ class QuadConv(nn.Module):
     Apply operator via quadrature approximation of convolution with features and learned filter.
 
     Input:
-        mesh: MeshHandler object
+        handler: MeshHandler or PointCloudHandler object
         features: a tensor of shape (batch size  X num of points X input channels)
 
     Output: tensor of shape (batch size X num of output points X output channels)
     '''
-    def forward(self, mesh, features):
+    def forward(self, handler, features):
 
         #setup integral
         integral = torch.zeros(features.shape[0], self.out_channels, self.out_points, device=features.device)
@@ -219,28 +213,22 @@ class QuadConv(nn.Module):
         if self.cached:
             eval_indices = self.eval_indices
         else:
-            eval_indices = self._compute_eval_indices(mesh)
+            eval_indices = self._compute_eval_indices(handler)
 
         #get weights
-        weights = self.weight_activation(mesh.weights[eval_indices[:,1]])
+        weights = self.weight_activation(handler.weights[eval_indices[:,1]])
 
         #compute eval locs
         if self.output_same:
-            eval_locs = mesh.input_nodes[eval_indices[:,0]] - mesh.input_nodes[eval_indices[:,1]]
+            eval_locs = handler.input_points[eval_indices[:,0]] - handler.input_points[eval_indices[:,1]]
         else:
-            eval_locs = mesh.output_nodes[eval_indices[:,0]] - mesh.input_nodes[eval_indices[:,1]]
-            mesh.step()
+            eval_locs = handler.output_points[eval_indices[:,0]] - handler.input_points[eval_indices[:,1]]
+            handler.step()
 
         #compute filter
         filters = self.G(eval_locs)
 
         #compute quadrature as weights*filters*features
-        # values = self.contraction(weights, filters, features[:,:,eval_indices[:,1]], backend='torch')
-        # values = contract('n, nij, bin -> bjn',
-        #                     weights,
-        #                     filters,
-        #                     features[:,:,eval_indices[:,1]],
-        #                     backend='torch')
         values = torch.einsum('n, nij, bin -> bjn',
                                 weights,
                                 filters,

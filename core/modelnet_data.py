@@ -33,7 +33,17 @@ class Dataset(td.Dataset):
 
         return
 
+    def _get_rotation(self, scale):
+        pass
+
     def _transform(self, points, features):
+
+        #sub-sample points
+
+        #put point cloud on unit sphere
+
+        #apply random rotation
+
         return points, features
 
     def __len__(self):

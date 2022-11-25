@@ -121,10 +121,13 @@ class SobolevLoss(nn.Module):
 Get Gaussian quadrature weights and nodes.
 
 Input:
-    spatial_dim: spatial dimension of points
-    num_points: number of points
+    input_points: input points
+    num_points: number of output points
 '''
-def gauss_quad(spatial_dim, num_points):
+def gauss_quad(input_points, num_points):
+
+    spatial_dim = input_points.shape[1]
+
     num_points = int(num_points**(1/spatial_dim))
 
     weights = torch.zeros(num_points)
@@ -152,13 +155,16 @@ NOTE: This function returns the composite rule, so its required that the order
 of the quadrature rule divides evenly into N.
 
 Input:
-    spatial_dim: spatial dimension of points
-    num_points: number of points
+    input_points: input points
+    num_points: number of output points
     composite_quad_order: composite qudrature order
     x0: left end point
     x1: right end point
 '''
-def newton_cotes_quad(spatial_dim, num_points, composite_quad_order=2, x0=0, x1=1):
+def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1=1):
+
+    spatial_dim = input_points.shape[1]
+
     num_points = int(num_points**(1/spatial_dim))
 
     #nodes

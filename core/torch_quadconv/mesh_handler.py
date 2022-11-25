@@ -10,34 +10,30 @@ from .utilities import newton_cotes_quad
 Point and Quadrature data handler.
 
 Input:
-    input_nodes: input mesh nodes
+    input_points: input mesh nodes
     input_weights: input mesh quadrature weights
     input_adjacency: input mesh adjacency structure
-    quad_map: map from number of points to quadrature (nodes, weights)
+    quad_map: map from number of points to quadrature (points, weights)
 '''
 class MeshHandler(nn.Module):
 
     def __init__(self,
-            input_nodes,
+            input_points,
             input_weights = None,
             input_adjacency = None,
             quad_map = newton_cotes_quad
         ):
         super().__init__()
 
-        ##attributes
-        self._current_index = 0
+        if input_weights is not None:
+            assert input_points.shape[0] == input_weights.shape[0]
 
-        self._spatial_dim = input_nodes.shape[1]
-
-        self._quad_map = quad_map
-
-        #nodes
-        self._nodes = nn.ParameterList([nn.Parameter(input_nodes, requires_grad=False)])
+        #points
+        self._points = nn.ParameterList([nn.Parameter(input_points, requires_grad=False)])
 
         #weights
         if input_weights is None:
-            input_weights = torch.ones(input_nodes.shape[0])
+            input_weights = torch.ones(input_points.shape[0])
             req_grad = True
         else:
             req_grad = False
@@ -50,6 +46,10 @@ class MeshHandler(nn.Module):
         else:
             self._adjacency = nn.ParameterList()
 
+        #other attributes
+        self._current_index = 0
+        self._quad_map = quad_map
+
         return
 
     def step(self):
@@ -61,12 +61,12 @@ class MeshHandler(nn.Module):
         return self._radix - abs(self._radix - (self._current_index + offset))
 
     @property
-    def input_nodes(self):
-        return self._nodes[self._get_index()]
+    def input_points(self):
+        return self._points[self._get_index()]
 
     @property
-    def output_nodes(self):
-        return self._nodes[self._get_index(1)]
+    def output_points(self):
+        return self._points[self._get_index(1)]
 
     @property
     def weights(self):
@@ -80,30 +80,30 @@ class MeshHandler(nn.Module):
     Cache mesh stages.
 
     Input:
-        node_seq: sequence of number of nodes (e.g. [100, 50, 10])
-        mirror: whether or not to mirror the node_seq, i.e. append reversed node_seq
+        point_seq: sequence of number of points (e.g. [100, 50, 10])
+        mirror: whether or not to mirror the point_seq, i.e. append reversed point_seq
     '''
-    def cache(self, node_seq, mirror=False):
+    def cache(self, point_seq, mirror=False):
 
-        #make sure input_nodes and node_seq align
-        assert node_seq[0] == self._nodes[0].shape[0]
+        #make sure input_points and point_seq align
+        assert point_seq[0] == self._points[0].shape[0]
 
         #set number of meshes and mesh stages
-        self._num_meshes = len(node_seq)
-        self._num_stages = len(node_seq)-1
-        self._radix = len(node_seq)-1
+        self._num_meshes = len(point_seq)
+        self._num_stages = len(point_seq)-1
+        self._radix = len(point_seq)-1
 
-        #construct other node sets
-        for num_nodes in node_seq[1:]:
-            nodes, weights = self._quad_map(self._spatial_dim, num_nodes)
+        #construct other point sets
+        for i, num_points in enumerate(point_seq[1:]):
+            points, weights = self._quad_map(self._points[i], num_points)
 
             if weights is None:
-                weights = torch.ones(nodes.shape[0])
+                weights = torch.ones(points.shape[0])
                 req_grad = True
             else:
                 req_grad = False
 
-            self._nodes.append(nn.Parameter(nodes, requires_grad=False))
+            self._points.append(nn.Parameter(points, requires_grad=False))
             self._weights.append(nn.Parameter(weights, requires_grad=req_grad))
 
         #mirror the sequence, but reuse underlying data

@@ -51,8 +51,8 @@ class Model(pl.LightningModule):
         #
         self.example_input_array = torch.zeros(input_shape)
 
-        #mesh
-        self.mesh = MeshHandler(input_nodes, input_weights).cache(point_seq)
+        #point cloud
+        self.point_cloud = PointCloudHandler(input_nodes, point_seq)
 
         #block arguments
         arg_stack = package_args(stages, conv_params)
@@ -96,8 +96,8 @@ class Model(pl.LightningModule):
 
     Output:
     '''
-    def forward(self, mesh, x):
-        _, x = self.qcnn((mesh, x))
+    def forward(self, x):
+        _, x = self.qcnn((self.point_cloud, x))
         x = self.flat(x)
         output = slef.linear(x)
 
@@ -109,7 +109,7 @@ class Model(pl.LightningModule):
         data, labels = batch
 
         #predict
-        pred = self(self.mesh, data)
+        pred = self(data)
 
         #compute loss
         loss = F.cross_entropy(pred, labels)

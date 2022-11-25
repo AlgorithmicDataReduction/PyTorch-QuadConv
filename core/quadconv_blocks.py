@@ -72,14 +72,14 @@ class SkipBlock(nn.Module):
     '''
     Forward mode
     '''
-    def forward_op(self, mesh, data):
+    def forward_op(self, handler, data):
         x = data
 
-        x1 = self.conv1(mesh, x)
+        x1 = self.conv1(handler, x)
         x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x
 
-        x2 = self.conv2(mesh, x1)
+        x2 = self.conv2(handler, x1)
         x2 = self.activation2(self.norm2(x2))
 
         return x2
@@ -87,13 +87,13 @@ class SkipBlock(nn.Module):
     '''
     Adjoint mode
     '''
-    def adjoint_op(self, mesh, data):
+    def adjoint_op(self, handler, data):
         x = data
 
-        x2 = self.conv2(mesh, x)
+        x2 = self.conv2(handler, x)
         x2 = self.activation2(self.norm2(x2))
 
-        x1 = self.conv1(mesh, x2)
+        x1 = self.conv1(handler, x2)
         x1 = self.activation1(self.norm1(x1))
         x1 = x1 + x2
 
@@ -104,14 +104,14 @@ class SkipBlock(nn.Module):
     '''
     def forward(self, input):
 
-        mesh, data = input[0], input[1]
+        handler, data = input[0], input[1]
 
         if self.adjoint:
-            data = self.adjoint_op(mesh, data)
+            data = self.adjoint_op(handler, data)
         else:
-            data = self.forward_op(mesh, data)
+            data = self.forward_op(handler, data)
 
-        return (mesh, data)
+        return (handler, data)
 
 ################################################################################
 
@@ -178,13 +178,13 @@ class PoolBlock(nn.Module):
     '''
     Forward mode
     '''
-    def forward_op(self, mesh, data):
+    def forward_op(self, handler, data):
         x = data
 
-        x1 = self.conv1(mesh, x)
+        x1 = self.conv1(handler, x)
         x1 = self.activation1(self.batchnorm1(x1))
 
-        x2 = self.conv2(mesh, x1)
+        x2 = self.conv2(handler, x1)
         x2 = self.activation2(self.batchnorm2(x2) + x)
 
         sq_shape = int(np.sqrt(x2.shape[-1]))
@@ -198,7 +198,7 @@ class PoolBlock(nn.Module):
     '''
     Adjoint mode
     '''
-    def adjoint_op(self, mesh, data):
+    def adjoint_op(self, handler, data):
 
         sq_shape = int(np.sqrt(data.shape[-1]))
 
@@ -206,10 +206,10 @@ class PoolBlock(nn.Module):
 
         x = self.resample(data.reshape(data.shape[0], data.shape[1], *dim_pack)).reshape(data.shape[0], data.shape[1], -1)
 
-        x1 = self.conv1(mesh, x)
+        x1 = self.conv1(handler, x)
         x1 = self.activation1(self.batchnorm1(x1))
 
-        x2 = self.conv2(mesh, x1)
+        x2 = self.conv2(handler, x1)
         x2 = self.activation2(self.batchnorm2(x2) + x)
 
         return x2
@@ -219,11 +219,11 @@ class PoolBlock(nn.Module):
     '''
     def forward(self, input):
 
-        mesh, data = input[0], input[1]
+        handler, data = input[0], input[1]
 
         if self.adjoint:
-            data = self.adjoint_op(mesh, data)
+            data = self.adjoint_op(handler, data)
         else:
-            data = self.forward_op(mesh, data)
+            data = self.forward_op(handler, data)
 
-        return (mesh, data)
+        return (handler, data)
