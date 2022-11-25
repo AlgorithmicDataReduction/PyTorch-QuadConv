@@ -187,3 +187,17 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1
     weights = torch.prod(weights, dim=1)
 
     return nodes, weights
+
+'''
+'''
+def random_downsample(input_points, num_points):
+
+    if input_points.dim() == 3:
+        dim = 1
+    else:
+        dim = 0
+
+    #only using one permuation here which is a bit weird
+    idxs = torch.randperm(input_points.shape[dim])[:num_points]
+
+    return torch.index_select(input_points, dim, idxs)

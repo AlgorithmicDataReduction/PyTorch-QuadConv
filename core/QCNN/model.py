@@ -12,7 +12,6 @@ from core.torch_quadconv import PointCloudHandler
 Quadrature convolution classification model for.
 
 Input:
-    spatial_dim: spatial dimension of data
     point_seq:
     data_info:
     stages: number of convolution block stages
@@ -23,7 +22,6 @@ Input:
 class Model(pl.LightningModule):
 
     def __init__(self,*,
-            spatial_dim,
             point_seq,
             data_info,
             stages,
@@ -52,7 +50,7 @@ class Model(pl.LightningModule):
         self.example_input_array = torch.zeros(input_shape)
 
         #point cloud
-        self.point_cloud = PointCloudHandler(input_nodes, point_seq)
+        self.point_cloud = PointCloudHandler(point_seq)
 
         #block arguments
         arg_stack = package_args(stages, conv_params)
@@ -92,12 +90,16 @@ class Model(pl.LightningModule):
     Forward pass of model.
 
     Input:
-        x: input data
+        x: points
+        f: features
 
     Output:
     '''
-    def forward(self, x):
-        _, x = self.qcnn((self.point_cloud, x))
+    def forward(self, x, f):
+
+        self.point_cloud.cache(x)
+
+        _, x = self.qcnn((self.point_cloud, f))
         x = self.flat(x)
         output = slef.linear(x)
 
@@ -106,10 +108,10 @@ class Model(pl.LightningModule):
     '''
     '''
     def _compute_metrics(self, batch, idx):
-        data, labels = batch
+        points, features, labels = batch
 
         #predict
-        pred = self(data)
+        pred = self(points, features)
 
         #compute loss
         loss = F.cross_entropy(pred, labels)
@@ -178,7 +180,9 @@ class Model(pl.LightningModule):
     Output:
     '''
     def predict_step(self, batch, idx):
-        return torch.argmax(self(batch), dim=1)
+        points, features, _ = batch
+
+        return torch.argmax(self(points, features), dim=1)
 
     '''
     Instantiates optimizer
