@@ -43,3 +43,6 @@ conda/
 # SLURM
 slurm-*.out
 random/
+
+# Data
+data/*/*.npy
