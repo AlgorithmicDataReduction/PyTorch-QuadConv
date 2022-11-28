@@ -7,16 +7,18 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 
-from .utilities import SobolevLoss
+from core.torch_quadconv import MeshHandler
+
+from core.utilities import SobolevLoss
 
 '''
-High-level convolution based autoencoder; the specific encoder and decoder are
-specified separately.
+Quadrature convolution autoencoder.
 
 Input:
     module: python module to import containing encoder and decoder classes
     spatial_dim: spatial dimension of data
-    input_shape: input shape of data
+    point_seq:
+    data_info:
     loss_fn: loss function specification
     optimizer: optimizer specification
     learning_rate: learning rate
@@ -24,12 +26,13 @@ Input:
     output_activation: final activation
     kwargs: keyword arguments to be passed to encoder and decoder
 '''
-class AutoEncoder(pl.LightningModule):
+class Model(pl.LightningModule):
 
     def __init__(self,*,
             module,
             spatial_dim,
-            input_shape,
+            point_seq,
+            data_info,
             loss_fn = "MSELoss",
             optimizer = "Adam",
             learning_rate = 1e-2,
@@ -43,7 +46,7 @@ class AutoEncoder(pl.LightningModule):
         self.save_hyperparameters()
 
         #import the encoder and decoder
-        module = import_module('core.modules.' + module)
+        module = import_module('core.QCAE.' + module)
 
         #training hyperparameters
         self.optimizer = optimizer
@@ -58,7 +61,17 @@ class AutoEncoder(pl.LightningModule):
         else:
             self.loss_fn = getattr(nn, loss_fn)()
 
+        #unpack data info
+        input_shape = data_info['input_shape']
+        input_nodes = data_info['input_nodes']
+        input_weights = data_info['input_weights']
+
+        #
+        self.example_input_array = torch.zeros(input_shape)
+
         #model pieces
+        self.mesh = MeshHandler(input_nodes, input_weights).cache(point_seq, mirror=True)
+
         self.output_activation = output_activation()
 
         self.encoder = module.Encoder(input_shape=input_shape,
@@ -79,12 +92,6 @@ class AutoEncoder(pl.LightningModule):
 
         return parent_parser
 
-    def compress(self,x):
-        return self.encoder(x)
-
-    def decompress(self,x):
-        return self.output_activation(self.decoder(x))
-
     '''
     Forward pass of model.
 
@@ -94,7 +101,29 @@ class AutoEncoder(pl.LightningModule):
     Output: compressed data reconstruction
     '''
     def forward(self, x):
-        return self.output_activation(self.decoder(self.encoder(x)))
+        return self.output_activation(self.decoder(self.mesh, self.encoder(self.mesh, x)))
+
+    '''
+    Forward pass of encoder.
+
+    Input:
+        x: input data
+
+    Output: compressed data
+    '''
+    def encode(self, x):
+        return self.encoder(self.mesh, x)
+
+    '''
+    Forward pass of decoder.
+
+    Input:
+        z: compressed data
+
+    Output: compressed data reconstruction
+    '''
+    def decode(self, z):
+        return self.output_activation(self.decoder(self.mesh, z))
 
     '''
     Single training step.
@@ -107,12 +136,12 @@ class AutoEncoder(pl.LightningModule):
     '''
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
-        latent = self.encoder(batch)
+        latent = self.encode(batch)
         if self.noise_scale != 0.0:
             latent = latent + self.noise_scale*torch.randn(latent.shape, device=self.device)
 
         #decode
-        pred = self.output_activation(self.decoder(latent))
+        pred = self.output_activation(self.decode(latent))
 
         #compute loss
         loss = self.loss_fn(pred, batch)
@@ -185,6 +214,7 @@ class AutoEncoder(pl.LightningModule):
 
     '''
     Instantiates optimizer
+
     Output: pytorch optimizer
     '''
     def configure_optimizers(self):

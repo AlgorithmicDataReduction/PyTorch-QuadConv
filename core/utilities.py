@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import gif
 import warnings
+from typing import List
 
 import torch
 import torch.nn as nn
@@ -31,40 +32,32 @@ def make_gif(trainer, datamodule, model):
     #agglomerate the data if necessary (if tiling was used)
     data = datamodule.agglomerate(results)
 
+    print(data.shape)
+
     #if multichannel then just take first channel
     if data.dim() > datamodule.spatial_dim+1:
         data = data[...,0]
 
-    #GIF logic depending on the spatial dimension
-    if datamodule.spatial_dim == 1:
-        #gif frame closure
-        @gif.frame
-        def plot(i):
-            fig, ax = plt.subplots(1, 2)
+    #get plotting function
+    plot_func = datamodule.get_plot_func()
 
-            ax[0].plot(datamodule.get_sample(i))
-            ax[0].set_title("Uncompressed")
-
-            ax[1].plot(data[i,:])
-            ax[1].set_title("Reconstructed")
-
-    elif datamodule.spatial_dim == 2:
-        #gif frame closure
-        @gif.frame
-        def plot(i):
-            fig, ax = plt.subplots(1, 2)
-
-            ax[0].imshow(datamodule.get_sample(i), vmin=-1, vmax=1, origin='lower')
-            ax[0].set_title("Uncompressed")
-
-            im = ax[1].imshow(data[i,:,:], vmin=-1, vmax=1, origin='lower')
-            ax[1].set_title("Reconstructed")
-
-            fig.colorbar(im, ax=ax.ravel().tolist(), location='bottom')
-
-    elif datamodule.spatial_dim == 3:
-        warnings.warn("Warning...GIF create for 3d data not supported.", )
+    if plot_func == None:
         return
+
+    #gif frame closure
+    @gif.frame
+    def plot(i):
+        fig, ax = plt.subplots(1, 2)
+
+        plot_func(datamodule.get_sample(i), ax[0])
+        ax[0].set_title("Uncompressed")
+
+        im = plot_func(data[i,...], ax[1])
+        ax[1].set_title("Reconstructed")
+
+        if datamodule.spatial_dim == 2:
+            # mappable = cm.ScalarMappable(norm=norm, cmap=cmap)
+            fig.colorbar(im, ax=ax.ravel().tolist(), location='bottom')
 
     #build frames
     frames = [plot(i) for i in range(data.shape[0])]
@@ -194,3 +187,35 @@ class Logger(TensorBoardLogger):
     @rank_zero_only
     def save(self):
         pass
+
+'''
+Package conv parameters.
+
+Input:
+    kwargs: keyword arguments
+'''
+def package_args(stages:int, kwargs:dict, mirror=False):
+
+    for key, value in kwargs.items():
+        if len(value) == 1:
+            kwargs[key] = value*(stages)
+        elif mirror:
+            value.reverse() #inplace
+
+    arg_stack = [{ key : value[i] for key, value in kwargs.items() } for i in range(stages)]
+
+    return arg_stack
+
+'''
+Swap input and output points and channels
+'''
+def swap(conv_params):
+    temp = conv_params["in_points"]
+    conv_params["in_points"] = conv_params["out_points"]
+    conv_params["out_points"] = temp
+
+    temp = conv_params["in_channels"]
+    conv_params["in_channels"] = conv_params["out_channels"]
+    conv_params["out_channels"] = temp
+
+    return conv_params

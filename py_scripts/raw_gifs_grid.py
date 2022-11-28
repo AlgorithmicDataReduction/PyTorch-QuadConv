@@ -25,4 +25,4 @@ def plot(i, channel):
 for channel in [0,1]:
     frames = [plot(i, channel) for i in range(data.shape[0])]
 
-    gif.save(frames, f'{domain}_c{channel}.gif', duration=50)
+gif.save(frames, f'{domain}_c{channel}.gif', duration=50)

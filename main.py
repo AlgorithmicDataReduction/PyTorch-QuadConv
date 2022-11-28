@@ -12,13 +12,12 @@ import yaml
 import os
 import platform
 from pathlib import Path
+from importlib import import_module
 
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from core.autoencoder import AutoEncoder
-from core.structured_data import GridDataModule
 from core.utilities import Logger, make_gif
 
 '''
@@ -33,11 +32,15 @@ Input:
 '''
 def main(experiment, trainer_args, model_args, data_args, misc_args):
     #setup datamodule
-    datamodule = GridDataModule(**data_args)
-    model_args['input_shape'] = datamodule.get_shape()
+    module = import_module('core.' + data_args.pop('module'))
+    datamodule = module.DataModule(**data_args)
+
+    #This is so weird, the type isn't what it should be
+    print(type(datamodule))
 
     #build model
-    model = AutoEncoder(**model_args)
+    module = import_module('core.' + model_args.pop('type') + '.model')
+    model = module.Model(**model_args, data_info = datamodule.get_data_info())
 
     #callbacks
     callbacks=[]
@@ -64,6 +67,7 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
         filename = os.path.join(logger.log_dir, 'config.yaml')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, "w") as file:
+            config = {'train':trainer_args, 'model':model_args, 'data':data_args, 'misc':misc_args}
             yaml.dump(config, file)
 
         #add logger to trainer args
@@ -91,7 +95,7 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
                         ckpt_path='best' if trainer_args['enable_checkpointing'] else None,
                         datamodule=datamodule)
 
-    return 
+    return
 
 '''
 Parse arguments from configuration file and command line. Command line arguments
@@ -136,18 +140,8 @@ if __name__ == "__main__":
     trainer_parser.add_argument("--default_root_dir", type=str)
     trainer_parser.add_argument("--max_time", type=str)
 
-    #model specific args
-    model_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    model_parser = AutoEncoder.add_args(model_parser)
-
-    #data specific args
-    data_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
-    data_parser = GridDataModule.add_args(data_parser)
-
     #look for other CL arguments
     trainer_args.update(vars(trainer_parser.parse_known_args()[0]))
-    model_args.update(vars(model_parser.parse_known_args()[0]))
-    data_args.update(vars(data_parser.parse_known_args()[0]))
 
     #run main script
     main(experiment, trainer_args, model_args, data_args, misc_args)
