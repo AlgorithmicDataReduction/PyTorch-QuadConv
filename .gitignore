@@ -45,5 +45,8 @@ slurm-*.out
 random/
 
 # Data
-data/*/*.npy
+data/flow_mesh/*
+data/ignition_grid/*
+data/ignition_mesh/*
+data/ignition_uniform_mesh/*
 data/modelnet40/*
