@@ -16,7 +16,7 @@ import torch
 from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
 
-from torch_quadconv import QuadConv
+from core.torch_quadconv import QuadConv
 
 from core.utilities import package_args, swap
 from core.quadconv_blocks import PoolBlock
