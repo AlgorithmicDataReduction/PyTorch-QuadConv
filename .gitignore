@@ -46,3 +46,4 @@ random/
 
 # Data
 data/*/*.npy
+data/modelnet40/*
