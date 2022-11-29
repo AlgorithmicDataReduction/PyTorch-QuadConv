@@ -121,12 +121,10 @@ class SobolevLoss(nn.Module):
 Get Gaussian quadrature weights and nodes.
 
 Input:
-    input_points: input points
+    spatial_dim: spatial dimension of points
     num_points: number of output points
 '''
-def gauss_quad(input_points, num_points):
-
-    spatial_dim = input_points.shape[1]
+def gauss_quad(spatial_dim, num_points):
 
     num_points = int(num_points**(1/spatial_dim))
 
@@ -155,15 +153,13 @@ NOTE: This function returns the composite rule, so its required that the order
 of the quadrature rule divides evenly into N.
 
 Input:
-    input_points: input points
+    spatial_dim: spatial dimension of points
     num_points: number of output points
     composite_quad_order: composite qudrature order
     x0: left end point
     x1: right end point
 '''
-def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1=1):
-
-    spatial_dim = input_points.shape[1]
+def newton_cotes_quad(spatial_dim, num_points, composite_quad_order=2, x0=0, x1=1):
 
     num_points = int(num_points**(1/spatial_dim))
 
@@ -189,6 +185,7 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1
     return nodes, weights
 
 '''
+NOTE: only using one permuation here which is a bit weird
 '''
 def random_downsample(input_points, num_points):
 
@@ -197,7 +194,6 @@ def random_downsample(input_points, num_points):
     else:
         dim = 0
 
-    #only using one permuation here which is a bit weird
-    idxs = torch.randperm(input_points.shape[dim])[:num_points]
+    idxs = torch.randperm(input_points.shape[dim], device=input_points.device)[:num_points]
 
     return torch.index_select(input_points, dim, idxs)

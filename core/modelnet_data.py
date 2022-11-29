@@ -232,3 +232,6 @@ class DataModule(pl.LightningDataModule):
 
     def teardown(self, stage=None):
         return
+
+    def get_data_info(self):
+        return {'input_shape': tuple([1, 3, 1024])}

@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import random_split, DataLoader
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
+from matplotlib.tri import Triangulation
 
 from .utilities import newton_cotes_quad
 
@@ -228,7 +229,7 @@ class MeshDataModule(pl.LightningDataModule):
         idx: sample index
     '''
     def get_sample(self, idx):
-        return torch.movedim(self.predict[idx,...], 0, -1)
+        return torch.movedim(self.predict[idx,...], 0, -1)[...,0].squeeze()
 
     '''
     Agglomerate feature batches.
@@ -253,6 +254,8 @@ class MeshDataModule(pl.LightningDataModule):
     '''
     def get_plot_func(self):
 
+        plot_func = None
+
         if self.points == None:
             if self.spatial_dim == 1:
                 plot_func = lambda f, ax: ax.plot(f)
@@ -263,9 +266,9 @@ class MeshDataModule(pl.LightningDataModule):
         else:
             if self.spatial_dim == 2:
                 #triangulate and save
-                self._triangulation = plt.tri.Triangulation(self.points[:,0], self.points[:,])
-                plot_func = lambda f, ax: ax.tripcolor(self._triangulation, f)
+                self._triangulation = Triangulation(self.points[:,0], self.points[:,1])
+                plot_func = lambda f, ax: ax.tripcolor(self._triangulation, f, vmin=-1, vmax=1, facecolors=None)
             else:
-                warn("Plotting for non 2D data not supported.", )
+                warn("Mesh plotting beyond 2D data not supported.", )
 
         return plot_func

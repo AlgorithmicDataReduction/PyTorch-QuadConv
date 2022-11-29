@@ -4,9 +4,12 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.nn.utils.parametrizations import spectral_norm as spn
 import pytorch_lightning as pl
 
 from core.torch_quadconv import PointCloudHandler
+from core.quadconv_blocks import SkipBlock
+from core.utilities import package_args
 
 '''
 Quadrature convolution classification model for.
@@ -43,11 +46,9 @@ class Model(pl.LightningModule):
 
         #unpack data info
         input_shape = data_info['input_shape']
-        input_nodes = data_info['input_nodes']
-        input_weights = data_info['input_weights']
 
-        #
-        self.example_input_array = torch.zeros(input_shape)
+        #NOTE: Not sure how this works with multiple inputs
+        # self.example_input_array = torch.zeros(input_shape)
 
         #point cloud
         self.point_cloud = PointCloudHandler(point_seq)

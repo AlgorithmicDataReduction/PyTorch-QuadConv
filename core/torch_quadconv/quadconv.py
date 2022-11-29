@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch_scatter
 from opt_einsum import contract, contract_expression
 
-from core.utilities import Sin
+from core.torch_quadconv.utilities import Sin
 
 '''
 Quadrature convolution operator.
