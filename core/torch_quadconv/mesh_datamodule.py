@@ -220,7 +220,7 @@ class MeshDataModule(pl.LightningDataModule):
 
     def _to_grid(self, features):
         grid_shape = [int(features.shape[0]**(1/self.spatial_dim))]*self.spatial_dim
-        return features.reshape(*grid_shape, features.shape[-1])
+        return features.reshape(*grid_shape, -1)
 
     '''
     Get a single data sample.
