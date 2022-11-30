@@ -94,23 +94,23 @@ class QuadConv(nn.Module):
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels)
 
-            self.modules = nn.ModuleList()
+            self.filter = nn.ModuleList()
             for j in range(self.out_channels):
-                modules.append(self._create_mlp(mlp_spec))
+                self.filter.append(self._create_mlp(mlp_spec))
 
-            self.H = lambda z: torch.cat(module(z) for module in modules).reshape(-1, self.channels_in, self.channels_out)
+            self.H = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.channels_in, self.channels_out)
 
         #mlp for each input and output channel pair
         elif filter_mode == 'nested':
 
             mlp_spec = (self.spatial_dim, *filter_seq, 1)
 
-            self.modules = nn.ModuleList()
+            self.filter = nn.ModuleList()
             for i in range(self.in_channels):
                 for j in range(self.out_channels):
                     self.filter.append(self._create_mlp(mlp_spec))
 
-            self.H = lambda z: torch.cat(list(module(z) for module in self.filter)).reshape(-1, self.in_channels, self.out_channels)
+            self.H = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.in_channels, self.out_channels)
 
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
