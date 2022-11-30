@@ -47,6 +47,7 @@ class MeshHandler(nn.Module):
             self._adjacency = nn.ParameterList()
 
         #other attributes
+        self._spatial_dim = input_points.shape[1]
         self._current_index = 0
         self._quad_map = quad_map
 
@@ -95,7 +96,7 @@ class MeshHandler(nn.Module):
 
         #construct other point sets
         for i, num_points in enumerate(point_seq[1:]):
-            points, weights = self._quad_map(self._points[i], num_points)
+            points, weights = self._quad_map(self._spatial_dim, num_points)
 
             if weights is None:
                 weights = torch.ones(points.shape[0])

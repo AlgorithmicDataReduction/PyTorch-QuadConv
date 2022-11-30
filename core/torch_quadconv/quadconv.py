@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch_scatter
 from opt_einsum import contract, contract_expression
 
-from core.utilities import Sin
+from core.torch_quadconv.utilities import Sin
 
 '''
 Quadrature convolution operator.
@@ -80,30 +80,32 @@ class QuadConv(nn.Module):
         filter_mode: type of filter operation
     '''
     def _init_filter(self, filter_seq, filter_mode):
+
         #single mlp
         if filter_mode == 'single':
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
             self.H = self._create_mlp(mlp_spec)
-
             self.H.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
 
+        #mlp for each output channel
         elif filter_mode == 'share_in':
-            self.filter = nn.ModuleList()
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels)
 
+            self.modules = nn.ModuleList()
             for j in range(self.out_channels):
-                self.filter.append(self._create_mlp(mlp_spec))
+                modules.append(self._create_mlp(mlp_spec))
 
-            self.H = lambda z: torch.cat(list(module(z) for module in self.filter)).reshape(-1, self.in_channels, self.out_channels)
+            self.H = lambda z: torch.cat(module(z) for module in modules).reshape(-1, self.channels_in, self.channels_out)
 
+        #mlp for each input and output channel pair
         elif filter_mode == 'nested':
-            self.filter = nn.ModuleList()
 
             mlp_spec = (self.spatial_dim, *filter_seq, 1)
 
+            self.modules = nn.ModuleList()
             for i in range(self.in_channels):
                 for j in range(self.out_channels):
                     self.filter.append(self._create_mlp(mlp_spec))
@@ -125,6 +127,7 @@ class QuadConv(nn.Module):
         mlp_channels: sequence of channels
     '''
     def _create_mlp(self, mlp_channels):
+
         #linear layer settings
         activation = Sin()
         bias = False
@@ -161,7 +164,8 @@ class QuadConv(nn.Module):
         bump = torch.exp(1-1/(1-self.decay_param*bump_arg))
 
         return bump.reshape(-1, 1, 1)
-        '''
+
+    '''
     Compute indices associated with non-zero filters.
 
     Input:

@@ -74,8 +74,7 @@ class DataModule(pl.LightningDataModule):
         if len(self.channels) != 0:
             data = data[...,self.channels]
 
-            if len(self.channels) == 1:
-                data = torch.unsqueeze(data, -1)
+        self.data_shape = data.shape[1:]
 
         #normalize
         if self.normalize:
@@ -126,8 +125,6 @@ class DataModule(pl.LightningDataModule):
 
         #setup
         if stage == "fit" or stage is None:
-            self.data_shape = data.shape[1:-1]
-
             #tiling
             if self.stride == None:
                 self.stride = data.shape[1]
@@ -204,7 +201,7 @@ class DataModule(pl.LightningDataModule):
         idx: sample index
     '''
     def get_sample(self, idx):
-        return self.predict[idx,...].reshape(self.data_shape)
+        return self.predict[idx,...].reshape(self.data_shape)[...,0].squeeze()
 
     '''
     Get the data shape
@@ -264,6 +261,9 @@ class DataModule(pl.LightningDataModule):
     Returns a method for plotting a set of features.
     '''
     def get_plot_func(self):
+
+        plot_func = None
+
         if self.spatial_dim == 1:
             plot_func = lambda f, ax: ax.plot(f)
         elif self.spatial_dim == 2:

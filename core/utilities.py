@@ -35,8 +35,10 @@ def make_gif(trainer, datamodule, model):
     print(data.shape)
 
     #if multichannel then just take first channel
-    if data.dim() > datamodule.spatial_dim+1:
+    if data.shape[-1] > 1:
         data = data[...,0]
+
+    data = data.squeeze()
 
     #get plotting function
     plot_func = datamodule.get_plot_func()
@@ -66,17 +68,6 @@ def make_gif(trainer, datamodule, model):
     gif.save(frames, f'{trainer.logger.log_dir}/{"last" if model else "best"}.gif', duration=50)
 
     return
-
-'''
-Module wrapper for sin function; allows it to operate as a layer.
-'''
-class Sin(nn.Module):
-
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        return torch.sin(x)
 
 '''
 Sobolev loss function; computes the loss as a sum of the function l2 and

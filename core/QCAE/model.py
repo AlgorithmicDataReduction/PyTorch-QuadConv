@@ -74,8 +74,7 @@ class Model(pl.LightningModule):
 
         self.output_activation = output_activation()
 
-        self.encoder = module.Encoder(input_shape=input_shape,
-                                        spatial_dim=spatial_dim,
+        self.encoder = module.Encoder(spatial_dim=spatial_dim,
                                         **kwargs)
         self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape,
                                         spatial_dim=spatial_dim,

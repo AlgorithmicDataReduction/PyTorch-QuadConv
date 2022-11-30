@@ -27,7 +27,6 @@ class Encoder(nn.Module):
             stages,
             conv_params,
             latent_dim,
-            input_shape,
             latent_activation = nn.CELU,
             **kwargs
         ):
