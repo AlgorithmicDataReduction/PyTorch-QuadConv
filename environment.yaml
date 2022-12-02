@@ -16,6 +16,5 @@ dependencies:
   - matplotlib
   - pip
   - pip:
-    - opt_einsum
     - gif
     - torch_tb_profiler
