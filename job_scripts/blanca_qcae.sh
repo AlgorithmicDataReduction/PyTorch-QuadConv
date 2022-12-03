@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --time=08:00:00
 #SBATCH --qos=preemptable
-#SBATCH --job-name=ignition_qcnn
+#SBATCH --job-name=ignition_qcae
 #SBATCH --gres=gpu:2
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
@@ -9,7 +9,7 @@
 
 #ntasks per node should be num_workers*num_gpus
 
-TEST=ignition/ignition_skip_qcae.yaml
+TEST=ignition/skip_qcae.yaml
 TIME=00:07:50:00
 
 module purge

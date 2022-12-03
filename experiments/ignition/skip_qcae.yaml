@@ -5,9 +5,9 @@
 #Comment out options you aren't using
 train:
   accelerator: "gpu" #str, e.g. "gpu"
-  devices: 2 #int
+  devices: 1 #int
   # num_nodes: #int
-  strategy: "ddp_sharded" #str
+  # strategy: "ddp_sharded" #str
   # precision: #str
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
