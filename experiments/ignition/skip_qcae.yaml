@@ -50,7 +50,7 @@ data:
   spatial_dim: 2 #int
   num_points: 9074 #int, mesh only
   batch_size: 16 #int
-  channels: [] #list[int], AE only
+  channels: [1,0,2,3] #list[int], AE only
   shuffle: True #bool
 
 #Miscellaneous arguments
