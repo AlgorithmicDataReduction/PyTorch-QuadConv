@@ -2,9 +2,9 @@
 #SBATCH --time=08:00:00
 #SBATCH --qos=preemptable
 #SBATCH --job-name=ignition_qcae
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=8
+#SBATCH --ntasks-per-node=4
 #SBATCH --no-requeue
 
 #ntasks per node should be num_workers*num_gpus
