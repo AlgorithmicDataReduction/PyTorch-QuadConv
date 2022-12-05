@@ -33,8 +33,8 @@ class DataModule(pl.LightningDataModule):
             spatial_dim,
             size,
             batch_size,
+            channels,
             stride = None,
-            channels = (),
             normalize = True,
             split = 0.8,
             shuffle = False,
@@ -43,6 +43,8 @@ class DataModule(pl.LightningDataModule):
             pin_memory = True,
         ):
         super().__init__()
+
+        assert len(channels) != 0
 
         args = locals()
         args.pop('self')

@@ -36,7 +36,7 @@ model:
   conv_params:
     in_points: [9074, 2500, 400] #list[int]
     out_points: [2500, 400, 100] #list[int]
-    in_channels: [4, 16, 64] #list[int]
+    in_channels: [4, 16, 32] #list[int]
     out_channels: [16, 32, 64] #list[int]
     bias: [True] #list[bool]
     filter_seq: [[4, 4]] #[list[int]], QC only

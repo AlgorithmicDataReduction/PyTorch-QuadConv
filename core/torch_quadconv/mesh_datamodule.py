@@ -38,7 +38,7 @@ class MeshDataModule(pl.LightningDataModule):
             spatial_dim,
             num_points,
             batch_size,
-            channels = (),
+            channels,
             quad_map = None,
             normalize = True,
             split = 0.8,
@@ -48,6 +48,8 @@ class MeshDataModule(pl.LightningDataModule):
             pin_memory = True,
         ):
         super().__init__()
+
+        assert len(channels) != 0
 
         args = locals()
         args.pop('self')
