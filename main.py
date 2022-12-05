@@ -79,6 +79,7 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     #
     #NOTE: When I tried to implement this, it wasn't working, not a major
     #priority, but something to figure out
+    #NOTE: This might be fixed by Lightning 1.7.7
     # if trainer_args['auto_scale_batch_size']:
     #     trainer.tune(model, datamodule=datamodule)
 
