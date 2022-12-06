@@ -14,11 +14,11 @@ train:
   enable_checkpointing: False #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "./lightning_logs" #str
-  logger: True #bool
+  logger: False #bool
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
-  max_epochs: 10 #int
+  max_epochs: 1 #int
   # max_steps: #int
 
 #Model arguments
@@ -50,11 +50,11 @@ data:
   spatial_dim: 2 #int
   num_points: 9074 #int, mesh only
   batch_size: 16 #int
-  channels: [] #list[int], AE only
+  channels: [0,1,2,3] #list[int], AE only
   shuffle: True #bool
 
 #Miscellaneous arguments
 misc:
-  make_gif: True #bool
+  make_gif: False #bool
   compute_stats: True #bool
   early_stopping: False #bool
