@@ -110,7 +110,7 @@ class Decoder(nn.Module):
 
         self.qcnn = nn.Sequential()
 
-        for i in range(stages-1):
+        for i in range(stages):
             self.qcnn.append(PoolBlock(spatial_dim = spatial_dim,
                                         **arg_stack[i],
                                         activation1 = forward_activation,
@@ -118,7 +118,7 @@ class Decoder(nn.Module):
                                         adjoint = True
                                         ))
 
-        self.init_layer = QuadConv(spatial_dim = spatial_dim, **arg_stack[0])
+        self.init_layer = QuadConv(spatial_dim = spatial_dim, **arg_stack[-1])
 
     '''
     Forward

@@ -35,9 +35,6 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     module = import_module('core.' + data_args.pop('module'))
     datamodule = module.DataModule(**data_args)
 
-    #This is so weird, the type isn't what it should be
-    print(type(datamodule))
-
     #build model
     module = import_module('core.' + model_args.pop('type') + '.model')
     model = module.Model(**model_args, data_info = datamodule.get_data_info())
@@ -105,6 +102,9 @@ if __name__ == "__main__":
     #windows setup
     if platform.system() == 'Windows':
         os.environ['PL_TORCH_DISTRIBUTED_BACKEND'] = 'gloo'
+
+    if platform.system() == 'Darwin':
+        os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 
     #look for config
     parser = argparse.ArgumentParser()

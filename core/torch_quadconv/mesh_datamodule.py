@@ -101,8 +101,8 @@ class MeshDataModule(pl.LightningDataModule):
         try:
             self.points = torch.from_numpy(np.float32(np.load(points_file)))
 
-            assert self.points.shape[0] == self.num_points
-            assert self.points.shape[1] == self.spatial_dim
+            assert self.points.shape[0] == self.num_points, f"Expected number of points ({self.num_points}) does not match actual number ({self.points.shape[0]})"
+            assert self.points.shape[1] == self.spatial_dim, f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
 
             #look for weights file
             points_file = data_path.joinpath('weights.npy')

@@ -102,7 +102,7 @@ class Model(pl.LightningModule):
 
         _, x = self.qcnn((self.point_cloud, f))
         x = self.flat(x)
-        output = slef.linear(x)
+        output = self.linear(x)
 
         return output
 

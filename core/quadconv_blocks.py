@@ -131,10 +131,21 @@ class PoolBlock(nn.Module):
         super().__init__()
 
         #NOTE: channel flexibility can be added later
-        assert in_channels == out_channels
+        assert in_channels == out_channels, f"In channels must match out channels to maintain compatibility with the skip connection"
 
         #set attributes
         self.adjoint = adjoint
+
+        if self.adjoint:
+            self.out_points = in_points * 2**(spatial_dim)
+            block_points = in_points * 2**(spatial_dim)
+        elif not self.adjoint:
+            self.out_points = in_points / 2**(spatial_dim)
+            block_points = in_points
+
+        
+        assert self.out_points == out_points, f"User assigned number of output points ({out_points}) does not match the actual number ({self.out_points})"
+
 
         #set pool type
         self.spatial_dim = spatial_dim
@@ -154,8 +165,8 @@ class PoolBlock(nn.Module):
 
         #build layers, normalizations, and activations
         self.conv1 = QuadConv(spatial_dim = spatial_dim,
-                                in_points = in_points,
-                                out_points = in_points,
+                                in_points = block_points,
+                                out_points = block_points,
                                 in_channels = in_channels,
                                 out_channels = in_channels,
                                 output_same = True,
@@ -164,8 +175,8 @@ class PoolBlock(nn.Module):
         self.activation1 = activation1()
 
         self.conv2 = QuadConv(spatial_dim = spatial_dim,
-                                in_points = in_points,
-                                out_points = in_points,
+                                in_points = block_points,
+                                out_points = block_points,
                                 in_channels = in_channels,
                                 out_channels = out_channels,
                                 output_same = True,
@@ -193,12 +204,16 @@ class PoolBlock(nn.Module):
 
         output = self.resample(x2.reshape(x2.shape[0], x2.shape[1], *dim_pack)).reshape(x2.shape[0], x2.shape[1], -1)
 
+        handler.step()
+
         return output
 
     '''
     Adjoint mode
     '''
     def adjoint_op(self, handler, data):
+
+        handler.step()
 
         sq_shape = int(np.sqrt(data.shape[-1]))
 
@@ -225,5 +240,6 @@ class PoolBlock(nn.Module):
             data = self.adjoint_op(handler, data)
         else:
             data = self.forward_op(handler, data)
+            
 
         return (handler, data)
