@@ -206,9 +206,6 @@ class QuadConv(nn.Module):
     '''
     def forward(self, handler, features):
 
-        #setup integral
-        integral = torch.zeros(features.shape[0], self.out_channels, self.out_points, device=features.device)
-
         #get evaluation indices
         if self.cached:
             eval_indices = self.eval_indices
@@ -233,6 +230,9 @@ class QuadConv(nn.Module):
                                 weights,
                                 filters,
                                 features[:,:,eval_indices[:,1]])
+
+        #setup integral
+        integral = values.new_zeros(features.shape[0], self.out_channels, self.out_points)
 
         #scatter
         torch_scatter.segment_coo(values, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), integral, reduce="sum")

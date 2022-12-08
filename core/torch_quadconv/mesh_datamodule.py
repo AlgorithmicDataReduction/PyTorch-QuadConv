@@ -264,13 +264,13 @@ class MeshDataModule(pl.LightningDataModule):
             elif self.spatial_dim == 2:
                 plot_func = lambda f, ax: ax.imshow(self._to_grid(f), vmin=-1, vmax=1, origin='lower')
             else:
-                warn("Plotting for 3D data not supported.", )
+                warn("Grid plotting only supported for 1D/2D data.")
         else:
             if self.spatial_dim == 2:
                 #triangulate and save
                 self._triangulation = Triangulation(self.points[:,0], self.points[:,1])
                 plot_func = lambda f, ax: ax.tripcolor(self._triangulation, f, vmin=-1, vmax=1, facecolors=None)
             else:
-                warn("Mesh plotting beyond 2D data not supported.", )
+                warn("Mesh plotting only supported for 2D data.")
 
         return plot_func
