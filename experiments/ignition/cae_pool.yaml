@@ -2,7 +2,7 @@
 train:
   accelerator: "gpu" #str e.g. "gpu"
   devices: -1
-  strategy: "ddp" #str
+  strategy: "ddp_find_unused_parameters_false" #str
   # precision: #str
   # num_nodes: #int
   # auto_scale_batch_size: #bool
@@ -23,12 +23,12 @@ model:
   noise_scale : 0.0
   schedule : 'ReduceLROnPlateau'
   loss_fn: 'SobolevLoss'
-  
+
   conv_type: "standard" #str "standard" or "quadrature"
 
   conv_params:
     kernel_size: [3] #list
-    in_channels: [1, 16, 16] #list of length == stages+1 
+    in_channels: [1, 16, 16] #list of length == stages+1
     out_channels: [16, 16, 16] #list of length == stages+1 or length == 1
     bias: [False, False, False] #list of length == stages+1 or length == 1
     padding: ['same']
