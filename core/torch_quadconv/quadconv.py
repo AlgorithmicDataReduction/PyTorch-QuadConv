@@ -177,8 +177,8 @@ class QuadConv(nn.Module):
         output_points = input_points if self.output_same else handler.output_points
 
         #check
-        assert input_points.shape[0] == self.in_points
-        assert output_points.shape[0] == self.out_points
+        assert input_points.shape[0] == self.in_points, f'{input_points.shape[0]} != {self.in_points}'
+        assert output_points.shape[0] == self.out_points, f'{output_points.shape[0]} != {self.out_points}'
 
         #determine indices
         locs = output_points.unsqueeze(1) - input_points.unsqueeze(0)

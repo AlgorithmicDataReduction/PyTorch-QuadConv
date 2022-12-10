@@ -31,13 +31,6 @@ Input:
     misc_args: miscellaneous arguments
 '''
 def main(experiment, trainer_args, model_args, data_args, misc_args):
-    #setup datamodule
-    module = import_module('core.' + data_args.pop('module'))
-    datamodule = module.DataModule(**data_args)
-
-    #build model
-    module = import_module('core.' + model_args.pop('type') + '.model')
-    model = module.Model(**model_args, data_info = datamodule.get_data_info())
 
     #callbacks
     callbacks=[]
@@ -69,6 +62,14 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
 
         #add logger to trainer args
         trainer_args['logger'] = logger
+
+    #setup datamodule
+    module = import_module('core.' + data_args.pop('module'))
+    datamodule = module.DataModule(**data_args)
+
+    #build model
+    module = import_module('core.' + model_args.pop('type') + '.model')
+    model = module.Model(**model_args, data_info = datamodule.get_data_info())
 
     #build trainer
     trainer = Trainer(**trainer_args, callbacks=callbacks)
