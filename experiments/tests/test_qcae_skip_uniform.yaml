@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
-  max_epochs: 10 #int
+  max_epochs: 2 #int
   # max_steps: #int
 
 #Model arguments

@@ -9,8 +9,8 @@
 
 #ntasks per node should be num_workers*num_gpus
 
-TEST=ignition/pool_qcae_uniform.yaml
-TIME=00:23:50:00
+TEST=ignition/qcae_pool_uniform.yaml
+TIME=00:11:50:00
 
 module purge
 module load anaconda

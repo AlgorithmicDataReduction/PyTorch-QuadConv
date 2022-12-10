@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
-  max_epochs: 10 #int
+  max_epochs: 2 #int
   # max_steps: #int
 
 #Model arguments
@@ -35,9 +35,9 @@ model:
 
   conv_params:
     in_points: [2500] #list[int]
-    out_points: [144] #list[int]
+    out_points: [625] #list[int]
     in_channels: [1] #list[int]
-    out_channels: [2] #list[int]
+    out_channels: [1] #list[int]
     bias: [True] #list[bool]
     filter_seq: [[4, 4]] #[list[int]], QC only
     filter_mode: ["single"] #string <single|share_in|nested>, QC only
