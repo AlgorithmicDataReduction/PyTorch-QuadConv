@@ -182,7 +182,6 @@ class QuadConv(nn.Module):
 
         #determine indices
         locs = output_points.unsqueeze(1) - input_points.unsqueeze(0)
-        #locs = (output_points.repeat_interleave(input_points.shape[0], dim=0) - input_points.repeat(output_points.shape[0], 1)).reshape(output_points.shape[0], input_points.shape[0], self.spatial_dim)
 
         bump_arg = self._bump_arg(locs)
 

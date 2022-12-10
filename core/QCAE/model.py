@@ -92,17 +92,6 @@ class Model(pl.LightningModule):
         return parent_parser
 
     '''
-    Forward pass of model.
-
-    Input:
-        x: input data
-
-    Output: compressed data reconstruction
-    '''
-    def forward(self, x):
-        return self.output_activation(self.decoder(self.mesh, self.encoder(self.mesh, x)))
-
-    '''
     Forward pass of encoder.
 
     Input:
@@ -125,6 +114,17 @@ class Model(pl.LightningModule):
         return self.output_activation(self.decoder(self.mesh, z))
 
     '''
+    Forward pass of model.
+
+    Input:
+        x: input data
+
+    Output: compressed data reconstruction
+    '''
+    def forward(self, x):
+        return self.decode(self.encode(x))
+
+    '''
     Single training step.
 
     Input:
@@ -140,7 +140,7 @@ class Model(pl.LightningModule):
             latent = latent + self.noise_scale*torch.randn(latent.shape, device=self.device)
 
         #decode
-        pred = self.output_activation(self.decode(latent))
+        pred = self.decode(latent)
 
         #compute loss
         loss = self.loss_fn(pred, batch)
