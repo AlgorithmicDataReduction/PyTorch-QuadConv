@@ -33,7 +33,8 @@ class MeshHandler(nn.Module):
 
         #weights
         if input_weights is None:
-            input_weights = torch.ones(input_points.shape[0])
+            input_weights = torch.zeros(input_points.shape[0])
+            input_weights = torch.nn.init.uniform_(input_weights, a= 0, b = 1)
             req_grad = True
         else:
             req_grad = False
@@ -99,7 +100,8 @@ class MeshHandler(nn.Module):
             points, weights = self._quad_map(self._spatial_dim, num_points)
 
             if weights is None:
-                weights = torch.ones(points.shape[0])
+                weights = torch.zeros(points.shape[0])
+                weights = torch.nn.init.uniform_(weights, a= 0, b = 1)
                 req_grad = True
             else:
                 req_grad = False
