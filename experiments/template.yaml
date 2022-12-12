@@ -7,7 +7,7 @@ train:
   accelerator: #str, e.g. "gpu"
   devices: #int
   num_nodes: #int
-  strategy: #str
+  strategy: #int
   precision: #str
   auto_scale_batch_size: #bool
   auto_select_gpus: #bool
