@@ -27,17 +27,17 @@ model:
   module: "pool" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [2500, 144] #list[int], QC only
+  point_seq: [2500, 2500, 625] #list[int], QC only
   stages: 1 #int
   loss_fn: "SobolevLoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
 
   conv_params:
-    in_points: [2500] #list[int]
-    out_points: [625] #list[int]
-    in_channels: [1] #list[int]
-    out_channels: [1] #list[int]
+    in_points: [2500, 2500] #list[int]
+    out_points: [2500, 625] #list[int]
+    in_channels: [1, 2] #list[int]
+    out_channels: [2, 2] #list[int]
     bias: [True] #list[bool]
     filter_seq: [[4, 4]] #[list[int]], QC only
     filter_mode: ["single"] #string <single|share_in|nested>, QC only
