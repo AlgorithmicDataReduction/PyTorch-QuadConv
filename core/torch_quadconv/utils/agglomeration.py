@@ -16,6 +16,9 @@ Input:
     input_points: input points with shape [num input points, spatial dimension]
     adjacency: connectivity of input points
     num_output_points: number of output points
+
+NOTE: Compile the .so file using the following command
+    gcc -shared -o <output_name>.so -fPIC <name>.c
 '''
 def agglomerate(input_points, adjacency, num_output_points):
 
@@ -27,7 +30,7 @@ def agglomerate(input_points, adjacency, num_output_points):
     output_p = output_points.data_as(POINTER(c_float)) #c pointer to underlying data
 
     #call c function
-    lib = CDLL("blah.so")
+    lib = CDLL("test.so")
     lib.function(input_p, output_p) #modifies the data of output_points
 
     return torch.from_numpy(output_points) #torch tensor from output_points
