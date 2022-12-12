@@ -4,7 +4,7 @@ Agglomeration functions.
 
 import torch
 
-import numpy
+import numpy as np
 from ctypes import CDLL, POINTER, c_float
 
 ################################################################################
@@ -22,16 +22,19 @@ NOTE: Compile the .so file using the following command
 '''
 def agglomerate(input_points, adjacency, num_output_points):
 
+    spatial_dim = input_points.shape[1]
+
     #input array
-    input_p = input_points.data_as(POINTER(c_float)) #c pointer to underlying data
+    input_p = input_points.numpy().ctypes.data_as(POINTER(c_float)) #c pointer to underlying data
 
     #output array
-    output_points = np.zeros(num_output_points, input_points.shape[1]) #new numpy array
-    output_p = output_points.data_as(POINTER(c_float)) #c pointer to underlying data
+    output_points = np.zeros((num_output_points, spatial_dim), dtype=np.float32) #new numpy array
+    output_p = output_points.ctypes.data_as(POINTER(c_float)) #c pointer to underlying data
 
     #call c function
-    lib = CDLL("test.so")
-    lib.function(input_p, output_p) #modifies the data of output_points
+    lib_path = "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv/c_test/test.so"
+    lib = CDLL(lib_path)
+    lib.test(input_p, output_p, num_output_points*spatial_dim) #modifies the data of output_points
 
     return torch.from_numpy(output_points) #torch tensor from output_points
 
