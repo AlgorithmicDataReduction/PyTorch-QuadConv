@@ -23,10 +23,9 @@ train:
 
 #Model arguments
 model:
-  type: #str <CAE|QCAE|QCNN>
+  type: #str <CAE|QCAE>
   module: #str <skip|pool>, CAE and QCAE only
   spatial_dim: #int, AE only
-  mlp_dim: #int, QCNN only
   latent_dim: #int, AE only
   point_seq: #list[int], QC only
   stages: #int

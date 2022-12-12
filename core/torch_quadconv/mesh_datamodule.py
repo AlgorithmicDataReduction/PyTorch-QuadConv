@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 from matplotlib.tri import Triangulation
 
-from .utilities import newton_cotes_quad
+from .utils.quadrature import newton_cotes_quad
 
 '''
 PT Lightning data module for unstructured point cloud data, possibly with an

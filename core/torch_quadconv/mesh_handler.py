@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 
-from .utilities import newton_cotes_quad
+from .utils.quadrature import newton_cotes_quad
 
 '''
 Point and Quadrature data handler.

@@ -7,7 +7,7 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 
-from core.utilities import SobolevLoss
+from core.torch_quadconv.utils.sobolev import SobolevLoss
 
 '''
 Convolutional autoencoder.
