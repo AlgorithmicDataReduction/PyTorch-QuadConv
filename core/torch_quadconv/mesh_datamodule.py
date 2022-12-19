@@ -86,7 +86,7 @@ class MeshDataModule(pl.LightningDataModule):
 
             features = (features-mean)/stdv
 
-            features = features/(torch.max(torch.abs(features)))
+            features = features/(torch.amax(torch.abs(features), dim=(0,1), keepdim=True))
 
         #channels first
         features = torch.movedim(features, -1, 1)
