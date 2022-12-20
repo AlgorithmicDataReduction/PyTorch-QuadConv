@@ -8,6 +8,7 @@ from torch import nn
 import pytorch_lightning as pl
 
 from core.torch_quadconv.utils.sobolev import SobolevLoss
+from core.voxelizer import Voxelizer
 
 '''
 Convolutional autoencoder.
@@ -42,7 +43,7 @@ class Model(pl.LightningModule):
         self.save_hyperparameters()
 
         #import the encoder and decoder
-        module = import_module('core.CAE.' + module)
+        module = import_module('core.VCAE.' + module)
 
         #training hyperparameters
         self.optimizer = optimizer
@@ -59,8 +60,13 @@ class Model(pl.LightningModule):
 
         #unpack data info
         input_shape = data_info['input_shape']
+        input_nodes = data_info['input_nodes']
 
         #model pieces
+        self.voxelizer = Voxelizer(input_nodes, 0.02)
+
+        input_shape = tuple([input_shape[0], input_shape[1]]+self.voxelizer._grid_shape)
+
         self.output_activation = output_activation()
 
         self.encoder = module.Encoder(input_shape=input_shape,
@@ -102,6 +108,9 @@ class Model(pl.LightningModule):
     Output: compressed data
     '''
     def encode(self, x):
+
+        x = self.voxelizer.voxelize(x)
+
         return self.encoder(x)
 
     '''
@@ -113,7 +122,10 @@ class Model(pl.LightningModule):
     Output: compressed data reconstruction
     '''
     def decode(self, z):
-        return self.output_activation(self.decoder(z))
+
+        x = self.output_activation(self.decoder(z))
+
+        return self.voxelizer.devoxelize(x)
 
     '''
     Single training step.
@@ -132,6 +144,9 @@ class Model(pl.LightningModule):
 
         #decode
         pred = self.decode(latent)
+
+        print(pred.shape)
+        print(batch.shape)
 
         #compute loss
         loss = self.loss_fn(pred, batch)

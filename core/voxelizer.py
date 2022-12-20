@@ -22,10 +22,10 @@ class Voxelizer():
 
         coords = torch.round(points / self._voxel_size)
         cluster = grid_cluster(coords, torch.tensor([1 for i in range(point_dim)]))
-        self._num_voxels = torch.max(cluster)+1
 
         cluster, _ = consecutive_cluster(cluster)
 
+        self._num_voxels = torch.max(cluster)+1
         self._indices = cluster
         self._grid_shape = [int(self._num_voxels**(1/point_dim))]*point_dim
 
