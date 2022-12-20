@@ -8,8 +8,7 @@ from torch import nn
 import pytorch_lightning as pl
 
 from core.torch_quadconv import MeshHandler
-
-from core.utilities import SobolevLoss
+from core.torch_quadconv.utils.sobolev import SobolevLoss
 
 '''
 Quadrature convolution autoencoder.

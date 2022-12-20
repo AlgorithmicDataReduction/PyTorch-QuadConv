@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch_scatter
 
-from core.torch_quadconv.utilities import Sin
+from .utils.misc import Sin
 
 '''
 Quadrature convolution operator.
