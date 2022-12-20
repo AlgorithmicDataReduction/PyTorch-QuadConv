@@ -89,17 +89,6 @@ class Model(pl.LightningModule):
         return parent_parser
 
     '''
-    Forward pass of model.
-
-    Input:
-        x: input data
-
-    Output: compressed data reconstruction
-    '''
-    def forward(self, x):
-        return self.output_activation(self.decoder(self.encoder(x)))
-
-    '''
     Forward pass of encoder.
 
     Input:
@@ -128,6 +117,17 @@ class Model(pl.LightningModule):
         return self.voxelizer.devoxelize(x)
 
     '''
+    Forward pass of model.
+
+    Input:
+        x: input data
+
+    Output: compressed data reconstruction
+    '''
+    def forward(self, x):
+        return self.decode(self.encode(x))
+
+    '''
     Single training step.
 
     Input:
@@ -144,9 +144,6 @@ class Model(pl.LightningModule):
 
         #decode
         pred = self.decode(latent)
-
-        print(pred.shape)
-        print(batch.shape)
 
         #compute loss
         loss = self.loss_fn(pred, batch)

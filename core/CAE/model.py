@@ -83,17 +83,6 @@ class Model(pl.LightningModule):
         return parent_parser
 
     '''
-    Forward pass of model.
-
-    Input:
-        x: input data
-
-    Output: compressed data reconstruction
-    '''
-    def forward(self, x):
-        return self.output_activation(self.decoder(self.encoder(x)))
-
-    '''
     Forward pass of encoder.
 
     Input:
@@ -114,6 +103,17 @@ class Model(pl.LightningModule):
     '''
     def decode(self, z):
         return self.output_activation(self.decoder(z))
+
+    '''
+    Forward pass of model.
+
+    Input:
+        x: input data
+
+    Output: compressed data reconstruction
+    '''
+    def forward(self, x):
+        return self.decode(self.encode(x))
 
     '''
     Single training step.
