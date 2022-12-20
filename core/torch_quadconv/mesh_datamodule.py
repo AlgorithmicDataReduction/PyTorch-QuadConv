@@ -164,8 +164,11 @@ class MeshDataModule(pl.LightningDataModule):
         elif (stage == "predict" or stage is None) and not self.predict:
             self.predict = self._transform(features)
 
-        elif stage not in ["fit", "test", "predict"]:
-            raise ValueError("Stage must be one of fit, test, or predict.")
+        elif stage == "analyze":
+            self.analyze = self._transform(features)
+
+        elif stage not in ["fit", "test", "predict", "analyze"]:
+            raise ValueError("Stage must be one of analyze, fit, test, or predict.")
 
         return
 
@@ -200,6 +203,10 @@ class MeshDataModule(pl.LightningDataModule):
 
     def teardown(self, stage=None):
         return
+
+
+    def analyze_data(self):
+        return self.analyze
 
     '''
     Get all data details necessary for building network.
