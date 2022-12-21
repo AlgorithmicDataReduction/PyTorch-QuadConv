@@ -26,7 +26,7 @@ model:
   type: "VCAE" #str <CAE|QCAE>
   module: "pool" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int, AE only
-  latent_dim: 150 #int, AE only
+  latent_dim: 50 #int, AE only
   stages: 1 #int
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn, AE only
   optimizer: "Adam" #str, optimizer from torch.optim
