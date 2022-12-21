@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from torch_cluster import grid_cluster
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
-from torch_scatter import segment_coo as scatter
+from torch_scatter import scatter
 
 '''
 NOTE: Using this as a reference https://torch-points3d.readthedocs.io/en/latest/_modules/torch_points3d/core/data_transform/grid_transform.html#GridSampling3D
@@ -44,11 +44,10 @@ class Voxelizer(nn.Module):
 
         batch_size = features.shape[0]
         channels = features.shape[1]
+        
+        voxels = scatter(features, self._indices, dim=2, dim_size=self._num_voxels, reduce="mean")
 
-        voxels = features.new_zeros(batch_size, channels, self._num_voxels)
-        scatter(features, self._indices.expand(batch_size, channels, -1), voxels, reduce="mean")
-
-        return voxels.view(tuple([batch_size, channels]+self._grid_shape))
+        return voxels.reshape(tuple([batch_size, channels]+self._grid_shape))
 
     '''
     Conver a voxel grid to a point-cloud.
@@ -61,4 +60,4 @@ class Voxelizer(nn.Module):
         batch_size = voxels.shape[0]
         channels = voxels.shape[1]
 
-        return voxels.view(batch_size, channels, -1)[:,:,self._indices]
+        return voxels.reshape(batch_size, channels, -1)[:,:,self._indices]

@@ -5,7 +5,7 @@
 #Comment out options you aren't using
 train:
   accelerator: "gpu" #str, e.g. "gpu"
-  devices: 1 #int
+  devices: -1 #int
   # num_nodes: #int
   # strategy: #str
   # precision: #str
