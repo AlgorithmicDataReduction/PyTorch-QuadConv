@@ -8,6 +8,7 @@ from torch import nn
 import pytorch_lightning as pl
 
 from core.torch_quadconv.utils.sobolev import SobolevLoss
+from core.voxelizer import Voxelizer
 
 '''
 Convolutional autoencoder.
@@ -42,7 +43,7 @@ class Model(pl.LightningModule):
         self.save_hyperparameters(ignore=["data_info"])
 
         #import the encoder and decoder
-        module = import_module('core.CAE.' + module)
+        module = import_module('core.PVCAE.' + module)
 
         #training hyperparameters
         self.optimizer = optimizer
@@ -59,15 +60,22 @@ class Model(pl.LightningModule):
 
         #unpack data info
         input_shape = data_info['input_shape']
+        input_nodes = data_info['input_nodes']
 
         #model pieces
+        self.voxelizer = Voxelizer(input_nodes, 0.02)
+
+        conv_in_shape = tuple([input_shape[0], input_shape[1]]+self.voxelizer._grid_shape)
+
         self.output_activation = output_activation()
 
-        self.encoder = module.Encoder(input_shape=input_shape,
+        self.encoder = module.Encoder(conv_in_shape=conv_in_shape,
+                                        point_in_shape=input_shape,
                                         spatial_dim=spatial_dim,
                                         **kwargs)
 
-        self.decoder = module.Decoder(input_shape=self.encoder.conv_out_shape,
+        self.decoder = module.Decoder(conv_in_shape=self.encoder.conv_out_shape,
+                                        point_in_shape=self.encoder.point_out_shape,
                                         spatial_dim=spatial_dim,
                                         **kwargs)
 
@@ -91,7 +99,10 @@ class Model(pl.LightningModule):
     Output: compressed data
     '''
     def encode(self, x):
-        return self.encoder(x)
+
+        vf = self.voxelizer.voxelize(x)
+
+        return self.encoder(x, vf)
 
     '''
     Forward pass of decoder.
@@ -102,7 +113,11 @@ class Model(pl.LightningModule):
     Output: compressed data reconstruction
     '''
     def decode(self, z):
-        return self.output_activation(self.decoder(z))
+
+        pf, vf = self.decoder(z)
+        x = self.output_activation(pf+self.voxelizer.devoxelize(vf))
+
+        return x
 
     '''
     Forward pass of model.
