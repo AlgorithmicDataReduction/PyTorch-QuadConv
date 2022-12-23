@@ -26,18 +26,25 @@ model:
   type: "PVCAE" #str <CAE|QCAE>
   module: "pool" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int, AE only
-  latent_dim: 50 #int, AE only
-  stages: 1 #int
+  conv_latent_dim: 40 #int
+  point_latent_dim: 10
+  conv_stages: 1 #int
+  point_stages: 2
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn, AE only
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
 
   conv_params:
     kernel_size: [3]
-    in_channels: [1, 16]
-    out_channels: [16, 16]
+    in_channels: [1, 8]
+    out_channels: [8, 16]
     bias: [False]
     padding: [same]
+
+  point_params:
+    in_channels: [1, 2]
+    out_channels: [2, 2]
+    bias: [False]
 
 #PT LightningDataModule arguments
 data:

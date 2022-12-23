@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
-  max_epochs: 2 #int
+  max_epochs: 0 #int
   # max_steps: #int
 
 #Model arguments
@@ -26,18 +26,25 @@ model:
   type: "PVCAE" #str <CAE|QCAE|QCNN>
   module: "pool" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int
-  latent_dim: 10 #int
-  stages: 1 #int
+  conv_latent_dim: 40 #int
+  point_latent_dim: 10
+  conv_stages: 1 #int
+  point_stages: 2
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
 
   conv_params:
     kernel_size: [3]
+    in_channels: [1, 8]
+    out_channels: [8, 16]
+    bias: [False]
+    padding: [same]
+
+  point_params:
     in_channels: [1, 2]
     out_channels: [2, 2]
     bias: [False]
-    padding: [same]
 
 #PT LightningDataModule arguments
 data:

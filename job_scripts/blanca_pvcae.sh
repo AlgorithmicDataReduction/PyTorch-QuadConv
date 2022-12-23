@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --time=12:00:00
 #SBATCH --qos=preemptable
-#SBATCH --job-name=ignition_vcae
+#SBATCH --job-name=ignition_pvcae
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
@@ -9,7 +9,7 @@
 
 #ntasks per node should be num_workers*num_gpus
 
-TEST=ignition/vcae_pool.yaml
+TEST=ignition/pvcae_pool.yaml
 TIME=00:11:50:00
 
 module purge

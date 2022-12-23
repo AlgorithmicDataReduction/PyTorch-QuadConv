@@ -26,9 +26,12 @@ class Encoder(nn.Module):
 
     def __init__(self,*,
             spatial_dim,
-            stages,
+            conv_stages,
+            point_stages,
             conv_params,
-            latent_dim,
+            point_params,
+            conv_latent_dim,
+            point_latent_dim,
             conv_in_shape,
             point_in_shape,
             forward_activation = nn.CELU,
@@ -38,7 +41,8 @@ class Encoder(nn.Module):
         super().__init__()
 
         #block arguments
-        arg_stack = package_args(stages+1, conv_params)
+        conv_arg_stack = package_args(conv_stages+1, conv_params)
+        point_arg_stack = package_args(point_stages, point_params)
 
         #layer switch
         layer_lookup = {
@@ -52,13 +56,13 @@ class Encoder(nn.Module):
         #conv branch
         self.cnn = nn.Sequential()
 
-        init_layer = Conv(**arg_stack[0])
+        init_layer = Conv(**conv_arg_stack[0])
 
         self.cnn.append(init_layer)
 
-        for i in range(1, stages):
+        for i in range(1, conv_stages):
             self.cnn.append(PoolBlock(spatial_dim = spatial_dim,
-                                        **arg_stack[i],
+                                        **conv_arg_stack[i],
                                         activation1 = forward_activation,
                                         activation2 = forward_activation,
                                         **kwargs
@@ -67,38 +71,34 @@ class Encoder(nn.Module):
         self.conv_out_shape = self.cnn(torch.zeros(conv_in_shape)).shape
 
         self.cnn.append(nn.Flatten(start_dim=1, end_dim=-1))
-        self.cnn.append(spn(nn.Linear(self.conv_out_shape.numel(), latent_dim)))
+        self.cnn.append(spn(nn.Linear(self.conv_out_shape.numel(), conv_latent_dim)))
+        self.cnn.append(latent_activation())
+        self.cnn.append(spn(nn.Linear(conv_latent_dim, conv_latent_dim)))
         self.cnn.append(latent_activation())
 
         #point branch
         self.point_branch = nn.Sequential()
 
-        for i in range(stages+1):
-            self.point_branch.append(PointBlock(**arg_stack[i]))
+        for i in range(point_stages):
+            self.point_branch.append(PointBlock(**point_arg_stack[i]))
 
         self.point_out_shape = self.point_branch(torch.zeros(point_in_shape)).shape
 
         self.point_branch.append(nn.Flatten(start_dim=1))
-        self.point_branch.append(spn(nn.Linear(self.point_out_shape.numel(), latent_dim)))
+        self.point_branch.append(spn(nn.Linear(self.point_out_shape.numel(), point_latent_dim)))
         self.point_branch.append(latent_activation())
-
-        #linear
-        self.linear = nn.Sequential()
-
-        self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
-        self.linear.append(latent_activation())
-
-        #dry run
-        self.linear(torch.flatten(torch.zeros(latent_dim)))
+        self.point_branch.append(spn(nn.Linear(point_latent_dim, point_latent_dim)))
+        self.point_branch.append(latent_activation())
 
     '''
     Forward
     '''
     def forward(self, pf, vf):
 
-        vf = self.cnn(vf)
         pf = self.point_branch(pf)
-        output = self.linear(vf+pf)
+        vf = self.cnn(vf)
+
+        output = torch.cat((pf, vf), dim=1)
 
         return output
 
@@ -108,9 +108,12 @@ class Decoder(nn.Module):
 
     def __init__(self,*,
             spatial_dim,
-            stages,
+            conv_stages,
+            point_stages,
             conv_params,
-            latent_dim,
+            point_params,
+            conv_latent_dim,
+            point_latent_dim,
             conv_in_shape,
             point_in_shape,
             forward_activation = nn.CELU,
@@ -119,8 +122,11 @@ class Decoder(nn.Module):
         ):
         super().__init__()
 
+        self.latent_radix = point_latent_dim
+
         #block arguments
-        arg_stack = package_args(stages+1, swap(conv_params), mirror=True)
+        conv_arg_stack = package_args(conv_stages+1, swap(conv_params), mirror=True)
+        point_arg_stack = package_args(point_stages, swap(point_params), mirror=True)
 
         #layer switch
         layer_lookup = {
@@ -131,43 +137,38 @@ class Decoder(nn.Module):
 
         Conv = layer_lookup[spatial_dim]
 
-        #linear
-        self.linear = nn.Sequential()
-
-        self.linear.append(spn(nn.Linear(latent_dim, latent_dim)))
-        self.linear.append(latent_activation())
-
-        #dry run
-        self.linear(torch.zeros(latent_dim))
-
         #point branch
         self.point_branch = nn.Sequential()
 
-        self.point_branch.append(spn(nn.Linear(latent_dim, point_in_shape.numel())))
+        self.point_branch.append(spn(nn.Linear(point_latent_dim, point_latent_dim)))
+        self.point_branch.append(latent_activation())
+        self.point_branch.append(spn(nn.Linear(point_latent_dim, point_in_shape.numel())))
         self.point_branch.append(latent_activation())
         self.point_branch.append(nn.Unflatten(1, point_in_shape[1:]))
 
-        for i in range(stages+1):
-            self.point_branch.append(PointBlock(**arg_stack[i],
-                                        activation = forward_activation if i != stages-1 else nn.Identity))
+        for i in range(point_stages):
+            self.point_branch.append(PointBlock(**point_arg_stack[i],
+                                        activation = forward_activation if i != point_stages-1 else nn.Identity))
 
         #conv branch
         self.cnn = nn.Sequential()
 
-        self.cnn.append(spn(nn.Linear(latent_dim, conv_in_shape.numel())))
+        self.cnn.append(spn(nn.Linear(conv_latent_dim, conv_latent_dim)))
+        self.cnn.append(latent_activation())
+        self.cnn.append(spn(nn.Linear(conv_latent_dim, conv_in_shape.numel())))
         self.cnn.append(latent_activation())
         self.cnn.append(nn.Unflatten(1, conv_in_shape[1:]))
 
-        for i in range(stages-1):
+        for i in range(conv_stages-1):
             self.cnn.append(PoolBlock(spatial_dim = spatial_dim,
-                                        **arg_stack[i],
+                                        **conv_arg_stack[i],
                                         activation1 = forward_activation,
                                         activation2 = forward_activation,
                                         adjoint = True,
                                         **kwargs
                                         ))
 
-        init_layer = Conv(**arg_stack[-1])
+        init_layer = Conv(**conv_arg_stack[-1])
 
         self.cnn.append(init_layer)
 
@@ -175,9 +176,9 @@ class Decoder(nn.Module):
     Forward
     '''
     def forward(self, z):
-        z = self.linear(z)
+        zp, zv = z[:,:self.latent_radix], z[:,self.latent_radix:]
 
-        pf = self.point_branch(z)
-        vf = self.cnn(z)
+        pf = self.point_branch(zp)
+        vf = self.cnn(zv)
 
         return pf, vf
