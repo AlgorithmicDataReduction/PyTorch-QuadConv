@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=12:00:00
+#SBATCH --time=04:00:00
 #SBATCH --qos=preemptable
 #SBATCH --job-name=ignition_pvcae
 #SBATCH --gres=gpu:1
@@ -9,8 +9,8 @@
 
 #ntasks per node should be num_workers*num_gpus
 
-TEST=ignition/pvcae_pool.yaml
-TIME=00:11:50:00
+TEST=ignition/pvcae.yaml
+TIME=00:03:30:00
 
 module purge
 module load anaconda
