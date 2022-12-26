@@ -50,12 +50,12 @@ model:
 #PT LightningDataModule arguments
 data:
   module: "mesh_data" #str <grid_data|mesh_data>
-  data_dir: "data/ignition_mesh" #str
+  data_dir: "data/flow_mesh" #str
   spatial_dim: 2 #int
-  num_points: 9074
+  num_points: 7613
   batch_size: 16 #int
   # stride: #int, grid only
-  channels: [1] #list[int]
+  channels: [0] #list[int]
   shuffle: True #bool
 
 #Miscellaneous arguments
