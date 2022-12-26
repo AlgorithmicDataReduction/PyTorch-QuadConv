@@ -18,19 +18,28 @@ class Voxelizer(nn.Module):
     def __init__(self, points, voxel_size):
         super().__init__()
 
-        self._voxel_size = voxel_size
-
+        #extract some info and check
+        self._voxel_size = torch.tensor(voxel_size)
         point_dim = points.shape[1]
 
-        coords = torch.trunc(points / (self._voxel_size + 1e-6))
-        cluster = grid_cluster(coords, torch.tensor([1 for i in range(point_dim)]))
+        assert point_dim == self._voxel_size.numel(), f"{point_dim}, {self._voxel_size.numel()}"
 
+        #
+        coords = torch.empty_like(points)
+        coords = torch.trunc(points / (self._voxel_size + 1e-6))
+
+        #
+        self._grid_shape = torch.Size((torch.max(coords, dim=0)[0] - torch.min(coords, dim=0)[0]).int() + 1)
+
+        #
+        cluster = grid_cluster(coords, torch.tensor([1 for i in range(point_dim)]))
         self._num_voxels = torch.max(cluster)+1
 
-        cluster, _ = consecutive_cluster(cluster)
+        assert self._num_voxels == self._grid_shape.numel(), f"{self._num_voxels}, {self._grid_shape.numel()}"
 
+        #
+        cluster, _ = consecutive_cluster(cluster)
         self._indices = nn.Parameter(cluster, requires_grad=False)
-        self._grid_shape = [int(self._num_voxels**(1/point_dim))]*point_dim
 
         return
 
@@ -44,10 +53,10 @@ class Voxelizer(nn.Module):
 
         batch_size = features.shape[0]
         channels = features.shape[1]
-        
+
         voxels = scatter(features, self._indices, dim=2, dim_size=self._num_voxels, reduce="mean")
 
-        return voxels.reshape(tuple([batch_size, channels]+self._grid_shape))
+        return voxels.reshape(torch.Size([batch_size, channels])+self._grid_shape)
 
     '''
     Conver a voxel grid to a point-cloud.

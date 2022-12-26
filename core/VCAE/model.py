@@ -29,6 +29,7 @@ class Model(pl.LightningModule):
     def __init__(self,*,
             module,
             spatial_dim,
+            vox_size,
             data_info,
             loss_fn = "MSELoss",
             optimizer = "Adam",
@@ -63,9 +64,9 @@ class Model(pl.LightningModule):
         input_nodes = data_info['input_nodes']
 
         #model pieces
-        self.voxelizer = Voxelizer(input_nodes, 0.02)
+        self.voxelizer = Voxelizer(input_nodes, vox_size)
 
-        input_shape = tuple([input_shape[0], input_shape[1]]+self.voxelizer._grid_shape)
+        input_shape = torch.Size([input_shape[0], input_shape[1]])+self.voxelizer._grid_shape
 
         self.output_activation = output_activation()
 

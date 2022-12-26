@@ -26,6 +26,7 @@ model:
   type: "PVCAE" #str <CAE|QCAE|QCNN>
   module: "pool" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int
+  vox_size: [0.02, 0.02]
   conv_latent_dim: 40 #int
   point_latent_dim: 10
   conv_stages: 1 #int
