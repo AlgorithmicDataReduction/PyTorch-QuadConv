@@ -17,8 +17,7 @@ from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
 
 from core.utilities import package_args, swap
-from core.conv_blocks import PoolBlock
-from core.point_blocks import PointBlock
+from core.conv_blocks import PoolBlock, PointBlock
 
 ################################################################################
 
