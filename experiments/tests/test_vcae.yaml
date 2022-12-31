@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
-  max_epochs: 2 #int
+  max_epochs: 0 #int
   # max_steps: #int
 
 #Model arguments
@@ -35,8 +35,8 @@ model:
 
   conv_params:
     kernel_size: [3]
-    in_channels: [1, 2]
-    out_channels: [2, 2]
+    in_channels: [1, 8]
+    out_channels: [8, 16]
     bias: [False]
     padding: [same]
 
