@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 1500 #int
+  max_epochs: 15000 #int
   # max_steps: #int
 
 #Model arguments
@@ -40,7 +40,7 @@ model:
     in_channels: [1, 4, 8] #list[int]
     out_channels: [4, 8, 16] #list[int]
     bias: [False] #list[bool]
-    filter_seq: [[4, 4, 4, 4, 4]] #[list[int]], QC only
+    filter_seq: [[16, 16, 16, 16]] #[list[int]], QC only
     filter_mode: ["single"] #string <single|share_in|nested>, QC only
 
 #PT LightningDataModule arguments
@@ -55,6 +55,6 @@ data:
 
 #Miscellaneous arguments
 misc:
-  make_gif: True #bool
+  make_gif: False #bool
   compute_stats: True #bool
   early_stopping: False #bool
