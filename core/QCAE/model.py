@@ -31,6 +31,7 @@ class Model(pl.LightningModule):
             module,
             spatial_dim,
             point_seq,
+            quad_map,
             data_info,
             loss_fn = "MSELoss",
             optimizer = "Adam",
@@ -69,7 +70,7 @@ class Model(pl.LightningModule):
         self.example_input_array = torch.zeros(input_shape)
 
         #model pieces
-        self.mesh = MeshHandler(input_nodes, input_weights).cache(point_seq, mirror=True)
+        self.mesh = MeshHandler(input_nodes, input_weights, quad_map=quad_map).cache(point_seq, mirror=True)
 
         self.output_activation = output_activation()
 

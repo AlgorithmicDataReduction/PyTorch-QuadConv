@@ -217,7 +217,7 @@ class MeshDataModule(pl.LightningDataModule):
         input_shape = (1, len(self.channels), self.num_points)
 
         if self.points == None:
-            input_points, input_weights = newton_cotes_quad(self.spatial_dim, self.num_points)
+            input_points, input_weights = newton_cotes_quad(torch.empty(1, self.spatial_dim), self.num_points)
         else:
             input_points, input_weights = self.points, self.weights
 

@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 
-from .utils.quadrature import newton_cotes_quad
+from .utils import quadrature
 
 '''
 Point and Quadrature data handler.
@@ -21,7 +21,7 @@ class MeshHandler(nn.Module):
             input_points,
             input_weights = None,
             input_adjacency = None,
-            quad_map = newton_cotes_quad
+            quad_map = 'newton_cotes_quad'
         ):
         super().__init__()
 
@@ -50,7 +50,7 @@ class MeshHandler(nn.Module):
         #other attributes
         self._spatial_dim = input_points.shape[1]
         self._current_index = 0
-        self._quad_map = quad_map
+        self._quad_map = getattr(quadrature, quad_map)
 
         return
 
@@ -97,7 +97,7 @@ class MeshHandler(nn.Module):
 
         #construct other point sets
         for i, num_points in enumerate(point_seq[1:]):
-            points, weights = self._quad_map(self._spatial_dim, num_points)
+            points, weights = self._quad_map(self._points[i-1], num_points)
 
             if weights is None:
                 weights = torch.zeros(points.shape[0])

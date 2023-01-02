@@ -11,14 +11,14 @@ train:
   # precision: #str
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
-  enable_checkpointing: False #bool
+  enable_checkpointing: True #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "./lightning_logs" #str
-  logger: False #bool
+  logger: True #bool
   # log_every_n_steps: #int
-  enable_progress_bar: True #bool
+  enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 1 #int
+  max_epochs: 1500 #int
   # max_steps: #int
 
 #Model arguments
@@ -28,6 +28,7 @@ model:
   spatial_dim: 2 #int
   latent_dim: 15 #int
   point_seq: [7613, 1903, 951, 475] #list[int], QC only
+  quad_map: "random_downsample"
   stages: 3 #int
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
@@ -48,12 +49,12 @@ data:
   data_dir: "data/flow_mesh" #str
   spatial_dim: 2 #int
   num_points: 7613 #int, mesh only
-  batch_size: 16 #int
+  batch_size: 32 #int
   channels: [0] #list[int], AE only
   shuffle: True #bool
 
 #Miscellaneous arguments
 misc:
-  make_gif: False #bool
+  make_gif: True #bool
   compute_stats: True #bool
   early_stopping: False #bool
