@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --time=12:00:00
 #SBATCH --qos=preemptable
-#SBATCH --job-name=ignition_qcae
+#SBATCH --job-name=flow_qcae
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
@@ -9,8 +9,8 @@
 
 #ntasks per node should be num_workers*num_gpus
 
-TEST=ignition/qcae_pool_uniform.yaml
-TIME=00:11:50:00
+TEST=flow_mesh/test/qcae_skip.yaml
+TIME=00:11:45:00
 
 module purge
 module load anaconda
