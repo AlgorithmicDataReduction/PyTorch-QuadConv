@@ -80,6 +80,9 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1
 
     return nodes, weights
 
+def newton_cotes_no_weights(*args, **kwargs):
+    return newton_cotes_quad(*args, **kwargs)[0]
+
 '''
 NOTE: only using one permuation here which is a bit weird
 '''
