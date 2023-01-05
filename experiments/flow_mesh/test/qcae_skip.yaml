@@ -27,20 +27,20 @@ model:
   module: "skip" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int
   latent_dim: 15 #int
-  point_seq: [7613, 1903, 951, 475] #list[int], QC only
+  point_seq: [7613, 2500, 800, 300, 100] #list[int], QC only
   quad_map: "random_downsample"
-  stages: 3 #int
+  stages: 4 #int
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
 
   conv_params:
-    in_points: [7613, 1903, 951] #list[int]
-    out_points: [1903, 951, 475] #list[int]
-    in_channels: [1, 4, 8] #list[int]
-    out_channels: [4, 8, 16] #list[int]
-    bias: [False] #list[bool]
-    filter_seq: [[16, 16, 16, 16]] #[list[int]], QC only
+    in_points: [7613, 2500, 800, 300] #list[int]
+    out_points: [2500, 800, 300, 100] #list[int]
+    in_channels: [1, 4, 8, 16] #list[int]
+    out_channels: [4, 8, 16, 32] #list[int]
+    bias: [True] #list[bool]
+    filter_seq: [[16, 32, 32, 32, 16]] #[list[int]], QC only
     filter_mode: ["single"] #string <single|share_in|nested>, QC only
 
 #PT LightningDataModule arguments
