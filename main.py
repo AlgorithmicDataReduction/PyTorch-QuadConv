@@ -46,6 +46,7 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
                                         strict=False))
 
     #logger
+    #NOTE: This should only be done on rank 0 if using multiple GPUs
     if trainer_args['logger']:
         #save the configuration details
         exp_dir, exp_name = os.path.split(experiment)
@@ -54,11 +55,8 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
         logger = Logger(save_dir=os.path.join(trainer_args['default_root_dir'], exp_dir),
                         name=exp_name, default_hp_metric=False)
 
-        filename = os.path.join(logger.log_dir, 'config.yaml')
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, "w") as file:
-            config = {'train':trainer_args, 'model':model_args, 'data':data_args, 'misc':misc_args}
-            yaml.dump(config, file)
+        config = {'train':trainer_args, 'model':model_args, 'data':data_args, 'misc':misc_args}
+        logger.log_config(config)
 
         #add logger to trainer args
         trainer_args['logger'] = logger

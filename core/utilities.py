@@ -2,6 +2,9 @@
 Miscellaneous utility functions.
 '''
 
+import os
+import yaml
+
 import numpy as np
 import matplotlib.pyplot as plt
 import gif
@@ -87,6 +90,17 @@ class Logger(TensorBoardLogger):
     @rank_zero_only
     def save(self):
         pass
+
+    @rank_zero_only
+    def log_config(self, config):
+
+        filename = os.path.join(self.log_dir, 'config.yaml')
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        with open(filename, "w") as file:
+            yaml.dump(config, file)
+
+        return
 
 '''
 Package conv parameters.
