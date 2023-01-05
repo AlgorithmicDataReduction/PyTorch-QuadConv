@@ -10,7 +10,7 @@
 #ntasks per node should be num_workers*num_gpus
 
 TEST=ignition_mesh/test/vae.yaml
-TIME=00:03:30:00
+TIME=00:03:45:00
 
 module purge
 module load anaconda

@@ -27,8 +27,8 @@ model:
   module: "pool" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int, AE only
   vox_size: [0.02, 0.02]
-  conv_latent_dim: 40 #int
-  point_latent_dim: 10
+  conv_latent_dim: 10 #int
+  point_latent_dim: 40
   conv_stages: 1 #int
   point_stages: 2
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn, AE only
@@ -37,14 +37,14 @@ model:
 
   conv_params:
     kernel_size: [3]
-    in_channels: [1, 8]
-    out_channels: [8, 16]
+    in_channels: [1, 16]
+    out_channels: [16, 16]
     bias: [False]
     padding: [same]
 
   point_params:
-    in_channels: [1, 2]
-    out_channels: [2, 2]
+    in_channels: [1, 1]
+    out_channels: [1, 1]
     bias: [False]
 
 #PT LightningDataModule arguments
