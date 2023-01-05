@@ -5,7 +5,7 @@
 #Comment out options you aren't using
 train:
   accelerator: "gpu" #str, e.g. "gpu"
-  devices: 1 #int
+  devices: -1 #int
   # num_nodes: #int
   # strategy: #str
   # precision: #str
@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: True #bool
   # profiler: #str
-  max_epochs: 2 #int
+  max_epochs: 1 #int
   # max_steps: #int
 
 #Model arguments
@@ -33,11 +33,11 @@ model:
   learning_rate: 0.01 #float
 
   conv_params:
-    in_points: [50] #list[int]
-    out_points: [12] #list[int]
-    in_channels: [1] #list[int]
-    out_channels: [2] #list[int]
-    bias: [True] #list[bool]
+    kernel_size: [3]
+    in_channels: [1, 2]
+    out_channels: [2, 2]
+    bias: [False]
+    padding: [same]
 
 #PT LightningDataModule arguments
 data:

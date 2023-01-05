@@ -43,7 +43,7 @@ class Model(pl.LightningModule):
         super().__init__()
 
         #save hyperparameters for checkpoint loading
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["data_info"])
 
         #import the encoder and decoder
         module = import_module('core.QCAE.' + module)

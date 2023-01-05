@@ -48,6 +48,8 @@ class Encoder(nn.Module):
         Conv = layer_lookup[spatial_dim]
 
         #build network
+        self.cnn = nn.Sequential()
+
         init_layer = Conv(**arg_stack[0])
 
         self.cnn.append(init_layer)
@@ -136,7 +138,7 @@ class Decoder(nn.Module):
                                         **kwargs
                                         ))
 
-        init_layer = Conv(**arg_stack[0])
+        init_layer = Conv(**arg_stack[-1])
 
         self.cnn.append(init_layer)
 

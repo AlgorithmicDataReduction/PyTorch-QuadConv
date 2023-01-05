@@ -110,12 +110,20 @@ def package_args(stages:int, kwargs:dict, mirror=False):
 Swap input and output points and channels
 '''
 def swap(conv_params):
-    temp = conv_params["in_points"]
-    conv_params["in_points"] = conv_params["out_points"]
-    conv_params["out_points"] = temp
+    swapped_params = conv_params.copy()
 
-    temp = conv_params["in_channels"]
-    conv_params["in_channels"] = conv_params["out_channels"]
-    conv_params["out_channels"] = temp
+    try:
+        temp = swapped_params["in_points"]
+        swapped_params["in_points"] = swapped_params["out_points"]
+        swapped_params["out_points"] = temp
+    except:
+        pass
 
-    return conv_params
+    try:
+        temp = swapped_params["in_channels"]
+        swapped_params["in_channels"] = swapped_params["out_channels"]
+        swapped_params["out_channels"] = temp
+    except:
+        pass
+
+    return swapped_params
