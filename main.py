@@ -84,15 +84,15 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     #train model
     trainer.fit(model=model, datamodule=datamodule, ckpt_path=None)
 
-    #make GIF
-    if misc_args['make_gif']:
-        make_gif(trainer, datamodule, None if trainer_args['enable_checkpointing'] else model)
-
     #compute testing statistics
     if misc_args['compute_stats']:
         trainer.test(model=None if trainer_args['enable_checkpointing'] else model,
                         ckpt_path='best' if trainer_args['enable_checkpointing'] else None,
                         datamodule=datamodule)
+
+    #make GIF
+    if misc_args['make_gif']:
+        make_gif(trainer, datamodule, None if trainer_args['enable_checkpointing'] else model)
 
     return
 

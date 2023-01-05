@@ -86,7 +86,7 @@ class MeshDataModule(pl.LightningDataModule):
 
             features = (features-mean)/stdv
 
-            features = features/(torch.max(torch.abs(features)))
+            features = features/(torch.amax(torch.abs(features), dim=(0,1), keepdim=True))
 
         #channels first
         features = torch.movedim(features, -1, 1)
@@ -150,7 +150,7 @@ class MeshDataModule(pl.LightningDataModule):
         assert features.dim() == 3
 
         #setup
-        if (stage == "fit" or stage is None) and not self.train and not self.val:
+        if (stage == "fit" or stage is None) and (self.train is None or self.val is None):
             full = self._transform(features)
 
             train_size = int(0.8*len(full))
@@ -158,14 +158,14 @@ class MeshDataModule(pl.LightningDataModule):
 
             self.train, self.val = random_split(full, [train_size, val_size])
 
-        elif (stage == "test" or stage is None) and not self.test:
+        if (stage == "test" or stage is None) and self.test is None:
             self.test = self._transform(features)
 
-        elif (stage == "predict" or stage is None) and not self.predict:
+        if (stage == "predict" or stage == "analyze" or stage is None) and self.predict is None:
             self.predict = self._transform(features)
 
-        elif stage not in ["fit", "test", "predict"]:
-            raise ValueError("Stage must be one of fit, test, or predict.")
+        if stage not in ["fit", "test", "predict", "analyze", None]:
+            raise ValueError("Stage must be one of analyze, fit, test, or predict.")
 
         return
 
@@ -201,6 +201,10 @@ class MeshDataModule(pl.LightningDataModule):
     def teardown(self, stage=None):
         return
 
+
+    def analyze_data(self):
+        return self.predict
+
     '''
     Get all data details necessary for building network.
 
@@ -210,7 +214,7 @@ class MeshDataModule(pl.LightningDataModule):
         input_shape = (1, len(self.channels), self.num_points)
 
         if self.points == None:
-            input_points, input_weights = newton_cotes_quad(self.spatial_dim, self.num_points)
+            input_points, input_weights = newton_cotes_quad(torch.empty(1, self.spatial_dim), self.num_points)
         else:
             input_points, input_weights = self.points, self.weights
 
@@ -231,7 +235,7 @@ class MeshDataModule(pl.LightningDataModule):
         idx: sample index
     '''
     def get_sample(self, idx):
-        return torch.movedim(self.predict[idx,...], 0, -1)[...,0].squeeze()
+        return self.predict[idx,...].squeeze()
 
     '''
     Agglomerate feature batches.

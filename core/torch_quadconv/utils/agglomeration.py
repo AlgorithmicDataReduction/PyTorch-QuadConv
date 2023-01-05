@@ -37,12 +37,3 @@ def agglomerate(input_points, adjacency, num_output_points):
     lib.test(input_p, output_p, num_output_points*spatial_dim) #modifies the data of output_points
 
     return torch.from_numpy(output_points) #torch tensor from output_points
-
-'''
-NOTE: only using one permuation here which is a bit weird
-'''
-def random_downsample(input_points, num_points):
-
-    idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
-
-    return torch.index_select(input_points, 0, idxs)

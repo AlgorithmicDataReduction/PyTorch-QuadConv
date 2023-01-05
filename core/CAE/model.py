@@ -39,7 +39,7 @@ class Model(pl.LightningModule):
         super().__init__()
 
         #save hyperparameters for checkpoint loading
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["data_info"])
 
         #import the encoder and decoder
         module = import_module('core.CAE.' + module)
@@ -82,23 +82,6 @@ class Model(pl.LightningModule):
 
         return parent_parser
 
-    def compress(self,x):
-        return self.encoder(x)
-
-    def decompress(self,x):
-        return self.output_activation(self.decoder(x))
-
-    '''
-    Forward pass of model.
-
-    Input:
-        x: input data
-
-    Output: compressed data reconstruction
-    '''
-    def forward(self, x):
-        return self.output_activation(self.decoder(self.encoder(x)))
-
     '''
     Forward pass of encoder.
 
@@ -122,6 +105,17 @@ class Model(pl.LightningModule):
         return self.output_activation(self.decoder(z))
 
     '''
+    Forward pass of model.
+
+    Input:
+        x: input data
+
+    Output: compressed data reconstruction
+    '''
+    def forward(self, x):
+        return self.decode(self.encode(x))
+
+    '''
     Single training step.
 
     Input:
@@ -132,12 +126,12 @@ class Model(pl.LightningModule):
     '''
     def training_step(self, batch, idx):
         #encode and add noise to latent rep.
-        latent = self.encoder(batch)
+        latent = self.encode(batch)
         if self.noise_scale != 0.0:
             latent = latent + self.noise_scale*torch.randn(latent.shape, device=self.device)
 
         #decode
-        pred = self.output_activation(self.decoder(latent))
+        pred = self.decode(latent)
 
         #compute loss
         loss = self.loss_fn(pred, batch)
