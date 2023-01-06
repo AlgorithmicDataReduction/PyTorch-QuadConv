@@ -9,7 +9,7 @@
 
 #ntasks per node should be num_workers*num_gpus
 
-TEST=ignition_mesh/test/pvcae.yaml
+TEST=ignition_mesh/paper/pvcae.yaml
 TIME=00:03:45:00
 
 module purge

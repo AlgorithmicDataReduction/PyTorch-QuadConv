@@ -7,7 +7,7 @@ train:
   accelerator: "gpu" #str, e.g. "gpu"
   devices: -1 #int
   # num_nodes: #int
-  # strategy: #int
+  strategy: "ddp_find_unused_parameters_false" #int
   # precision: #str
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
@@ -53,7 +53,7 @@ data:
   data_dir: "data/ignition_mesh" #str
   spatial_dim: 2 #int
   num_points: 2189
-  batch_size: 32 #int
+  batch_size: 8 #int
   channels: [1] #list[int]
   shuffle: True #bool
 
