@@ -75,3 +75,16 @@ def newton_cotes_quad(spatial_dim, num_points, composite_quad_order=2, x0=0, x1=
     weights = torch.prod(weights, dim=1)
 
     return nodes, weights
+
+
+def param_quad(spatial_dim, num_points, x0=0, x1=1):
+
+    num_points = int(num_points**(1/spatial_dim))
+
+    #nodes
+    nodes = torch.linspace(x0, x1, num_points)
+    nodes = [nodes]*spatial_dim
+    nodes = torch.meshgrid(*nodes, indexing='xy')
+    nodes = torch.dstack(nodes).view(-1, spatial_dim)
+
+    return nodes, None
