@@ -28,6 +28,7 @@ model:
   spatial_dim: #int, AE only
   latent_dim: #int, AE only
   point_seq: #list[int], QC only
+  quad_map: #str <function in quadrature.py>, QC only (optional)
   stages: #int
   loss_fn: #str, SobolevLoss or loss from torch.nn, AE only
   optimizer: #str, optimizer from torch.optim

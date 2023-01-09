@@ -1,0 +1,52 @@
+#PT Lightning trainer arguments
+train:
+  accelerator: "gpu" #str e.g. "gpu"
+  devices: -1
+  strategy: "ddp_find_unused_parameters_false" #str
+  # precision: #str
+  # num_nodes: #int
+  # auto_scale_batch_size: #bool
+  enable_checkpointing: True #bool
+  check_val_every_n_epoch: 1 #int
+  default_root_dir: "./lightning_logs" #str
+  logger: True #bool
+  enable_progress_bar: False #bool
+  max_epochs: 50000 #int
+
+#Model building arguments
+model:
+  module: maxskip
+  spatial_dim: 2 #int dimension of the convolution in the CNN
+  latent_dim: 50 #int
+  stages: 1
+  learning_rate: 0.01
+  noise_scale : 0.0
+  schedule : 'ReduceLROnPlateau'
+  loss_fn: 'SobolevLoss'
+
+  conv_type: "standard" #str "standard" or "quadrature"
+
+  conv_params:
+    kernel_size: [3] #list
+    in_channels: [1, 16, 16] #list of length == stages+1
+    out_channels: [16, 16, 16] #list of length == stages+1 or length == 1
+    bias: [False, False, False] #list of length == stages+1 or length == 1
+    padding: ['same']
+
+#Data loader arguments
+data:
+  data_dir: "C:\\Users\\Kevin\\Google Drive\\Research\\QuadConv\\data\\ignition_center_cut" #str
+  spatial_dim: 2 #int
+  batch_size: 8 #int
+  size: 50 #int
+  stride: 50 #int
+  flatten: False #bool, flatten for quadrature
+  channels: [1] #list
+  shuffle: True
+  num_workers: 4
+
+#Extra arguments
+misc:
+  make_gif: False #bool
+  early_stopping: False #bool
+  compute_stats: False

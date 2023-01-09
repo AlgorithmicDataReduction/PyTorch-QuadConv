@@ -2,6 +2,9 @@
 Miscellaneous utility functions.
 '''
 
+import os
+import yaml
+
 import numpy as np
 import matplotlib.pyplot as plt
 import gif
@@ -88,6 +91,17 @@ class Logger(TensorBoardLogger):
     def save(self):
         pass
 
+    @rank_zero_only
+    def log_config(self, config):
+
+        filename = os.path.join(self.log_dir, 'config.yaml')
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        with open(filename, "w") as file:
+            yaml.dump(config, file)
+
+        return
+
 '''
 Package conv parameters.
 
@@ -110,12 +124,20 @@ def package_args(stages:int, kwargs:dict, mirror=False):
 Swap input and output points and channels
 '''
 def swap(conv_params):
-    temp = conv_params["in_points"]
-    conv_params["in_points"] = conv_params["out_points"]
-    conv_params["out_points"] = temp
+    swapped_params = conv_params.copy()
 
-    temp = conv_params["in_channels"]
-    conv_params["in_channels"] = conv_params["out_channels"]
-    conv_params["out_channels"] = temp
+    try:
+        temp = swapped_params["in_points"]
+        swapped_params["in_points"] = swapped_params["out_points"]
+        swapped_params["out_points"] = temp
+    except:
+        pass
 
-    return conv_params
+    try:
+        temp = swapped_params["in_channels"]
+        swapped_params["in_channels"] = swapped_params["out_channels"]
+        swapped_params["out_channels"] = temp
+    except:
+        pass
+
+    return swapped_params

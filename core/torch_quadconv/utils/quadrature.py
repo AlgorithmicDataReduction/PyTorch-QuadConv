@@ -1,5 +1,5 @@
 '''
-Quadratrure functions.
+Quadratrure and agglomeration functions.
 '''
 
 import torch
@@ -13,10 +13,12 @@ from .FastGL.glpair import glpair
 Get Gaussian quadrature weights and nodes.
 
 Input:
-    spatial_dim: spatial dimension of points
+    input_points: input points
     num_points: number of output points
 '''
-def gauss_quad(spatial_dim, num_points):
+def gauss_quad(input_points, num_points):
+
+    spatial_dim = input_points.shape[1]
 
     num_points = int(num_points**(1/spatial_dim))
 
@@ -45,13 +47,15 @@ NOTE: This function returns the composite rule, so its required that the order
 of the quadrature rule divides evenly into N.
 
 Input:
-    spatial_dim: spatial dimension of points
+    input_points: input points
     num_points: number of output points
     composite_quad_order: composite qudrature order
     x0: left end point
     x1: right end point
 '''
-def newton_cotes_quad(spatial_dim, num_points, composite_quad_order=2, x0=0, x1=1):
+def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1=1):
+
+    spatial_dim = input_points.shape[1]
 
     num_points = int(num_points**(1/spatial_dim))
 
@@ -88,3 +92,15 @@ def param_quad(spatial_dim, num_points, x0=0, x1=1):
     nodes = torch.dstack(nodes).view(-1, spatial_dim)
 
     return nodes, None
+    
+def newton_cotes_no_weights(*args, **kwargs):
+    return newton_cotes_quad(*args, **kwargs)[0], None
+
+'''
+NOTE: only using one permuation here which is a bit weird
+'''
+def random_downsample(input_points, num_points):
+
+    idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
+
+    return input_points[idxs, :], None

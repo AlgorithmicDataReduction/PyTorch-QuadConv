@@ -30,8 +30,9 @@ class Model(pl.LightningModule):
     def __init__(self,*,
             module,
             spatial_dim,
-            point_seq,
             data_info,
+            point_seq,
+            quad_map = "newton_cotes_quad",
             loss_fn = "MSELoss",
             optimizer = "Adam",
             learning_rate = 1e-2,
@@ -42,7 +43,7 @@ class Model(pl.LightningModule):
         super().__init__()
 
         #save hyperparameters for checkpoint loading
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["data_info"])
 
         #import the encoder and decoder
         module = import_module('core.QCAE.' + module)
@@ -69,7 +70,7 @@ class Model(pl.LightningModule):
         self.example_input_array = torch.zeros(input_shape)
 
         #model pieces
-        self.mesh = MeshHandler(input_nodes, input_weights).cache(point_seq, mirror=True)
+        self.mesh = MeshHandler(input_nodes, input_weights, quad_map=quad_map).cache(point_seq, mirror=True)
 
         self.output_activation = output_activation()
 
@@ -143,7 +144,7 @@ class Model(pl.LightningModule):
 
         #compute loss
         loss = self.loss_fn(pred, batch)
-        self.log('train_loss', loss, on_step=False, on_epoch=True)
+        self.log('train_loss', loss, on_step=False, on_epoch=True, sync_dist=True)
 
         return loss
 
