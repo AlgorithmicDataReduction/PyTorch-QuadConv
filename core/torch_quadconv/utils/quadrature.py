@@ -1,5 +1,5 @@
 '''
-Quadratrure and agglomeration functions.
+Quadratrure, downsampling, and agglomeration functions.
 '''
 
 import torch
@@ -43,6 +43,7 @@ def gauss_quad(input_points, num_points):
 
 '''
 Get Newton-Cotes quadrature weights and nodes.
+
 NOTE: This function returns the composite rule, so its required that the order
 of the quadrature rule divides evenly into N.
 
@@ -80,7 +81,15 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1
 
     return nodes, weights
 
+'''
 
+
+Input:
+    input_points: input points
+    num_points: number of output points
+    x0: left end point
+    x1: right end point
+'''
 def param_quad(spatial_dim, num_points, x0=0, x1=1):
 
     num_points = int(num_points**(1/spatial_dim))
@@ -94,7 +103,13 @@ def param_quad(spatial_dim, num_points, x0=0, x1=1):
     return nodes, None
 
 '''
+Randomly downsample the input points.
+
 NOTE: only using one permuation here which is a bit weird
+
+Input:
+    input_points: input points
+    num_points: number of points to sample
 '''
 def random_downsample(input_points, num_points):
 

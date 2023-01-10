@@ -15,6 +15,7 @@ from pathlib import Path
 from importlib import import_module
 
 import torch
+
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
@@ -46,7 +47,6 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
                                         strict=False))
 
     #logger
-    #NOTE: This should only be done on rank 0 if using multiple GPUs
     if trainer_args['logger']:
         #save the configuration details
         exp_dir, exp_name = os.path.split(experiment)
@@ -72,12 +72,8 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     #build trainer
     trainer = Trainer(**trainer_args, callbacks=callbacks)
 
-    #
-    #NOTE: When I tried to implement this, it wasn't working, not a major
-    #priority, but something to figure out
-    #NOTE: This might be fixed by Lightning 1.7.7
-    # if trainer_args['auto_scale_batch_size']:
-    #     trainer.tune(model, datamodule=datamodule)
+    if trainer_args['auto_scale_batch_size']:
+        trainer.tune(model, datamodule=datamodule)
 
     #train model
     trainer.fit(model=model, datamodule=datamodule, ckpt_path=None)
@@ -95,11 +91,12 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     return
 
 '''
-Parse arguments from configuration file and command line. Command line arguments
-will override their config file counterparts.
+Parse arguments from configuration file and command line. Only Lightning Trainer
+command line arguments will override their config file counterparts.
 '''
 if __name__ == "__main__":
-    #windows setup
+
+    #OS specific setup
     if platform.system() == 'Windows':
         os.environ['PL_TORCH_DISTRIBUTED_BACKEND'] = 'gloo'
 

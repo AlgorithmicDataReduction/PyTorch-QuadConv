@@ -4,7 +4,6 @@ Miscellaneous utility functions.
 
 import os
 import yaml
-
 import numpy as np
 import matplotlib.pyplot as plt
 import gif
@@ -13,6 +12,7 @@ from typing import List
 
 import torch
 import torch.nn as nn
+
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities import rank_zero_only
 
@@ -108,7 +108,7 @@ Package conv parameters.
 Input:
     kwargs: keyword arguments
 '''
-def package_args(stages:int, kwargs:dict, mirror=False):
+def package_args(stages, kwargs, mirror=False):
 
     for key, value in kwargs.items():
         if len(value) == 1:

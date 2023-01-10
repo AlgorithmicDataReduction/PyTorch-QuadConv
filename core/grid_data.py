@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 import torch
 from torch.utils.data import random_split, DataLoader
+
 import pytorch_lightning as pl
 
 '''
@@ -197,8 +198,6 @@ class DataModule(pl.LightningDataModule):
     '''
     Get a single data sample.
 
-    NOTE: this may not be the best way to do this and it doesn't account for multichannel
-
     Input:
         idx: sample index
     '''
@@ -207,8 +206,6 @@ class DataModule(pl.LightningDataModule):
 
     '''
     Get the data shape
-
-    NOTE: Not sure if this works with multichannel
     '''
     def get_data_info(self):
         return {'input_shape': tuple([1, 1]+[self.size for i in range(self.spatial_dim)])}

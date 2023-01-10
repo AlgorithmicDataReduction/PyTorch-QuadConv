@@ -4,24 +4,7 @@ __pycache__/
 *$py.class
 
 # Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -40,13 +23,8 @@ env.bak/
 venv.bak/
 conda/
 
-# SLURM
-slurm-*.out
-random/
-
 # Data
 data/flow_mesh/*
 data/ignition_grid/*
 data/ignition_mesh/*
 data/ignition_uniform_mesh/*
-data/modelnet40/*
