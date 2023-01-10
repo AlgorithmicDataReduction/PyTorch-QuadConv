@@ -19,16 +19,16 @@
     IG_MESH_DATA=/usr/workspace/doherty8/data/ignition_mesh
     FLOW_DATA=/usr/workspace/doherty8/data/FlowCylinder
 
-    TEST1 = ignition_grid/paper/cae_pool.yaml
-    TEST2 = ignition_grid/paper/qcae_pool.yaml
-    TEST3 = ignition_grid/paper/qcae_pool_learn_weights.yaml
+    TEST1=ignition_grid/paper/cae_pool.yaml
+    TEST2=ignition_grid/paper/qcae_pool.yaml
+    TEST3=ignition_grid/paper/qcae_pool_learn_weights.yaml
 
-    TEST4 = ignition_mesh/paper/qcae_pool.yaml
-    TEST5 = ignition_mesh/paper/pvcae.yaml
-    TEST6 = ignition_mesh/paper/vcae.yaml
+    TEST4=ignition_mesh/paper/qcae_pool.yaml
+    TEST5=ignition_mesh/paper/pvcae.yaml
+    TEST6=ignition_mesh/paper/vcae.yaml
 
-    TEST7 = flow_mesh/paper/qcae_pool.yaml
-    TEST8 = flow_mesh/paper/qcae_skip.yaml
+    TEST7=flow_mesh/paper/qcae_pool.yaml
+    TEST8=flow_mesh/paper/qcae_skip.yaml
 
     module load cuda/11.3.0
     conda activate torch
