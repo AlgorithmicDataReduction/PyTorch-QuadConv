@@ -7,18 +7,18 @@ train:
   accelerator: "gpu" #str, e.g. "gpu"
   devices: -1 #int
   # num_nodes: #int
-  # strategy: #str
+  strategy: "ddp_find_unused_parameters_false" #str
   # precision: #str
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
-  enable_checkpointing: False #bool
+  enable_checkpointing: True #bool
   check_val_every_n_epoch: 1 #int
   default_root_dir: "./lightning_logs" #str
-  logger: False #bool
+  logger: True #bool
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 0 #int
+  max_epochs: 15000 #int
   # max_steps: #int
 
 #Model arguments
@@ -49,7 +49,7 @@ data:
   data_dir: "data/flow_mesh" #str
   spatial_dim: 2 #int
   num_points: 7613 #int, mesh only
-  batch_size: 32 #int
+  batch_size: 8 #int
   channels: [0] #list[int], AE only
   shuffle: True #bool
 

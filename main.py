@@ -72,8 +72,8 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     #build trainer
     trainer = Trainer(**trainer_args, callbacks=callbacks)
 
-    if trainer_args['auto_scale_batch_size']:
-        trainer.tune(model, datamodule=datamodule)
+    # if trainer_args['auto_scale_batch_size']:
+    #     trainer.tune(model, datamodule=datamodule)
 
     #train model
     trainer.fit(model=model, datamodule=datamodule, ckpt_path=None)
