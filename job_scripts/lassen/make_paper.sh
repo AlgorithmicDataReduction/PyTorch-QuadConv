@@ -15,9 +15,9 @@
     echo -n 'JobID is '; echo $LSB_JOBID
 
     SAVE=/usr/workspace/doherty8/lightning_logs
-    IG_GRID_DATA=/usr/workspace/doherty8/data/ignition_center_cut
-    IG_MESH_DATA=/usr/workspace/doherty8/data/ignition_center_cut
-    FLOW_DATA=/usr/workspace/doherty8/data/ignition_center_cut
+    IG_GRID_DATA=/usr/workspace/doherty8/data/ignition_grid
+    IG_MESH_DATA=/usr/workspace/doherty8/data/ignition_mesh
+    FLOW_DATA=/usr/workspace/doherty8/data/FlowCylinder
 
     TEST1 = ignition_grid/paper/cae_pool.yaml
     TEST2 = ignition_grid/paper/qcae_pool.yaml
@@ -56,4 +56,4 @@
 
     wait
 
-    
+
