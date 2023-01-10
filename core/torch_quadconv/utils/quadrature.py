@@ -92,9 +92,6 @@ def param_quad(spatial_dim, num_points, x0=0, x1=1):
     nodes = torch.dstack(nodes).view(-1, spatial_dim)
 
     return nodes, None
-    
-def newton_cotes_no_weights(*args, **kwargs):
-    return newton_cotes_quad(*args, **kwargs)[0], None
 
 '''
 NOTE: only using one permuation here which is a bit weird
