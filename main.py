@@ -19,7 +19,7 @@ import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from core.utilities import Logger, make_gif
+from core.utils import Logger, make_gif
 
 '''
 Build, train, and test a model.

@@ -23,19 +23,32 @@ We present a new convolution layer for deep learning architectures which we call
 - `main.py`: Model training and testing script
 
 ### Environment Setup
-For local development it is easiest to run the command `pip install -e .` from within the top level of this repository. This will install `core` as a pip package in editable mode, but the main experiment script can be run without doing this.
+The file `environment.yaml` contains a list of dependencies, and it can be used to generate an anaconda environment with the following command:
+```
+conda create -file environment.yaml
+```
+which will install all necessary packages in the conda environment `QuadConv`.
 
-To generate the anaconda environment run `conda create -file environment.yaml`, or see that same YAML file for a list of dependencies.
+For local development, it is easiest to install `core` as a pip package in editable mode using the following command from within the top level of this repository:
+```
+pip install -e .
+```
+Although, the main experiment script can still be run without doing this.
 
 ### Data Acquisition
 To obtain the datasets used in our paper...
 
 ### Running Experiments
-To run an experiment use the following command:
+Use the following command to run an experiment:
 ```
 python main.py --experiment <path to YAML file within ./experiments>
 ```
 If `logger` is set to `True` in the YAML config file, then the results of this experiment will be saved to `lightning_logs/<path to YAML file within ./experiments>`.
+
+To visualize the logging results saved to `lightning_logs/` using tensorboard run the following command:
+```
+tensorboard --logdir=lightning_logs/
+```
 
 ## License & Citation
 All source code is made available under a <insert license>. You can freely use and modify the code, without warranty, so long as you provide attribution to the authors. See `LICENSE` for the full license text. Please use the following to cite our work:

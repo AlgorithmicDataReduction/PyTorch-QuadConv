@@ -5,41 +5,8 @@ Quadratrure, downsampling, and agglomeration functions.
 import torch
 
 from scipy.integrate import newton_cotes
-from .FastGL.glpair import glpair
 
 ################################################################################
-
-'''
-Get Gaussian quadrature weights and nodes.
-
-Input:
-    input_points: input points
-    num_points: number of output points
-'''
-def gauss_quad(input_points, num_points):
-
-    spatial_dim = input_points.shape[1]
-
-    num_points = int(num_points**(1/spatial_dim))
-
-    weights = torch.zeros(num_points)
-    nodes = torch.zeros(num_points)
-
-    for i in range(num_points):
-        _, weights[i], nodes[i] = glpair(num_points, i+1)
-
-    #nodes
-    nodes = [nodes]*spatial_dim
-    nodes = torch.meshgrid(*nodes, indexing='xy')
-    nodes = torch.dstack(nodes).view(-1, spatial_dim)
-
-    #weights
-    weights = [weights]*spatial_dim
-    weights =  torch.meshgrid(*weights, indexing='xy')
-    weights = torch.dstack(weights).reshape(-1, spatial_dim)
-    weights = torch.prod(weights, dim=1)
-
-    return nodes, weights
 
 '''
 Get Newton-Cotes quadrature weights and nodes.
@@ -82,7 +49,7 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1
     return nodes, weights
 
 '''
-
+Builds a uniform grid of points.
 
 Input:
     input_points: input points
@@ -90,7 +57,9 @@ Input:
     x0: left end point
     x1: right end point
 '''
-def param_quad(spatial_dim, num_points, x0=0, x1=1):
+def param_quad(input_points, num_points, x0=0, x1=1):
+
+    spatial_dim = input_points.shape[1]
 
     num_points = int(num_points**(1/spatial_dim))
 
