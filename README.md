@@ -51,7 +51,9 @@ tensorboard --logdir=lightning_logs/
 ```
 
 ## License & Citation
-All source code is made available under a <insert license>. You can freely use and modify the code, without warranty, so long as you provide attribution to the authors. See `LICENSE` for the full license text. Please use the following to cite our work:
+All source code is made available under a <insert license>. You can freely use and modify the code, without warranty, so long as you provide attribution to the authors. See `LICENSE` for the full license text.
+
+Please use the following to cite our work:
 ```
 @article{quadconv,
 	title = {{QCNN: Quadrature Convolutional Neural Network with Application to Unstructured Data Compression}},
