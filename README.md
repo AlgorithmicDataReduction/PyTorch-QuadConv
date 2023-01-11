@@ -29,13 +29,13 @@ Our work can be cited using the entry in `CITATION`.
 
 ### Environment Setup
 The file `environment.yaml` contains a list of dependencies, and it can be used to generate an anaconda environment with the following command:
-```
+```console
 conda create -file environment.yaml
 ```
 which will install all necessary packages in the conda environment `QuadConv`.
 
 For local development, it is easiest to install `core` as a pip package in editable mode using the following command from within the top level of this repository:
-```
+```console
 pip install -e .
 ```
 Although, the main experiment script can still be run without doing this.
@@ -45,12 +45,12 @@ To obtain the datasets used in our paper...
 
 ### Running Experiments
 Use the following command to run an experiment:
-```
+```console
 python main.py --experiment <path/to/YAML/file/in/experiments>
 ```
 If `logger` is set to `True` in the YAML config file, then the results of this experiment will be saved to `lightning_logs/<path/to/YAML/file/in/experiments>`.
 
 To visualize the logging results saved to `lightning_logs/` using tensorboard run the following command:
-```
+```console
 tensorboard --logdir=lightning_logs/
 ```
