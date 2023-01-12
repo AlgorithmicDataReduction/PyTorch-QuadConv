@@ -18,7 +18,6 @@
     IG_GRID_DATA=/usr/workspace/doherty8/data/ignition_grid
     TEST1=ignition_grid/paper/standard_cae_pool.yaml
 
-    source ~/.bashrc
     module load cuda/11.3.0
     conda activate torch
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/torch/bin

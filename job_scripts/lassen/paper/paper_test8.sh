@@ -10,7 +10,6 @@
 	#BSUB -q pbatch                  #queue to use
 	#BSUB -G uco
 
-    source ~/.bashrc
     module load cuda/11.3.0
     conda activate torch
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/.conda/envs/torch/bin
