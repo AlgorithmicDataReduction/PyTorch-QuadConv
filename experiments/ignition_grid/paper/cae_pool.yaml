@@ -33,7 +33,7 @@ model:
 
 #Data loader arguments
 data:
-  data_dir: "C:\\Users\\Kevin\\Google Drive\\Research\\QuadConv\\data\\ignition_center_cut" #str
+  data_dir: "data/ignition_grid" #str
   spatial_dim: 2 #int
   batch_size: 8 #int
   size: 50 #int
