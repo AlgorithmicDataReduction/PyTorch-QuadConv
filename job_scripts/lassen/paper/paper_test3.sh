@@ -17,8 +17,8 @@
     conda info
 
     TEST3=ignition_grid/paper/qcae_pool_learn_weights.yaml
-    SAVE=/usr/workspace/doherty8/lightning_logs/paper
+    SAVE=/usr/workspace/doherty8/lightning_logs
     IG_GRID_DATA=/usr/workspace/doherty8/data/ignition_grid
 
     echo "=== STARTING JOB ==="  
-    lrun -N1 -T1 ~/.conda/envs/torch/bin/python ~/QuadConv/main.py --experiment $TEST3 --default_root_dir $SAVE --data_dir $IG_GRID_DATA &
+    jsrun -n 1 -r 1 -a 1 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/QuadConv/main.py --experiment $TEST3 --default_root_dir $SAVE --data_dir $IG_GRID_DATA
