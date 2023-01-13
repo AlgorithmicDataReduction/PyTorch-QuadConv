@@ -1,16 +1,16 @@
 #!/bin/bash
-#SBATCH --time=12:00:00
+#SBATCH --time=10:00:00
 #SBATCH --qos=preemptable
 #SBATCH --job-name=flow_qcae
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=8
 #SBATCH --no-requeue
 
 #ntasks per node should be num_workers*num_gpus
 
-TEST=flow_mesh/test/qcae_skip.yaml
-TIME=00:11:45:00
+TEST=flow_mesh/test/qcae_skip_small.yaml
+TIME=00:09:45:00
 
 module purge
 module load anaconda
