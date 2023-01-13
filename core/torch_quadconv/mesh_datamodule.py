@@ -3,13 +3,14 @@
 
 from warnings import warn
 from pathlib import Path
-
 import numpy as np
-import torch
-from torch.utils.data import random_split, DataLoader
-import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 from matplotlib.tri import Triangulation
+
+import torch
+from torch.utils.data import random_split, DataLoader
+
+import pytorch_lightning as pl
 
 from .utils.quadrature import newton_cotes_quad
 
@@ -23,7 +24,7 @@ Input:
     num_points: number of points in data
     batch_size: batch size
     channels: which data channels to use
-    quad_map:
+    quad_map: map to calculate quadrature
     normalize: whether or not to normalize the data
     split: percentage of data to use in training
     shuffle: whether or not to shuffle samples

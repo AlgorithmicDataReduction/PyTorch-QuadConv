@@ -5,6 +5,7 @@ from importlib import import_module
 
 import torch
 from torch import nn
+
 import pytorch_lightning as pl
 
 from core.torch_quadconv import MeshHandler
@@ -144,7 +145,7 @@ class Model(pl.LightningModule):
 
         #compute loss
         loss = self.loss_fn(pred, batch)
-        self.log('train_loss', loss, on_step=False, on_epoch=True)
+        self.log('train_loss', loss, on_step=False, on_epoch=True, sync_dist=True)
 
         return loss
 

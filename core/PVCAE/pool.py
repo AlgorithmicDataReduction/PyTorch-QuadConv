@@ -1,5 +1,6 @@
 '''
-Encoder and decoder modules based on the convolution block with skips and pooling.
+Encoder and decoder modules based on the convolution block with skips and pooling
+and shared MLP point-based block.
 
 Input:
     spatial_dim: spatial dimension of input data
@@ -16,7 +17,7 @@ import torch
 from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
 
-from core.utilities import package_args, swap
+from core.utils import package_args, swap
 from core.conv_blocks import PoolBlock, PointBlock
 
 ################################################################################

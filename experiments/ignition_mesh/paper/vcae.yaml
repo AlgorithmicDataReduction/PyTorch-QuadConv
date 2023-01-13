@@ -7,7 +7,7 @@ train:
   accelerator: "gpu" #str, e.g. "gpu"
   devices: -1 #int
   # num_nodes: #int
-  # strategy: #int
+  strategy: "ddp_find_unused_parameters_false" #int
   # precision: #str
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 15000 #int
+  max_epochs: 25000 #int
   # max_steps: #int
 
 #Model arguments
@@ -35,8 +35,8 @@ model:
 
   conv_params:
     kernel_size: [3]
-    in_channels: [1, 16]
-    out_channels: [16, 16]
+    in_channels: [1, 4]
+    out_channels: [4, 8]
     bias: [False]
     padding: [same]
 
@@ -46,12 +46,12 @@ data:
   data_dir: "data/ignition_mesh" #str
   spatial_dim: 2 #int
   num_points: 2189
-  batch_size: 32 #int
+  batch_size: 8 #int
   channels: [1] #list[int]
   shuffle: True #bool
 
 #Miscellaneous arguments
 misc:
-  make_gif: True #bool, AE only
+  make_gif: False #bool, AE only
   compute_stats: True #bool
   early_stopping: False #bool

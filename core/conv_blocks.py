@@ -1,5 +1,5 @@
 '''
-Various standard convolution blocks.
+Various standard discrete convolution blocks.
 '''
 
 import numpy as np
@@ -255,14 +255,21 @@ class PoolBlock(nn.Module):
 ################################################################################
 
 '''
+Shared MLP block.
+
+Input:
+    in_channels: input feature channels
+    out_channels: output feature channels
+    activation: output activation
 '''
 class PointBlock(nn.Module):
 
     def __init__(self,*,
-        in_channels,
-        out_channels,
-        activation = nn.CELU,
-        **kwargs):
+            in_channels,
+            out_channels,
+            activation = nn.CELU,
+            **kwargs
+        ):
         super().__init__()
 
         self.shared_mlp = nn.Conv1d(in_channels, out_channels, 1)

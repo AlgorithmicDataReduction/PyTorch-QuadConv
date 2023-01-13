@@ -27,6 +27,10 @@ model:
   module: #str <skip|pool>, CAE and QCAE only
   spatial_dim: #int, AE only
   latent_dim: #int, AE only
+  vox_size: #list[int], PVCAE and VCAE only
+  conv_latent_dim: #int, PVCAE only
+  point_latent_dim: #int, PVCAE only
+  point_stages: #int, PVCAE only
   point_seq: #list[int], QC only
   quad_map: #str <function in quadrature.py>, QC only (optional)
   stages: #int

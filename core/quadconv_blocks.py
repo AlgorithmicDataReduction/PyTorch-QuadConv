@@ -1,5 +1,5 @@
 '''
-Various quadrature convolution blocks.
+Various QuadConv-based blocks blocks.
 
 Input:
     in_points: number of input points
@@ -143,7 +143,7 @@ class PoolBlock(nn.Module):
             self.out_points = in_points / 2**(spatial_dim)
             block_points = in_points
 
-        
+
         assert self.out_points == out_points, f"User assigned number of output points ({out_points}) does not match the actual number ({self.out_points})"
 
 
@@ -240,6 +240,5 @@ class PoolBlock(nn.Module):
             data = self.adjoint_op(handler, data)
         else:
             data = self.forward_op(handler, data)
-            
 
         return (handler, data)

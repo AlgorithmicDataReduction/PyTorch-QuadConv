@@ -15,10 +15,11 @@ from pathlib import Path
 from importlib import import_module
 
 import torch
+
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from core.utilities import Logger, make_gif
+from core.utils import Logger, make_gif
 
 '''
 Build, train, and test a model.
@@ -54,11 +55,8 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
         logger = Logger(save_dir=os.path.join(trainer_args['default_root_dir'], exp_dir),
                         name=exp_name, default_hp_metric=False)
 
-        filename = os.path.join(logger.log_dir, 'config.yaml')
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, "w") as file:
-            config = {'train':trainer_args, 'model':model_args, 'data':data_args, 'misc':misc_args}
-            yaml.dump(config, file)
+        config = {'train':trainer_args, 'model':model_args, 'data':data_args, 'misc':misc_args}
+        logger.log_config(config)
 
         #add logger to trainer args
         trainer_args['logger'] = logger
@@ -74,10 +72,6 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     #build trainer
     trainer = Trainer(**trainer_args, callbacks=callbacks)
 
-    #
-    #NOTE: When I tried to implement this, it wasn't working, not a major
-    #priority, but something to figure out
-    #NOTE: This might be fixed by Lightning 1.7.7
     # if trainer_args['auto_scale_batch_size']:
     #     trainer.tune(model, datamodule=datamodule)
 
@@ -97,11 +91,12 @@ def main(experiment, trainer_args, model_args, data_args, misc_args):
     return
 
 '''
-Parse arguments from configuration file and command line. Command line arguments
-will override their config file counterparts.
+Parse arguments from configuration file and command line. Only Lightning Trainer
+command line arguments will override their config file counterparts.
 '''
 if __name__ == "__main__":
-    #windows setup
+
+    #OS specific setup
     if platform.system() == 'Windows':
         os.environ['PL_TORCH_DISTRIBUTED_BACKEND'] = 'gloo'
 
@@ -142,8 +137,16 @@ if __name__ == "__main__":
     trainer_parser.add_argument("--default_root_dir", type=str)
     trainer_parser.add_argument("--max_time", type=str)
 
-    #look for other CL arguments
+    #look for trainer CL arguments
     trainer_args.update(vars(trainer_parser.parse_known_args()[0]))
+
+    #data args
+    data_parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
+    data_parser.add_argument('--data_dir', type=str)
+
+    #look for data CL arguments
+    data_args.update(vars(data_parser.parse_known_args()[0]))
+
 
     #run main script
     main(experiment, trainer_args, model_args, data_args, misc_args)

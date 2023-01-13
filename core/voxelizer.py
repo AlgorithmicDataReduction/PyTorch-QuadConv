@@ -7,13 +7,18 @@ from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_scatter import scatter
 
 '''
+Provides functionality for voxelizing and de-voxelizing a set of D-dimensional points.
+
 NOTE: Using this as a reference https://torch-points3d.readthedocs.io/en/latest/_modules/torch_points3d/core/data_transform/grid_transform.html#GridSampling3D
 '''
 class Voxelizer(nn.Module):
 
     '''
+    Constructs a voxelizer
+
     Input:
         points: NxD tensor of points
+        voxel_size: list of length D specifying voxel size along each dimension
     '''
     def __init__(self, points, voxel_size):
         super().__init__()
@@ -59,10 +64,10 @@ class Voxelizer(nn.Module):
         return voxels.reshape(torch.Size([batch_size, channels])+self._grid_shape)
 
     '''
-    Conver a voxel grid to a point-cloud.
+    Convert a voxel grid to a point-cloud.
 
     Input:
-        voxels: N1xN2x...NDxC tensor of voxels
+        voxels: BxN1xN2x...NDxC tensor of voxels
     '''
     def devoxelize(self, voxels):
 

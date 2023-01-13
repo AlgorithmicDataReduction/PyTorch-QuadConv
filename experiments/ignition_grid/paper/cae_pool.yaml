@@ -11,25 +11,23 @@ train:
   default_root_dir: "./lightning_logs" #str
   logger: True #bool
   enable_progress_bar: False #bool
-  max_epochs: 50000 #int
+  max_epochs: 25000 #int
 
 #Model building arguments
 model:
-  module: maxskip
+  type: "CAE" #str <CAE|QCAE|QCNN>
+  module: 'pool'
   spatial_dim: 2 #int dimension of the convolution in the CNN
   latent_dim: 50 #int
-  stages: 1
-  learning_rate: 0.01
-  noise_scale : 0.0
-  schedule : 'ReduceLROnPlateau'
-  loss_fn: 'SobolevLoss'
-
-  conv_type: "standard" #str "standard" or "quadrature"
+  stages: 1 #int
+  loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
+  optimizer: "Adam" #str, optimizer from torch.optim
+  learning_rate: 0.01 #float
 
   conv_params:
     kernel_size: [3] #list
-    in_channels: [1, 16, 16] #list of length == stages+1
-    out_channels: [16, 16, 16] #list of length == stages+1 or length == 1
+    in_channels: [1, 16] #list of length == stages+1
+    out_channels: [16, 16] #list of length == stages+1 or length == 1
     bias: [False, False, False] #list of length == stages+1 or length == 1
     padding: ['same']
 

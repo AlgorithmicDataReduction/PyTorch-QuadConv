@@ -5,17 +5,20 @@ from importlib import import_module
 
 import torch
 from torch import nn
+
 import pytorch_lightning as pl
 
 from core.torch_quadconv.utils.sobolev import SobolevLoss
 from core.voxelizer import Voxelizer
 
 '''
-Convolutional autoencoder.
+Voxelized convolutional autoencoder. Operates on point cloud data, but voxelizes
+first.
 
 Input:
     module: python module to import containing encoder and decoder classes
     spatial_dim: spatial dimension of data
+    vox_size: voxel size
     data_info:
     loss_fn: loss function specification
     optimizer: optimizer specification
@@ -148,7 +151,7 @@ class Model(pl.LightningModule):
 
         #compute loss
         loss = self.loss_fn(pred, batch)
-        self.log('train_loss', loss, on_step=False, on_epoch=True)
+        self.log('train_loss', loss, on_step=False, on_epoch=True, sync_dist=True)
 
         return loss
 
@@ -217,6 +220,7 @@ class Model(pl.LightningModule):
 
     '''
     Instantiates optimizer
+    
     Output: pytorch optimizer
     '''
     def configure_optimizers(self):

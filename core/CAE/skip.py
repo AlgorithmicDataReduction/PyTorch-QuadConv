@@ -16,7 +16,7 @@ import torch
 from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm as spn
 
-from core.utilities import package_args, swap
+from core.utils import package_args, swap
 from core.conv_blocks import SkipBlock
 
 ################################################################################
