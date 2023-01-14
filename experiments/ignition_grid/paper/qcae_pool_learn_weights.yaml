@@ -16,9 +16,9 @@ train:
   default_root_dir: "./lightning_logs" #str
   logger: True #bool
   # log_every_n_steps: #int
-  enable_progress_bar: True #bool
+  enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 25000 #int
+  max_epochs: 50000 #int
   # max_steps: #int
 
 #Model arguments
@@ -29,7 +29,7 @@ model:
   latent_dim: 50 #int
   point_seq: [2500, 2500, 625] #list[int], QC only
   stages: 1 #int
-  loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
+  loss_fn: "SobolevLoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
   quad_map: 'param_quad'

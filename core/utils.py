@@ -16,6 +16,10 @@ import torch.nn as nn
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities import rank_zero_only
 
+from pathlib import Path
+from importlib import import_module
+
+
 '''
 Generates a side-by-side GIF of the raw data and the model reconstruction for the
 test dataset; logs the result.
@@ -141,3 +145,58 @@ def swap(conv_params):
         pass
 
     return swapped_params
+
+
+
+'''
+Load in the data and model associated with a given checkpoint
+'''
+
+def load_checkpoint(path_to_checkpoint, data_path):
+
+    #### Change the entries here to analyze a new model / dataset
+    model_checkpoint_path = Path(path_to_checkpoint)
+    data_path = Path(data_path)
+    ###################
+
+    model_yml = list(model_checkpoint_path.glob('config.yaml'))
+
+    with model_yml[0].open() as file:
+        config = yaml.safe_load(file)
+
+    #extract args
+    #trainer_args = config['train']
+    model_args = config['model']
+    data_args = config['data']
+    data_args['data_dir'] = data_path
+    #misc_args = config['misc']
+
+    checkpoint = list(model_checkpoint_path.rglob('epoch=*.ckpt'))
+
+    checkpoint_dict = torch.load(checkpoint[0])
+
+    state_dict = checkpoint_dict['state_dict']
+
+    #setup datamodule
+    module = import_module('core.' + data_args.pop('module'))
+    datamodule = module.DataModule(**data_args)
+    datamodule.setup(stage='analyze')
+    dataset = datamodule.analyze_data()
+
+    #build model
+    module = import_module('core.' + model_args.pop('type') + '.model')
+    model = module.Model(**model_args, data_info = datamodule.get_data_info())
+
+    del_list = []
+    for key in state_dict:
+        if 'eval_indices' in key:
+            del_list.append(key)
+
+    for key in del_list:
+        del state_dict[key]
+
+    model.load_state_dict(state_dict, strict=False)
+    model.eval()
+    model.to('cpu')
+
+    return model, dataset

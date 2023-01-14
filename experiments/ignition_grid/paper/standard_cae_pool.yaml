@@ -20,7 +20,7 @@ model:
   spatial_dim: 2 #int dimension of the convolution in the CNN
   latent_dim: 50 #int
   stages: 1 #int
-  loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
+  loss_fn: "SobolevLoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
 
@@ -47,4 +47,4 @@ data:
 misc:
   make_gif: False #bool
   early_stopping: False #bool
-  compute_stats: False
+  compute_stats: True
