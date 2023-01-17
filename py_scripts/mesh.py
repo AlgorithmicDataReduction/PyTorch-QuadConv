@@ -15,36 +15,41 @@ tri = Triangulation(points[:,0], points[:,1])
 #
 # plt.show()
 
-adjacency_indices = []
-adjacency = []
+element_indices = np.array([3*i for i in range(tri.triangles.shape[0]+1)])
+elements = tri.triangles.reshape((-1))
 
 # from scipy.spatial import Delaunay
 #
 # tri = Delaunay(points)
 
-connectivity = [[] for i in range(points.shape[0])]
+# connectivity = [[] for i in range(points.shape[0])]
+#
+# for edge in tri.edges:
+#     connectivity[edge[0]].append(edge[1])
+#     connectivity[edge[1]].append(edge[0])
+#
+# count = 0
+#
+# for neighbors in connectivity:
+#     adjacency_indices.append(count)
+#     count += len(neighbors)
+#
+#     adjacency.extend(neighbors)
+#
+# adjacency_indices.append(count)
 
-for edge in tri.edges:
-    connectivity[edge[0]].append(edge[1])
-    connectivity[edge[1]].append(edge[0])
+print(tri.triangles.shape)
+print(len(element_indices))
+print(len(elements))
 
-count = 0
-
-for neighbors in connectivity:
-    adjacency_indices.append(count)
-    count += len(neighbors)
-
-    adjacency.extend(neighbors)
-
-adjacency_indices.append(count)
-
-print(points.shape[0])
-print(len(adjacency_indices))
-print(tri.edges.shape[0])
-print(len(adjacency))
+print(element_indices[-1])
 
 with h5.File("data/ignition_mesh/mesh.hdf5", "a") as file:
-    file["adjacency_indices"][...] = np.array(adjacency_indices)
-    file["adjacency"][...] = np.array(adjacency))
+
+    # file.create_dataset("element_indices", data=element_indices)
+    # file.create_dataset("elements", data=elements)
+
+    file["element_indices"][...] = element_indices
+    file["elements"][...] = elements
 
     print(file.keys())
