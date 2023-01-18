@@ -24,7 +24,7 @@ NOTE: Compile the .so file using the following command
 NOTE: All multi-dimensional arrays are falttened C-style, i.e. row-wise.
 
 Input:
-  activity: bool* pointer of size (num_points X stages), active points at each stage
+  activity: bool* pointer of size (num_points X stages), active points at each stage (first column is true and rest are false)
   points: double* pointer of size (num_points X spatial_dim), mesh points
   element_indices: int* pointer of size (num_elements+1)
   elements: int* pointer of size (element_indices[-1])
