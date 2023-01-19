@@ -5,7 +5,7 @@
 	#BSUB -e mystderr_test7.txt
 	#BSUB -o mystdout_test7.txt
 	#BSUB -nnodes 1                  #number of nodes
-	#BSUB -W 10:00                    #walltime in minutes
+	#BSUB -W 8:00                    #walltime in minutes
 	#BSUB -J paper_test7          #name of job
 	#BSUB -q pbatch                  #queue to use
 	#BSUB -G uco
@@ -20,4 +20,4 @@
     FLOW_DATA=/usr/workspace/doherty8/data/FlowCylinder
 
     echo "=== STARTING JOB ==="  
-    jsrun -n 1 -r 1 -a 1 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/QuadConv/main.py --experiment $TEST7 --default_root_dir $SAVE --data_dir $FLOW_DATA
+    jsrun -n 1 -r 1 -a 4 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/QuadConv/main.py --experiment $TEST7 --default_root_dir $SAVE --data_dir $FLOW_DATA

@@ -184,6 +184,7 @@ class PoolBlock(nn.Module):
         self.batchnorm2 = nn.InstanceNorm1d(out_channels)
         self.activation2 = activation2()
 
+	
         return
 
     '''

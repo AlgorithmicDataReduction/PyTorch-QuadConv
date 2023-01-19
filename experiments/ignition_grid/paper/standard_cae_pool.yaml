@@ -11,7 +11,7 @@ train:
   default_root_dir: "./lightning_logs" #str
   logger: True #bool
   enable_progress_bar: False #bool
-  max_epochs: 25000 #int
+  max_epochs: 10000 #int
 
 #Model building arguments
 model:
