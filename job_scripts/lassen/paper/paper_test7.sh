@@ -20,4 +20,4 @@
     FLOW_DATA=/usr/workspace/doherty8/data/FlowCylinder
 
     echo "=== STARTING JOB ==="  
-    jsrun -n 1 -r 1 -a 4 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/QuadConv/main.py --experiment $TEST7 --default_root_dir $SAVE --data_dir $FLOW_DATA
+    jsrun -n 1 -r 1 -a 1 -c 40 -g 4 ~/.conda/envs/torch/bin/python ~/QuadConv/main.py --experiment $TEST7 --default_root_dir $SAVE --data_dir $FLOW_DATA
