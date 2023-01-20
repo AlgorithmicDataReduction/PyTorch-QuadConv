@@ -102,6 +102,8 @@ class MeshHandler(nn.Module):
             if weights is None:
                 weights = torch.zeros(points.shape[0])
                 weights = torch.nn.init.uniform_(weights, a= 0, b = 1)
+                weights /= torch.sum(weights)
+
                 req_grad = True
             else:
                 req_grad = False

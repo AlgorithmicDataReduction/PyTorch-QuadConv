@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 
 from core.torch_quadconv import MeshHandler
 from core.torch_quadconv.utils.sobolev import SobolevLoss
+from core.torch_quadconv.utils.quadloss import QuadLoss
 
 '''
 Quadrature convolution autoencoder.
@@ -54,14 +55,6 @@ class Model(pl.LightningModule):
         self.learning_rate = learning_rate
         self.noise_scale = noise_scale
 
-        #loss function
-        #NOTE: There is probably a bit of a better way to do this, but this
-        #should work for now.
-        if loss_fn == 'SobolevLoss':
-            self.loss_fn = SobolevLoss(spatial_dim=spatial_dim)
-        else:
-            self.loss_fn = getattr(nn, loss_fn)()
-
         #unpack data info
         input_shape = data_info['input_shape']
         input_nodes = data_info['input_nodes']
@@ -72,6 +65,16 @@ class Model(pl.LightningModule):
 
         #model pieces
         self.mesh = MeshHandler(input_nodes, input_weights, quad_map=quad_map).cache(point_seq, mirror=True)
+
+        #loss function
+        #NOTE: There is probably a bit of a better way to do this, but this
+        #should work for now.
+        if loss_fn == 'SobolevLoss':
+            self.loss_fn = SobolevLoss(spatial_dim=spatial_dim)
+        elif loss_fn == 'QuadLoss':
+            self.loss_fn = QuadLoss(mesh_pointer=self.mesh)
+        else:
+            self.loss_fn = getattr(nn, loss_fn)()
 
         self.output_activation = output_activation()
 

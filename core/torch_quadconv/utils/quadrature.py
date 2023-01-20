@@ -21,27 +21,33 @@ Input:
     x0: left end point
     x1: right end point
 '''
-def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1=1):
+def newton_cotes_quad(input_points, num_points, composite_quad_order=2):
 
     spatial_dim = input_points.shape[1]
 
     num_points = int(num_points**(1/spatial_dim))
 
-    #nodes
-    dx = (x1-x0)/(composite_quad_order-1)
+    coord_min,_ = torch.min(input_points,dim=0)
+    coord_max,_ = torch.max(input_points,dim=0)
 
-    nodes = torch.linspace(x0, x1, num_points)
-    nodes = [nodes]*spatial_dim
+    #nodes
+    nodes = [] 
+    for i in range(spatial_dim):
+        nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points))
+
+    dx = (coord_max-coord_min) / (composite_quad_order-1)
+
     nodes = torch.meshgrid(*nodes, indexing='xy')
     nodes = torch.dstack(nodes).view(-1, spatial_dim)
 
     #weights
     rep = [int(num_points/composite_quad_order)]
+    nc_weights = torch.as_tensor(newton_cotes(composite_quad_order-1, 1)[0],dtype=torch.float)
+    weights = []
 
-    weights, _ = newton_cotes(composite_quad_order-1, 1)
-    weights = torch.tile(torch.Tensor(dx*weights), rep)
+    for i in range(spatial_dim):
+        weights.append(torch.tile(torch.Tensor((dx[i]/rep[0])*nc_weights), rep))
 
-    weights = [weights]*spatial_dim
     weights =  torch.meshgrid(*weights, indexing='xy')
     weights = torch.dstack(weights).reshape(-1, spatial_dim)
     weights = torch.prod(weights, dim=1)
@@ -52,20 +58,25 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1
 Builds a uniform grid of points.
 
 Input:
-    input_points: input points
+    input_points: input pointss
     num_points: number of output points
     x0: left end point
     x1: right end point
 '''
-def param_quad(input_points, num_points, x0=0, x1=1):
+def param_quad(input_points, num_points):
 
     spatial_dim = input_points.shape[1]
 
     num_points = int(num_points**(1/spatial_dim))
 
+    coord_min,_ = torch.min(input_points,dim=0)
+    coord_max,_ = torch.max(input_points,dim=0)
+
     #nodes
-    nodes = torch.linspace(x0, x1, num_points)
-    nodes = [nodes]*spatial_dim
+    nodes = [] 
+    for i in range(spatial_dim):
+        nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points))
+
     nodes = torch.meshgrid(*nodes, indexing='xy')
     nodes = torch.dstack(nodes).view(-1, spatial_dim)
 
