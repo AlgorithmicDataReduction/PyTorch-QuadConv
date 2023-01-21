@@ -27,6 +27,8 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2, x0=0, x1
 
     num_points = int(num_points**(1/spatial_dim))
 
+    assert num_points%composite_quad_order == 0, f'Composite qudarature order {composite_quad_order} does not divide evenly into number of points {num_points}.'
+
     #nodes
     dx = (x1-x0)/(composite_quad_order-1)
 
