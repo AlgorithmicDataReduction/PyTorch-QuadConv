@@ -27,7 +27,7 @@ model:
   module: "pool" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int
   latent_dim: 10 #int
-  point_seq: [2189, 576, 144] #list[int], QC only
+  point_seq: [2189, 576] #list[int], QC only
   stages: 1 #int
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
