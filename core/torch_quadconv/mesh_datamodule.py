@@ -106,9 +106,9 @@ class MeshDataModule(pl.LightningDataModule):
             assert self.points.shape[1] == self.spatial_dim, f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
 
             #look for weights file
-            points_file = data_path.joinpath('weights.npy')
+            weights_file = data_path.joinpath('weights.npy')
             try:
-                self.points = torch.from_numpy(np.float32(np.load(points_file)))
+                self.weights = torch.from_numpy(np.float32(np.load(weights_file)))
 
                 assert self.weights.shape[0] == self.num_points
 
@@ -120,6 +120,7 @@ class MeshDataModule(pl.LightningDataModule):
 
         except FileNotFoundError:
             self.points = None
+            self.weights = None
 
         except Exception as e:
             raise e
@@ -212,16 +213,31 @@ class MeshDataModule(pl.LightningDataModule):
     Ouput: (input_shape, input_nodes, input_weights)
     '''
     def get_data_info(self):
+
+        features = self._load_data()
+
         input_shape = (1, len(self.channels), self.num_points)
 
         if self.points == None:
-            input_points, input_weights = newton_cotes_quad(torch.empty(1, self.spatial_dim), self.num_points)
-        else:
-            input_points, input_weights = self.points, self.weights
+
+            points_per_axis = int(self.num_points**(1/self.spatial_dim))
+
+            #Assume the domain is the unit square
+            nodes = [] 
+            for i in range(self.spatial_dim):
+                nodes.append(torch.linspace(0, 1, points_per_axis))
+
+            nodes = torch.meshgrid(*nodes, indexing='xy')
+            self.points = torch.dstack(nodes).view(-1, self.spatial_dim)
+
+            #input_points, _ = newton_cotes_quad(torch.empty(1, self.spatial_dim), self.num_points)
+
+        #else:
+            #input_points, input_weights = self.points, self.weights
 
         data_info = {'input_shape': input_shape,
-                        'input_nodes': input_points,
-                        'input_weights': input_weights}
+                        'input_nodes': self.points,
+                        'input_weights': self.weights}
 
         return data_info
 

@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 5000 #int
+  max_epochs: 10000 #int
   # max_steps: #int
 
 #Model arguments
@@ -27,7 +27,7 @@ model:
   module: "pool" #str <skip|pool>, CAE and QCAE only
   spatial_dim: 2 #int
   latent_dim: 50 #int
-  point_seq: [2500, 2500, 625] #list[int], QC only
+  point_seq: [2500, 2500] #list[int], QC only
   stages: 1 #int
   loss_fn: "QuadLoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
