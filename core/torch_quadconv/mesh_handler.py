@@ -21,7 +21,8 @@ class MeshHandler(nn.Module):
             input_points,
             input_weights = None,
             input_adjacency = None,
-            quad_map = 'newton_cotes_quad'
+            quad_map = 'newton_cotes_quad',
+            weight_activation = nn.Identity, 
         ):
         super().__init__()
 
@@ -35,11 +36,14 @@ class MeshHandler(nn.Module):
         if input_weights is None:
             input_weights = torch.zeros(input_points.shape[0])
             input_weights = torch.nn.init.uniform_(input_weights, a= 0, b = 1)
+            self.weight_activation = nn.Sigmoid()
             req_grad = True
         else:
             req_grad = False
+            self.weight_activation = weight_activation()
 
         self._weights = nn.ParameterList([nn.Parameter(input_weights, requires_grad=req_grad)])
+
 
         #adjacency
         if input_adjacency != None:
@@ -72,7 +76,7 @@ class MeshHandler(nn.Module):
 
     @property
     def weights(self):
-        return self._weights[self._get_index()]
+        return self.weight_activation(self._weights[self._get_index()]) / torch.sum(self.weight_activation(self._weights[self._get_index()]))
 
     @property
     def adjacency(self):
@@ -100,8 +104,8 @@ class MeshHandler(nn.Module):
             points, weights = self._quad_map(self._points[i-1], num_points)
 
             if weights is None:
-                weights = torch.zeros(points.shape[0])
-                weights = torch.nn.init.uniform_(weights, a= 0, b = 1)
+                weights = torch.ones(points.shape[0])
+                #weights = torch.nn.init.uniform_(weights, a= 0, b = 1)
                 weights /= torch.sum(weights)
 
                 req_grad = True
