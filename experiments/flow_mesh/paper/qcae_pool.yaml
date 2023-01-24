@@ -7,7 +7,7 @@ train:
   accelerator: "gpu" #str, e.g. "gpu"
   devices: -1 #int
   # num_nodes: #int
-  strategy: "ddp_find_unused_parameters_false" #str
+  strategy: "ddp" #str
   # precision: #str
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 25000 #int
+  max_epochs: 10000 #int
   # max_steps: #int
 
 #Model arguments
@@ -28,7 +28,6 @@ model:
   spatial_dim: 2 #int
   latent_dim: 15 #int
   point_seq: [7613, 6400, 1600] #list[int], QC only
-  quad_map: "param_quad"
   stages: 1 #int
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim

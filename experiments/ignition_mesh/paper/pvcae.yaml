@@ -7,7 +7,7 @@ train:
   accelerator: "gpu" #str, e.g. "gpu"
   devices: -1 #int
   # num_nodes: #int
-  strategy: "ddp_find_unused_parameters_false" #int
+  strategy: "ddp" #int
   # precision: #str
   # auto_scale_batch_size: #bool
   # auto_select_gpus: #bool
@@ -18,7 +18,7 @@ train:
   # log_every_n_steps: #int
   enable_progress_bar: False #bool
   # profiler: #str
-  max_epochs: 25000 #int
+  max_epochs: 10000 #int
   # max_steps: #int
 
 #Model arguments

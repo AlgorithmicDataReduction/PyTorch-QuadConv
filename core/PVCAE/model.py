@@ -229,7 +229,7 @@ class Model(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = getattr(torch.optim, self.optimizer)(self.parameters(), lr=self.learning_rate)
 
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=250, factor=0.5)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=500, factor=0.5)
         scheduler_config = {"scheduler": scheduler, "monitor": "val_err"}
 
         return {"optimizer": optimizer, "lr_scheduler": scheduler_config}

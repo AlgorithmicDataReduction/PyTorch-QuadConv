@@ -126,6 +126,7 @@ class PoolBlock(nn.Module):
             adjoint = False,
             activation1 = nn.CELU,
             activation2 = nn.CELU,
+            step = True,
             **kwargs
         ):
         super().__init__()
@@ -135,6 +136,7 @@ class PoolBlock(nn.Module):
 
         #set attributes
         self.adjoint = adjoint
+        self.step = step
 
         if self.adjoint:
             self.out_points = in_points * 2**(spatial_dim)
@@ -184,6 +186,7 @@ class PoolBlock(nn.Module):
         self.batchnorm2 = nn.InstanceNorm1d(out_channels)
         self.activation2 = activation2()
 
+
         return
 
     '''
@@ -204,7 +207,8 @@ class PoolBlock(nn.Module):
 
         output = self.resample(x2.reshape(x2.shape[0], x2.shape[1], *dim_pack)).reshape(x2.shape[0], x2.shape[1], -1)
 
-        handler.step()
+        if self.step:
+            handler.step()
 
         return output
 
@@ -213,7 +217,8 @@ class PoolBlock(nn.Module):
     '''
     def adjoint_op(self, handler, data):
 
-        handler.step()
+        if self.step:
+            handler.step()
 
         sq_shape = int(np.sqrt(data.shape[-1]))
 

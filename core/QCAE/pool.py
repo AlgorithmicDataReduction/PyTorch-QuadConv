@@ -48,7 +48,8 @@ class Encoder(nn.Module):
             self.qcnn.append(PoolBlock(spatial_dim = spatial_dim,
                                         **arg_stack[i],
                                         activation1 = forward_activation,
-                                        activation2 = forward_activation
+                                        activation2 = forward_activation,
+                                        step = False if i == stages else True
                                         ))
 
         self.conv_out_shape = torch.Size((1, conv_params['out_channels'][-1], int(conv_params['out_points'][-1])))
@@ -115,7 +116,8 @@ class Decoder(nn.Module):
                                         **arg_stack[i],
                                         activation1 = forward_activation,
                                         activation2 = forward_activation,
-                                        adjoint = True
+                                        adjoint = True,
+                                        step = False if i == 0 else True
                                         ))
 
         self.init_layer = QuadConv(spatial_dim = spatial_dim, **arg_stack[-1])
