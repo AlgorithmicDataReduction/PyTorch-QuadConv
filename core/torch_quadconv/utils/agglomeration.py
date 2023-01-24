@@ -2,10 +2,10 @@
 Agglomeration functions.
 '''
 
-import torch
-
+import os
+import sys
 import numpy as np
-from ctypes import CDLL, POINTER, c_float
+from ctypes import CDLL, POINTER, c_double, c_bool, c_int
 
 ################################################################################
 
@@ -39,20 +39,28 @@ Input:
 void agglomerate(activity, points, element_indices, elements, boundary, int spatial_dim,
                     int num_points, int num_elements, int num_boundary_points, int stages, int factor)
 '''
-def agglomerate(input_points, adjacency, num_output_points):
+def agglomerate(points, boundary_points, element_indices, elements, stages=1, factor=4):
 
-    spatial_dim = input_points.shape[1]
+    #extract some attributes
+    spatial_dim = points.shape[1]
+    num_points = points.shape[0]
+    num_elements = elements.shape[0] + 1
+    num_boundary_points = boundary_points.shape[0]
 
-    #input array
-    input_p = input_points.numpy().ctypes.data_as(POINTER(c_float)) #c pointer to underlying data
+    #create activity array
+    activity = np.zeros((num_points, stages), dtype=np.bool)
+    activity_p = activity.ctypes.data_as(POINTER(c_bool))
 
-    #output array
-    output_points = np.zeros((num_output_points, spatial_dim), dtype=np.float32) #new numpy array
-    output_p = output_points.ctypes.data_as(POINTER(c_float)) #c pointer to underlying data
+    #get input pointers
+    points_p = points.ctypes.data_as(POINTER(c_double))
+    element_indices_p = element_indices.ctypes.data_as(POINTER(c_int))
+    elements_p = elements.ctypes.data_as(POINTER(c_int))
+    boundary_points_p = boundary_points.ctypes.data_as(POINTER(c_int))
 
     #call c function
-    lib_path = "/home/rs-coop/Documents/Research/ASCR-Compression/QuadConv/c_test/test.so"
+    lib_path = os.path.join(os.path.dirname(__file__), "agglomerate.so")
     lib = CDLL(lib_path)
-    lib.test(input_p, output_p, num_output_points*spatial_dim) #modifies the data of output_points
+    lib.test(activity_p, points_p, element_indices_p, elements_p, boundary_points_p,
+                spatial_dim, num_points, num_elements, num_boundary_points, stages, factor)
 
-    return torch.from_numpy(output_points) #torch tensor from output_points
+    return [points[activity[:,i]] for i in range(stages)]
