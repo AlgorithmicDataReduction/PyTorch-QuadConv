@@ -87,3 +87,9 @@ def random_downsample(input_points, num_points):
     idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
 
     return input_points[idxs, :], None
+
+def random_downsample_const_weights(input_points, num_points):
+
+    idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
+
+    return input_points[idxs, :], torch.ones(num_points)
