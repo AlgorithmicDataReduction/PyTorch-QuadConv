@@ -30,4 +30,4 @@ data/ignition_mesh/*
 data/ignition_uniform_mesh/*
 
 # OPOSSUM
-core/torch_quadconv/utils/liboposum.so
+core/torch_quadconv/utils/libopossum.so
