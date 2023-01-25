@@ -17,7 +17,7 @@ do
     # check if the file is a shell script and execute it
     if [ -x "$file" ]; then
         echo "Running $file"
-        bsub "$file"
+        bsub $file
     fi
 
 done
