@@ -34,7 +34,7 @@ model:
   learning_rate: 0.01 #float
   quad_map: 'param_quad'
   weight_activation: 'Sigmoid'
-  normalize_weights: True
+  normalize_weights: False
 
   conv_params:
     in_points: [2500, 2500] #list[int]

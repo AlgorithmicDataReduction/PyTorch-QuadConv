@@ -22,7 +22,8 @@ class MeshHandler(nn.Module):
             input_weights = None,
             input_adjacency = None,
             quad_map = 'newton_cotes_quad',
-            weight_activation = nn.Identity, 
+            weight_activation = nn.Identity,
+            normalize_weights = False,
         ):
         super().__init__()
 
@@ -32,15 +33,17 @@ class MeshHandler(nn.Module):
         #points
         self._points = nn.ParameterList([nn.Parameter(input_points, requires_grad=False)])
 
+        self.normalize_weights = normalize_weights
+
         #weights
         if input_weights is None:
             input_weights = torch.zeros(input_points.shape[0])
             input_weights = torch.nn.init.uniform_(input_weights, a= 0, b = 1)
-            self.weight_activation = nn.Sigmoid()
+            self.weight_activation = getattr(nn, weight_activation)()
             req_grad = True
         else:
             req_grad = False
-            self.weight_activation = weight_activation()
+            self.weight_activation = getattr(nn, weight_activation)()
 
         self._weights = nn.ParameterList([nn.Parameter(input_weights, requires_grad=req_grad)])
 
@@ -76,7 +79,13 @@ class MeshHandler(nn.Module):
 
     @property
     def weights(self):
-        return self.weight_activation(self._weights[self._get_index()]) / torch.sum(self.weight_activation(self._weights[self._get_index()]))
+
+
+        if self.normalize_weights:
+            with torch.no_grad():
+                self._weights[self._get_index()] = self.weight_activation(self._weights[self._get_index()]) / torch.sum(self.weight_activation(self._weights[self._get_index()]))
+
+        return self.weight_activation(self._weights[self._get_index()])
 
     @property
     def adjacency(self):
