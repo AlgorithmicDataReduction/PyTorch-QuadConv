@@ -35,7 +35,7 @@ class Model(pl.LightningModule):
             data_info,
             point_seq,
             quad_map = "newton_cotes_quad",
-            weight_activation = nn.Identity,
+            weight_activation = 'Identity',
             normalize_weights = False,
             loss_fn = "MSELoss",
             optimizer = "Adam",
