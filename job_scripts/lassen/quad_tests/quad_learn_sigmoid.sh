@@ -5,7 +5,7 @@
 	#BSUB -e mystderr_LSIG.txt
 	#BSUB -o mystdout_LSIG.txt
 	#BSUB -nnodes 1                  #number of nodes
-	#BSUB -W 6:00                    #walltime in minutes
+	#BSUB -W 12:00                    #walltime in minutes
 	#BSUB -J learn_sigmoid          #name of job
 	#BSUB -q pbatch                  #queue to use
 	#BSUB -G uco

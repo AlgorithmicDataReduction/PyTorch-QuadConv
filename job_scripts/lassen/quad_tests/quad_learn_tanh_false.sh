@@ -5,7 +5,7 @@
 	#BSUB -e mystderr_LTAN.txt
 	#BSUB -o mystdout_LTAN.txt
 	#BSUB -nnodes 1                  #number of nodes
-	#BSUB -W 6:00                    #walltime in minutes
+	#BSUB -W 12:00                    #walltime in minutes
 	#BSUB -J learn_tanh          #name of job
 	#BSUB -q pbatch                  #queue to use
 	#BSUB -G uco
