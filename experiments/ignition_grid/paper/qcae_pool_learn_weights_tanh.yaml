@@ -33,7 +33,7 @@ model:
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
   quad_map: 'param_quad'
-  weight_activation: 'Sigmoid'
+  weight_activation: 'Tanh'
   normalize_weights: True
 
   conv_params:
