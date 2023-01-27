@@ -10,7 +10,6 @@ import pytorch_lightning as pl
 
 from core.torch_quadconv import MeshHandler
 from core.torch_quadconv.utils.sobolev import SobolevLoss
-from core.torch_quadconv.utils.quadloss import QuadLoss
 
 '''
 Quadrature convolution autoencoder.
