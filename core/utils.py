@@ -181,7 +181,7 @@ def load_checkpoint(path_to_checkpoint, data_path):
     module = import_module('core.' + data_args.pop('module'))
     datamodule = module.DataModule(**data_args)
     datamodule.setup(stage='analyze')
-    dataset = datamodule.analyze_data()
+    dataset, points = datamodule.analyze_data()
 
     #build model
     module = import_module('core.' + model_args.pop('type') + '.model')
@@ -199,4 +199,4 @@ def load_checkpoint(path_to_checkpoint, data_path):
     model.eval()
     model.to('cpu')
 
-    return model, dataset
+    return model, dataset, points

@@ -32,6 +32,8 @@ model:
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
+  weight_activation: 'Sigmoid'
+  normalize_weights: False
 
   conv_params:
     in_points: [2189, 2500] #list[int]

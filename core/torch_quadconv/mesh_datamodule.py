@@ -205,7 +205,7 @@ class MeshDataModule(pl.LightningDataModule):
 
 
     def analyze_data(self):
-        return self.predict
+        return self.predict, self.points
 
     '''
     Get all data details necessary for building network.
