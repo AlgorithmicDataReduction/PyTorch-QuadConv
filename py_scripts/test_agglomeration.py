@@ -10,6 +10,11 @@ with h5.File("data/ignition_mesh/mesh.hdf5", "r") as file:
     element_indices = file["element_indices"][...]
     elements = file["elements"][...]
 
+print(f"Points: {points.shape}")
+print(f"Boundary Points: {bd_points.shape}")
+print(f"Element Indices: {element_indices.shape}, {element_indices[-1]}")
+print(f"Elements: {elements.shape}")
+
 stages = 2
 
 activity = agglomerate(points, bd_points, element_indices, elements, stages=stages)

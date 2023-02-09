@@ -42,9 +42,8 @@ void agglomerate(activity, points, element_indices, elements, boundary, int spat
 def agglomerate(points, boundary_points, element_indices, elements, stages=1, factor=4):
 
     #extract some attributes
-    spatial_dim = points.shape[1]
-    num_points = points.shape[0]
-    num_elements = elements.shape[0] + 1
+    num_points, spatial_dim = points.shape
+    num_elements = element_indices.shape[0] - 1
     num_boundary_points = boundary_points.shape[0]
 
     #create activity array
@@ -58,7 +57,7 @@ def agglomerate(points, boundary_points, element_indices, elements, stages=1, fa
     boundary_points_p = boundary_points.ctypes.data_as(POINTER(c_int))
 
     #call c function
-    lib_path = os.path.join(os.path.dirname(__file__), "libopposum.so")
+    lib_path = os.path.join(os.path.dirname(__file__), "libtest.so")
     lib = CDLL(lib_path)
     lib.agglomerate(activity_p, points_p, element_indices_p, elements_p, boundary_points_p,
                     spatial_dim, num_points, num_elements, num_boundary_points, stages, factor)
