@@ -30,6 +30,7 @@ model:
   point_seq: [7613, 6400, 1600] #list[int], QC only
   stages: 1 #int
   loss_fn: "MSELoss" #str, SobolevLoss or loss from torch.nn
+  quad_map: "param_quad"
   optimizer: "Adam" #str, optimizer from torch.optim
   learning_rate: 0.01 #float
 

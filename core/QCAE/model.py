@@ -34,6 +34,8 @@ class Model(pl.LightningModule):
             data_info,
             point_seq,
             quad_map = "newton_cotes_quad",
+            weight_activation = 'Identity',
+            normalize_weights = False,
             loss_fn = "MSELoss",
             optimizer = "Adam",
             learning_rate = 1e-2,
@@ -54,14 +56,6 @@ class Model(pl.LightningModule):
         self.learning_rate = learning_rate
         self.noise_scale = noise_scale
 
-        #loss function
-        #NOTE: There is probably a bit of a better way to do this, but this
-        #should work for now.
-        if loss_fn == 'SobolevLoss':
-            self.loss_fn = SobolevLoss(spatial_dim=spatial_dim)
-        else:
-            self.loss_fn = getattr(nn, loss_fn)()
-
         #unpack data info
         input_shape = data_info['input_shape']
         input_nodes = data_info['input_nodes']
@@ -71,7 +65,15 @@ class Model(pl.LightningModule):
         self.example_input_array = torch.zeros(input_shape)
 
         #model pieces
-        self.mesh = MeshHandler(input_nodes, input_weights, quad_map=quad_map).cache(point_seq, mirror=True)
+        self.mesh = MeshHandler(input_nodes, input_weights, quad_map=quad_map, weight_activation=weight_activation, normalize_weights=normalize_weights).cache(point_seq, mirror=True)
+
+        #loss function
+        #NOTE: There is probably a bit of a better way to do this, but this
+        #should work for now.
+        if loss_fn == 'SobolevLoss':
+            self.loss_fn = SobolevLoss(spatial_dim=spatial_dim)
+        else:
+            self.loss_fn = getattr(nn, loss_fn)()
 
         self.output_activation = output_activation()
 

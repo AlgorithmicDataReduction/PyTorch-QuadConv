@@ -4,7 +4,7 @@
 	#BSUB -e mystderr_test2.txt
 	#BSUB -o mystdout_test2.txt
 	#BSUB -nnodes 1                  #number of nodes
-	#BSUB -W 8:00                    #walltime in minutes
+	#BSUB -W 12:00                    #walltime in minutes
 	#BSUB -J paper_test2          #name of job
 	#BSUB -q pbatch                  #queue to use
 	#BSUB -G uco
