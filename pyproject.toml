@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytorch-quadconv"
+description = "PyTorch quadrature convolution layer and associated functionality."
+readme = "README.md"
+version = "0.1.0"
+license = {file = "LICENSE.txt"}
+authors = [
+  {name = "Cooper Simpson", email = "simpson.r.cooper@gmail.com"},
+  {name = "Kevin Doherty", email = "kevin.doherty@colorado.edu"}
+]
+keywords = [
+  "Machine Learning",
+  "Deep Learning"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 3-Alpha",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+requires-python = ">=3.6"
+dependencies = [
+  "torch-scatter"
+]
+
+[tool.setuptools]
+packages = ["torch_quadconv"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
