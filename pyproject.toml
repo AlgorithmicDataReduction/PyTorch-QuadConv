@@ -27,12 +27,11 @@ dependencies = [
   "torch-scatter"
 ]
 
+[tool.setuptools]
+packages = ["torch_quadconv"]
+
 [project.optional-dependencies]
 test = ["pytest"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
-namespaces = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

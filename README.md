@@ -30,7 +30,7 @@ QuadConv()
 ### [QuadConv: Quadrature-Based Convolutions with Applications to Non-Uniform Data Compression](https://arxiv.org/abs/2211.05151)
 ```bibtex
 @article{quadconv,
-	title = {{QCNN: Quadrature Convolutional Neural Network with Application to Unstructured Data Compression}},
+	title = {{QuadConv: Quadrature-Based Convolutions with Applications to Non-Uniform Data Compression}},
 	author = {Doherty, Kevin and Simpson, Cooper and Becker, Stephen and Doostan, Alireza},
 	year = {2022},
 	journal = {arXiv},
