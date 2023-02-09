@@ -1,56 +1,39 @@
-# QuadConv: Quadrature-Based Convolutions with Applications to Non-Uniform Data Compression
+# PyTorch QuadConv: Quadrature based convolutions for deep learning.
 
-### [arXiv](https://arxiv.org/abs/2211.05151)
+### Authors: [Kevin Doherty](), [Cooper Simpson](https://rs-coop.github.io/)
 
-[Kevin Doherty*](), [Cooper Simpson*](https://rs-coop.github.io/), [Stephen Becker](), [Alireza Doostan]()
-
-Submitted to [Journal of Computational Physics](https://www.sciencedirect.com/journal/journal-of-computational-physics)
-
-## Abstract
-We present a new convolution layer for deep learning architectures which we call QuadConv --- an approximation to continuous convolution via quadrature. Our operator is developed explicitly for use on non-uniform mesh-based data, and accomplishes this by learning a continuous kernel that can be sampled at arbitrary locations. Moreover, the construction of our operator admits an efficient implementation. In the setting of partial differential equation simulation data compression, we show that QuadConv can match the performance of standard discrete convolutions on uniform grid data by comparing a QuadConv autoencoder (QCAE) to a traditional convolutional autoencoder (CAE). Further, we show that the QCAE can maintain this accuracy even on non-uniform data.
+A quadrature-based convolution operator suitable for unstructured data.
 
 ## License & Citation
 All source code is made available under an MIT license. You can freely use and modify the code, without warranty, so long as you provide attribution to the authors. See `LICENSE` for the full text.
 
-Our work can be cited using the entry in `CITATION`.
+This repository can be cited using the entry in `CITATION`. See [Publications](#publications) for a full list of publications related to QuadConv and influencing this package. If any of these are useful to your own work, please cite them individually.
+
+## Installation
+This package can be installed via pip. From the terminal, run the following command:
+```console
+pip install pytorch-quadconv
+```
+
+### Testing
 
 ## Usage
 
-### Repository Structure
-- `core`: Model architectures, data loading, core operators, and utilities.
-- `data`: Data folders
-- `experiments`: Experiment configuration files
-  - `template.yaml`: Detailed experiment template
-- `job_scripts`: HPC job submission scripts
-- `lightning_logs`: Experiment logs
-- `notebooks`: Various Jupyter Notebooks
-- `py_scripts`: Various python scripts
-- `main.py`: Model training and testing script
+```python
+from torch_quadconv import QuadConv
 
-### Environment Setup
-The file `environment.yaml` contains a list of dependencies, and it can be used to generate an anaconda environment with the following command:
-```console
-conda create -file environment.yaml
+QuadConv()
 ```
-which will install all necessary packages in the conda environment `QuadConv`.
 
-For local development, it is easiest to install `core` as a pip package in editable mode using the following command from within the top level of this repository:
-```console
-pip install -e .
-```
-Although, the main experiment script can still be run without doing this.
+## Publications
 
-### Data Acquisition
-To obtain the datasets used in our paper...
-
-### Running Experiments
-Use the following command to run an experiment:
-```console
-python main.py --experiment <path/to/YAML/file/in/experiments>
-```
-If `logger` is set to `True` in the YAML config file, then the results of this experiment will be saved to `lightning_logs/<path/to/YAML/file/in/experiments>`.
-
-To visualize the logging results saved to `lightning_logs/` using tensorboard run the following command:
-```console
-tensorboard --logdir=lightning_logs/
+### [QuadConv: Quadrature-Based Convolutions with Applications to Non-Uniform Data Compression](https://arxiv.org/abs/2211.05151)
+```bibtex
+@article{quadconv,
+	title = {{QCNN: Quadrature Convolutional Neural Network with Application to Unstructured Data Compression}},
+	author = {Doherty, Kevin and Simpson, Cooper and Becker, Stephen and Doostan, Alireza},
+	year = {2022},
+	journal = {arXiv},
+	doi = {10.48550/ARXIV.2211.05151}
+}
 ```
