@@ -1,5 +1,0 @@
-include README.md
-include LICENSE
-include CITATION
-
-recursive-include tests *.py
