@@ -1,6 +1,6 @@
 # PyTorch QuadConv: Quadrature-based convolutions for deep learning.
 
-### Authors: [Kevin Doherty](), [Cooper Simpson](https://rs-coop.github.io/)
+### Authors: Kevin Doherty, [Cooper Simpson](https://rs-coop.github.io/)
 
 A quadrature-based convolution operator suitable for unstructured data.
 
