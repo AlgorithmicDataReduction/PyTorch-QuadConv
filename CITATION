@@ -1,6 +1,7 @@
 @misc{pytorch-quadconv,
   author = {Doherty, Kevin and Simpson, Cooper},
-  title = {{}},
-  howpublished = {},
+  title = {{PyTorch-QuadConv}},
+  howpublished = {\url{github.com/AlgorithmicDataReduction/PyTorch-QuadConv}},
+  note = {{Quadrature-based convolutions for deep learning}},
   year = {2023}
 }
