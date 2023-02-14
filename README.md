@@ -27,10 +27,10 @@ QuadConv()
 
 ## Publications
 
-### [QuadConv: Quadrature-Based Convolutions with Applications to Non-Uniform Data Compression](https://arxiv.org/abs/2211.05151)
+### [QuadConv: Quadrature-Based Convolutions with Applications to Non-Uniform PDE Data Compression](https://arxiv.org/abs/2211.05151)
 ```bibtex
 @article{quadconv,
-	title = {{QuadConv: Quadrature-Based Convolutions with Applications to Non-Uniform Data Compression}},
+	title = {{QuadConv: Quadrature-Based Convolutions with Applications to Non-Uniform PDE Data Compression}},
 	author = {Doherty, Kevin and Simpson, Cooper and Becker, Stephen and Doostan, Alireza},
 	year = {2022},
 	journal = {arXiv},
