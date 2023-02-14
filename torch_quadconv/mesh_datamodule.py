@@ -12,7 +12,7 @@ from torch.utils.data import random_split, DataLoader
 
 import pytorch_lightning as pl
 
-from .utils.quadrature import newton_cotes_quad
+from torch_quadconv.utils.quadrature import newton_cotes_quad
 
 '''
 PT Lightning data module for unstructured point cloud data, possibly with an
@@ -223,7 +223,7 @@ class MeshDataModule(pl.LightningDataModule):
             points_per_axis = int(self.num_points**(1/self.spatial_dim))
 
             #Assume the domain is the unit square
-            nodes = [] 
+            nodes = []
             for i in range(self.spatial_dim):
                 nodes.append(torch.linspace(0, 1, points_per_axis))
 
