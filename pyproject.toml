@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["torch_quadconv"]
+packages = ["torch_quadconv", "torch_quadconv.utils"]
 
 [project.optional-dependencies]
 test = ["pytest"]

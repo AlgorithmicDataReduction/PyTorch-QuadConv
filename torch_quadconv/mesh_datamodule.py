@@ -12,7 +12,7 @@ from torch.utils.data import random_split, DataLoader
 
 import pytorch_lightning as pl
 
-from torch_quadconv.utils.quadrature import newton_cotes_quad
+from .utils.quadrature import newton_cotes_quad
 
 '''
 PT Lightning data module for unstructured point cloud data, possibly with an

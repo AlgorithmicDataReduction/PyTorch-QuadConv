@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 
-from torch_quadconv.utils import quadrature
+from .utils import quadrature
 
 '''
 Point and Quadrature data handler.
