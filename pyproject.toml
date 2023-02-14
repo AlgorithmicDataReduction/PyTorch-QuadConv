@@ -27,9 +27,8 @@ dependencies = [
   "torch-scatter"
 ]
 
-[tool.setuptools.packages.find]
-where = ["torch_quadconv"]
-namespaces = false
+[tool.setuptools]
+packages = ["torch_quadconv"]
 
 [project.optional-dependencies]
 test = ["pytest"]
