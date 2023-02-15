@@ -101,7 +101,7 @@ def param_quad_const_weights(input_points, num_points):
     nodes = torch.meshgrid(*nodes, indexing='xy')
     nodes = torch.dstack(nodes).view(-1, spatial_dim)
 
-    return nodes, torch.ones(num_points)
+    return nodes, torch.ones(nodes.shape[0])
 
 '''
 Randomly downsample the input points.
