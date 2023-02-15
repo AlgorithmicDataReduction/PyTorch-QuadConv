@@ -28,12 +28,12 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2):
     num_points = int(num_points**(1/spatial_dim))
 
     assert num_points%composite_quad_order == 0, f'Composite qudarature order {composite_quad_order} does not divide evenly into number of points {num_points}.'
-    
+
     coord_min,_ = torch.min(input_points,dim=0)
     coord_max,_ = torch.max(input_points,dim=0)
 
     #nodes
-    nodes = [] 
+    nodes = []
     for i in range(spatial_dim):
         nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points))
 
@@ -75,7 +75,7 @@ def param_quad(input_points, num_points):
     coord_max,_ = torch.max(input_points,dim=0)
 
     #nodes
-    nodes = [] 
+    nodes = []
     for i in range(spatial_dim):
         nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points))
 
@@ -83,6 +83,25 @@ def param_quad(input_points, num_points):
     nodes = torch.dstack(nodes).view(-1, spatial_dim)
 
     return nodes, None
+
+def param_quad_const_weights(input_points, num_points):
+
+    spatial_dim = input_points.shape[1]
+
+    num_points = int(num_points**(1/spatial_dim))
+
+    coord_min,_ = torch.min(input_points,dim=0)
+    coord_max,_ = torch.max(input_points,dim=0)
+
+    #nodes
+    nodes = []
+    for i in range(spatial_dim):
+        nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points))
+
+    nodes = torch.meshgrid(*nodes, indexing='xy')
+    nodes = torch.dstack(nodes).view(-1, spatial_dim)
+
+    return nodes, torch.ones(num_points)
 
 '''
 Randomly downsample the input points.
