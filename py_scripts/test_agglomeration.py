@@ -2,9 +2,9 @@ import numpy as np
 import h5py as h5
 import matplotlib.pyplot as plt
 
-from core.torch_quadconv.utils.agglomeration import agglomerate
+from torch_quadconv.utils.agglomeration import agglomerate
 
-with h5.File("data/ignition_mesh/mesh.hdf5", "r") as file:
+with h5.File("data/mesh.hdf5", "r") as file:
     points = file["points"][...]
     bd_points = file["boundary_points"][...]
     element_indices = file["element_indices"][...]
