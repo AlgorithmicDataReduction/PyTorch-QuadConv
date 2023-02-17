@@ -59,7 +59,6 @@ def agglomerate(points, boundary_points, element_indices, elements, stages=1, fa
     #call c function
     lib_path = os.path.join(os.path.dirname(__file__), "libtest.so")
     lib = CDLL(lib_path)
-    lib.agglomerate(activity_p, points_p, element_indices_p, elements_p, boundary_points_p,
-                    spatial_dim, num_points, num_elements, num_boundary_points, stages, factor)
+    lib.agglomerate(activity_p, points_p, element_indices_p, elements_p, boundary_points_p,spatial_dim, num_points, num_elements, num_boundary_points, stages, factor)
 
     return activity
