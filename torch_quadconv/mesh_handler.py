@@ -79,8 +79,6 @@ class MeshHandler(nn.Module):
 
     @property
     def weights(self):
-
-
         if self.normalize_weights:
             with torch.no_grad():
                 self._weights[self._get_index()] = self._weights[self._get_index()] / torch.sum(self.weight_activation(self._weights[self._get_index()]))
