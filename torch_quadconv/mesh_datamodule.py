@@ -12,7 +12,7 @@ from torch.utils.data import random_split, DataLoader
 
 import pytorch_lightning as pl
 
-from .utils.quadrature import newton_cotes_quad
+from .utils import quadrature
 
 '''
 PT Lightning data module for unstructured point cloud data, possibly with an
@@ -50,7 +50,13 @@ class MeshDataModule(pl.LightningDataModule):
         ):
         super().__init__()
 
-        assert len(channels) != 0
+        #channels
+        if isinstance(channels, list):
+            assert len(channels) != 0
+        elif isinstance(channels, int):
+            channels = [i for i in range(channels)]
+        else:
+            raise ValueError("Channels must be a list or an integer")
 
         args = locals()
         args.pop('self')
@@ -60,12 +66,11 @@ class MeshDataModule(pl.LightningDataModule):
 
         self.train, self.val, self.test, self.predict = None, None, None, None
 
-        self.setup("fit")
-
         return
 
     @staticmethod
     def add_args(parent_parser):
+
         parser = parent_parser.add_argument_group("MeshDataModule")
 
         parser.add_argument('--data_dir', type=str)
@@ -73,12 +78,64 @@ class MeshDataModule(pl.LightningDataModule):
         return parent_parser
 
     '''
+    Load mesh points from point.npy file in data directory.
+    '''
+    def _load_points(self):
+
+        data_path = Path(self.data_dir)
+
+        #look for points file
+        points_file = data_path.joinpath('points.npy')
+        try:
+            self.points = torch.from_numpy(np.float32(np.load(points_file)))
+
+            assert self.points.shape[0] == self.num_points, f"Expected number of points ({self.num_points}) does not match actual number ({self.points.shape[0]})"
+            assert self.points.shape[1] == self.spatial_dim, f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
+
+        except FileNotFoundError:
+            self.points = None
+
+        except Exception as e:
+            raise e
+
+        return
+
+    '''
+    Load mesh features from features*.npy files in data directory.
+    '''
+    def _load_features(self):
+
+        data_path = Path(self.data_dir)
+
+        #look for features files
+        features_files = data_path.glob('features*.npy')
+        features = []
+
+        for file in features_files:
+            try:
+                features.append(torch.from_numpy(np.float32(np.load(file))))
+
+            except Exception as e:
+                raise e
+
+        #no features found
+        if len(features) == 0:
+            raise Exception(f'No features have been found in: {data_path}')
+
+        #concatenate features
+        features = torch.cat(features, 0)
+
+        return features
+
+    '''
     Transform features by selecting channels, reshaping, and normalizing.
     '''
     def _transform(self, features):
+
+        assert features.dim() == 3, f"Features has {features.dim()} dimensions, but should only have 3"
+
         #extract channels
-        if len(self.channels) != 0:
-            features = features[...,self.channels]
+        features = features[...,self.channels]
 
         #normalize
         if self.normalize:
@@ -94,80 +151,31 @@ class MeshDataModule(pl.LightningDataModule):
 
         return features
 
-    def _load_data(self):
-        data_path = Path(self.data_dir)
-
-        #look for points file
-        points_file = data_path.joinpath('points.npy')
-        try:
-            self.points = torch.from_numpy(np.float32(np.load(points_file)))
-
-            assert self.points.shape[0] == self.num_points, f"Expected number of points ({self.num_points}) does not match actual number ({self.points.shape[0]})"
-            assert self.points.shape[1] == self.spatial_dim, f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
-
-            #look for weights file
-            weights_file = data_path.joinpath('weights.npy')
-            try:
-                self.weights = torch.from_numpy(np.float32(np.load(weights_file)))
-
-                assert self.weights.shape[0] == self.num_points
-
-            except FileNotFoundError:
-                self.weights = None
-
-            except Exception as e:
-                raise e
-
-        except FileNotFoundError:
-            self.points = None
-            self.weights = None
-
-        except Exception as e:
-            raise e
-
-        #glob features file
-        features_files = data_path.glob('features*.npy')
-        features = []
-
-        #open and extract all features
-        for file in features_files:
-            try:
-                features.append(torch.from_numpy(np.float32(np.load(file))))
-            except Exception as e:
-                raise e
-
-        #no features found
-        if len(features) == 0:
-            raise Exception(f'No features have been found in: {data_path} !')
-
-        #concatenate features
-        features = torch.cat(features, 0)
-
-        return features
-
     def setup(self, stage=None):
-        #load features
-        features = self._load_data()
-
-        assert features.dim() == 3
 
         #setup
         if (stage == "fit" or stage is None) and (self.train is None or self.val is None):
-            full = self._transform(features)
+            #load features
+            features = self._load_features()
+            features = self._transform(features)
 
-            train_size = int(0.8*len(full))
-            val_size = len(full) - train_size
+            train_size = int(0.8*len(features))
+            val_size = len(features) - train_size
 
-            self.train, self.val = random_split(full, [train_size, val_size])
+            self.train, self.val = random_split(features, [train_size, val_size])
 
         if (stage == "test" or stage is None) and self.test is None:
+            #load features
+            features = self._load_features()
             self.test = self._transform(features)
 
         if (stage == "predict" or stage == "analyze" or stage is None) and self.predict is None:
+            #load features
+            features = self._load_features()
             self.predict = self._transform(features)
 
         if stage not in ["fit", "test", "predict", "analyze", None]:
-            raise ValueError("Stage must be one of analyze, fit, test, or predict.")
+            raise ValueError("Stage must be one of fit, test, predict, or analyze")
 
         return
 
@@ -203,7 +211,6 @@ class MeshDataModule(pl.LightningDataModule):
     def teardown(self, stage=None):
         return
 
-
     def analyze_data(self):
         return self.predict, self.points
 
@@ -214,36 +221,29 @@ class MeshDataModule(pl.LightningDataModule):
     '''
     def get_data_info(self):
 
-        features = self._load_data()
-
+        #input data shape
         input_shape = (1, len(self.channels), self.num_points)
 
+        #get points and establish weights
+        self._load_points()
+
         if self.points == None:
+            if self.quad_map != None:
+                self.points, weights = getattr(quadrature, self.quad_map)(torch.empty(1,self.spatial_dim), self.num_points)
+            else:
+                raise ValueError("Quadrature map must be specified when no points file is provided")
 
-            points_per_axis = int(self.num_points**(1/self.spatial_dim))
-
-            #Assume the domain is the unit square
-            nodes = []
-            for i in range(self.spatial_dim):
-                nodes.append(torch.linspace(0, 1, points_per_axis))
-
-            nodes = torch.meshgrid(*nodes, indexing='xy')
-            self.points = torch.dstack(nodes).view(-1, self.spatial_dim)
-
-            #input_points, _ = newton_cotes_quad(torch.empty(1, self.spatial_dim), self.num_points)
-
-        #else:
-            #input_points, input_weights = self.points, self.weights
+        else:
+            if self.quad_map != None:
+                _, weights = getattr(quadrature, self.quad_map)(self.points, self.num_points)
+            else:
+                weights = None
 
         data_info = {'input_shape': input_shape,
                         'input_nodes': self.points,
-                        'input_weights': self.weights}
+                        'input_weights': weights}
 
         return data_info
-
-    def _to_grid(self, features):
-        grid_shape = [int(features.shape[0]**(1/self.spatial_dim))]*self.spatial_dim
-        return features.reshape(*grid_shape, -1)
 
     '''
     Get a single data sample.
@@ -279,19 +279,11 @@ class MeshDataModule(pl.LightningDataModule):
 
         plot_func = None
 
-        if self.points == None:
-            if self.spatial_dim == 1:
-                plot_func = lambda f, ax: ax.plot(f)
-            elif self.spatial_dim == 2:
-                plot_func = lambda f, ax: ax.imshow(self._to_grid(f), vmin=-1, vmax=1, origin='lower')
-            else:
-                warn("Grid plotting only supported for 1D/2D data.")
+        if self.spatial_dim == 2:
+            #triangulate and save
+            self._triangulation = Triangulation(self.points[:,0], self.points[:,1])
+            plot_func = lambda f, ax: ax.tripcolor(self._triangulation, f, vmin=-1, vmax=1, facecolors=None)
         else:
-            if self.spatial_dim == 2:
-                #triangulate and save
-                self._triangulation = Triangulation(self.points[:,0], self.points[:,1])
-                plot_func = lambda f, ax: ax.tripcolor(self._triangulation, f, vmin=-1, vmax=1, facecolors=None)
-            else:
-                warn("Mesh plotting only supported for 2D data.")
+            warn("Mesh plotting only supported for 2D data.")
 
         return plot_func
