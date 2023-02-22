@@ -56,15 +56,6 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2):
 
     return nodes, weights
 
-def newton_cotes_quad_square(input_points, num_points):
-    return newton_cotes_quad(torch.tensor([[1.0,1.0],[0.0,0.0]]), num_points)
-
-def newton_cotes_quad_n5(input_points, num_points):
-    return newton_cotes_quad(input_points, num_points, 5)
-
-def newton_cotes_quad_n5_square(input_points, num_points):
-    return newton_cotes_quad_n5(torch.tensor([[1.0,1.0],[0.0,0.0]]), num_points)
-
 '''
 Builds a uniform grid of points.
 

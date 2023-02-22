@@ -229,13 +229,13 @@ class MeshDataModule(pl.LightningDataModule):
 
         if self.points == None:
             if self.quad_map != None:
-                self.points, weights = getattr(quadrature, self.quad_map)(torch.empty(1,self.spatial_dim), self.num_points)
+                self.points, weights = getattr(quadrature, self.quad_map)(self.spatial_dim, self.num_points)
             else:
                 raise ValueError("Quadrature map must be specified when no points file is provided")
 
         else:
             if self.quad_map != None:
-                _, weights = getattr(quadrature, self.quad_map)(self.points, self.num_points)
+                weights = getattr(quadrature, self.quad_map)(self.points, self.num_points)
             else:
                 weights = None
 
