@@ -170,13 +170,13 @@ class MeshDataModule(pl.LightningDataModule):
             features = self._load_features()
             self.test = self._transform(features)
 
-        if (stage == "predict" or stage == "analyze" or stage is None) and self.predict is None:
+        if (stage == "predict" or stage is None) and self.predict is None:
             #load features
             features = self._load_features()
             self.predict = self._transform(features)
 
-        if stage not in ["fit", "test", "predict", "analyze", None]:
-            raise ValueError("Stage must be one of fit, test, predict, or analyze")
+        if stage not in ["fit", "test", "predict", None]:
+            raise ValueError("Stage must be one of fit, test, predict")
 
         return
 
@@ -211,9 +211,6 @@ class MeshDataModule(pl.LightningDataModule):
 
     def teardown(self, stage=None):
         return
-
-    def analyze_data(self):
-        return self.predict, self.points
 
     '''
     Get all data details necessary for building network.
