@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.tri import Triangulation
+from matplotlib.colors import Normalize
 
 import torch
 from torch.utils.data import random_split, DataLoader
@@ -282,7 +283,9 @@ class MeshDataModule(pl.LightningDataModule):
         if self.spatial_dim == 2:
             #triangulate and save
             self._triangulation = Triangulation(self.points[:,0], self.points[:,1])
-            plot_func = lambda f, ax: ax.tripcolor(self._triangulation, f, vmin=-1, vmax=1, facecolors=None)
+            def plot_func(f, ax, norm=Normalize, vmin=None, vmax=None, **kwargs):
+                return ax.tripcolor(self._triangulation, f, norm=norm(vmin=vmin, vmax=vmax), **kwargs)
+
         else:
             warn("Mesh plotting only supported for 2D data.")
 

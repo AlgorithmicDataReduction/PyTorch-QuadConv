@@ -128,3 +128,12 @@ def random_downsample_const_weights(input_points, num_points):
 
 def const_unit_weights(input_points, num_points):
     return torch.ones(num_points)
+
+def newton_cotes_quad_square(spatial_dim, num_points):
+    return newton_cotes_quad(torch.tensor([[1.0]*spatial_dim,[0.0]*spatial_dim]), num_points)
+
+def newton_cotes_quad_n5(input_points, num_points):
+    return newton_cotes_quad(input_points, num_points, 5)
+
+def newton_cotes_quad_n5_square(spatial_dim, num_points):
+    return newton_cotes_quad_n5(torch.tensor([[1.0]*spatial_dim,[0.0]*spatial_dim]), num_points)
