@@ -6,7 +6,10 @@ void agglomerate(bool* a, double* p, int* ei, int* e, int* b, int s, int np, int
   printf("C agglomerate");
 
   for (int i=0; i<np; i++) {
-    a[i] = true;
+    for (int j=0; j<stages; j++)
+    {
+      a[i*stages+j] = true;
+    }
   }
 
   return;
