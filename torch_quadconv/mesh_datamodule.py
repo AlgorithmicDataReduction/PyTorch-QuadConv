@@ -223,7 +223,7 @@ class MeshDataModule(pl.LightningDataModule):
             points_per_axis = int(self.num_points**(1/self.spatial_dim))
 
             #Assume the domain is the unit square
-            nodes = [] 
+            nodes = []
             for i in range(self.spatial_dim):
                 nodes.append(torch.linspace(0, 1, points_per_axis))
 
