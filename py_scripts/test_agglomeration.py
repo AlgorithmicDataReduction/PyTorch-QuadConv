@@ -15,7 +15,7 @@ print(f"Boundary Point Indices: {bd_point_ind.shape[0]}, {np.max(bd_point_ind)}"
 print(f"Element Positions: {element_pos.shape[0]-1}, {element_pos[-1]}, {np.max(element_pos)}")
 print(f"Elements Indices: {element_ind.shape[0]}, {3*(element_pos.shape[0]-1)}, {np.max(element_ind)}")
 
-stages = 3
+levels = 3
 
 #check aligned, writeable, and C contiguous
 print(points.flags["CARRAY"])
@@ -30,10 +30,10 @@ print(element_ind[-3])
 print(element_ind[-2])
 print(element_ind[-1])
 
-print(bd_point_ind.dtype)
+print(points.dtype)
 print(element_ind.dtype)
 
-activity = agglomerate(points, bd_point_ind, element_pos, element_ind, stages=stages, factor=10)
+activity = agglomerate(points, bd_point_ind, element_pos, element_ind, levels=levels, factor=10)
 
 fig, axis = plt.subplots(2, 2, figsize=(10,10), constrained_layout=True)
 

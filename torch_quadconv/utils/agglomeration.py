@@ -17,8 +17,8 @@ Input:
     bd_point_ind: indices of boundary points in points
     element_pos: points[eind[eptr[i]:eptr[i+1]]] constitutes an element
     element_ind: indices of points in points to construct elements
-    stages: number of agglomeration stages
-    factor:
+    levels: number of agglomeration levels
+    factor: agglomerate division factor
 
 NOTE: Compile the .so file using the following command
     gcc -shared -o <output_name>.so -fPIC <name>.c
@@ -36,13 +36,13 @@ Input:
   num_points: int, number of mesh points
   num_elements: int, number of mesh elements
   num_bd_points: int, number of boundary points
-  stages: int, number of coarsening stages
+  levels: int, number of coarsening levels
   factor: int, agglomerate division factor
 */
 void agglomerate(activity, points, element_indices, elements, boundary, int spatial_dim,
                     int num_points, int num_elements, int num_boundary_points, int stages, int factor)
 '''
-def agglomerate(points, bd_point_ind, element_pos, element_ind, stages=1, factor=4):
+def agglomerate(points, bd_point_ind, element_pos, element_ind, levels, factor):
 
     #extract some attributes
     num_points, spatial_dim = points.shape
@@ -50,11 +50,11 @@ def agglomerate(points, bd_point_ind, element_pos, element_ind, stages=1, factor
     num_elements = element_pos.shape[0] - 1
 
     #create activity array
-    activity = np.zeros((num_points, stages), dtype=np.bool)
+    activity = np.zeros((num_points, levels), dtype=np.bool)
     activity_ptr = activity.ctypes.data_as(POINTER(c_bool))
 
     #get input pointers
-    points_ptr = points.ctypes.data_as(POINTER(c_double))
+    points_ptr = points.astype(np.float64).ctypes.data_as(POINTER(c_double))
     element_pos_ptr = element_pos.astype(np.int32).ctypes.data_as(POINTER(c_int))
     element_ind_ptr = element_ind.astype(np.int32).ctypes.data_as(POINTER(c_int))
     bd_point_ind_ptr = bd_point_ind.astype(np.int32).ctypes.data_as(POINTER(c_int))
@@ -62,6 +62,6 @@ def agglomerate(points, bd_point_ind, element_pos, element_ind, stages=1, factor
     #call C function
     lib_path = os.path.join(os.path.dirname(__file__), "libopossum.so")
     lib = CDLL(lib_path)
-    lib.agglomerate(activity_ptr, points_ptr, element_pos_ptr, element_ind_ptr, bd_point_ind_ptr, spatial_dim, num_points, num_elements, num_bd_points, stages, factor)
+    lib.agglomerate(activity_ptr, points_ptr, element_pos_ptr, element_ind_ptr, bd_point_ind_ptr, spatial_dim, num_points, num_elements, num_bd_points, levels, factor)
 
     return activity
