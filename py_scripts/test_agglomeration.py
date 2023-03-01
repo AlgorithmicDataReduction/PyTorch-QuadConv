@@ -6,30 +6,49 @@ from torch_quadconv.utils.agglomeration import agglomerate
 
 with h5.File("data/mesh.hdf5", "r") as file:
     points = file["points"][...]
-    bd_points = file["boundary_points"][...]
-    element_indices = file["element_indices"][...]
-    elements = file["elements"][...]
+    bd_point_ind = file["boundary_point_indices"][...]
+    element_pos = file["element_positions"][...]
+    element_ind = file["element_indices"][...]
 
 print(f"Points: {points.shape}")
-print(f"Boundary Points: {bd_points.shape}")
-print(f"Element Indices: {element_indices.shape}, {element_indices[-1]}")
-print(f"Elements: {elements.shape}")
+print(f"Boundary Point Indices: {bd_point_ind.shape[0]}, {np.max(bd_point_ind)}")
+print(f"Element Positions: {element_pos.shape[0]-1}, {element_pos[-1]}, {np.max(element_pos)}")
+print(f"Elements Indices: {element_ind.shape[0]}, {3*(element_pos.shape[0]-1)}, {np.max(element_ind)}")
 
-stages = 2
+stages = 3
 
-activity = agglomerate(points, bd_points, element_indices, elements, stages=stages)
+#check aligned, writeable, and C contiguous
+print(points.flags["CARRAY"])
+print(bd_point_ind.flags["CARRAY"])
+print(element_pos.flags["CARRAY"])
+print(element_ind.flags["CARRAY"])
 
-# fig, ax = plt.subplots(1, 1, figsize=(10,10))
-# ax.scatter(points[:,0], points[:,1])
+print(element_pos[-2])
+print(element_pos[-1])
 
-# plt.show()
+print(element_ind[-3])
+print(element_ind[-2])
+print(element_ind[-1])
 
-for i in range(stages):
+print(bd_point_ind.dtype)
+print(element_ind.dtype)
+
+activity = agglomerate(points, bd_point_ind, element_pos, element_ind, stages=stages, factor=10)
+
+fig, axis = plt.subplots(2, 2, figsize=(10,10), constrained_layout=True)
+
+axis[0,0].scatter(points[:,0], points[:,1], s=10)
+axis[0,0].axes.get_xaxis().set_visible(False)
+axis[0,0].axes.get_yaxis().set_visible(False)
+axis[0,0].set_title("Original Mesh")
+
+for i, ax in enumerate(np.ravel(axis)[1:]):
     sub_points = points[activity[:,i]]
+    ax.scatter(sub_points[:,0], sub_points[:,1], s=10)
+    ax.axes.get_xaxis().set_visible(False)
+    ax.axes.get_yaxis().set_visible(False)
+    ax.set_title(f"Stage {i+1}")
 
-    # print(sub_points.shape[0])
-    #
-    # fig, ax = plt.subplots(1, 1, figsize=(10,10))
-    # ax.scatter(sub_points[:,0], sub_points[:,1])
-    #
-    # plt.show()
+fig.suptitle("Agglomeration, factor 10")
+
+plt.show()
