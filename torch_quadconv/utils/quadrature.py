@@ -25,7 +25,7 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2):
 
     spatial_dim = input_points.shape[1]
 
-    num_points = int(num_points**(1/spatial_dim))
+    num_points = round(num_points**(1/spatial_dim))
 
     assert num_points%composite_quad_order == 0, f'Composite qudarature order {composite_quad_order} does not divide evenly into number of points {num_points}.'
 
@@ -69,7 +69,7 @@ def param_quad(input_points, num_points):
 
     spatial_dim = input_points.shape[1]
 
-    num_points = int(num_points**(1/spatial_dim))
+    num_points = round(num_points**(1/spatial_dim))
 
     coord_min,_ = torch.min(input_points,dim=0)
     coord_max,_ = torch.max(input_points,dim=0)
@@ -88,7 +88,7 @@ def param_quad_const_weights(input_points, num_points):
 
     spatial_dim = input_points.shape[1]
 
-    num_points = int(num_points**(1/spatial_dim))
+    num_points = round(num_points**(1/spatial_dim))
 
     coord_min,_ = torch.min(input_points,dim=0)
     coord_max,_ = torch.max(input_points,dim=0)
