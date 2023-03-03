@@ -155,7 +155,7 @@ class MeshDataModule(pl.LightningDataModule):
         if (stage == "fit" or stage is None) and (self.train is None or self.val is None):
             full = self._transform(features)
 
-            train_size = int(0.8*len(full))
+            train_size = int(self.split*len(full))
             val_size = len(full) - train_size
 
             self.train, self.val = random_split(full, [train_size, val_size])
