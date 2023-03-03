@@ -155,7 +155,7 @@ class MeshDataModule(pl.LightningDataModule):
         if (stage == "fit" or stage is None) and (self.train is None or self.val is None):
             full = self._transform(features)
 
-            train_size = int(self.split*len(full))
+            train_size = round(self.split*len(full))
             val_size = len(full) - train_size
 
             self.train, self.val = random_split(full, [train_size, val_size])
@@ -242,7 +242,7 @@ class MeshDataModule(pl.LightningDataModule):
         return data_info
 
     def _to_grid(self, features):
-        grid_shape = [int(features.shape[0]**(1/self.spatial_dim))]*self.spatial_dim
+        grid_shape = [round(features.shape[0]**(1/self.spatial_dim))]*self.spatial_dim
         return features.reshape(*grid_shape, -1)
 
     '''
