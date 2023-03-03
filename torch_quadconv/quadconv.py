@@ -168,13 +168,13 @@ class QuadConv(nn.Module):
     Compute indices associated with non-zero filters.
 
     Input:
-        handler: MeshHandler or PointCloudHandler object
+        mesh: MeshHandler object
     '''
-    def _compute_eval_indices(self, handler):
+    def _compute_eval_indices(self, mesh):
 
         #get output points
-        input_points = handler.input_points
-        output_points = input_points if self.output_same else handler.output_points
+        input_points = mesh.input_points()
+        output_points = input_points if self.output_same else mesh.output_points()
 
         #check
         assert input_points.shape[0] == self.in_points, f'{input_points.shape[0]} != {self.in_points}'
@@ -198,28 +198,28 @@ class QuadConv(nn.Module):
     Apply operator via quadrature approximation of convolution with features and learned filter.
 
     Input:
-        handler: MeshHandler or PointCloudHandler object
+        mesh: MeshHandler object
         features: a tensor of shape (batch size  X num of points X input channels)
 
     Output: tensor of shape (batch size X num of output points X output channels)
     '''
-    def forward(self, handler, features):
+    def forward(self, mesh, features):
 
         #get evaluation indices
         if self.cached:
             eval_indices = self.eval_indices
         else:
-            eval_indices = self._compute_eval_indices(handler)
+            eval_indices = self._compute_eval_indices(mesh)
 
         #get weights
-        weights = handler.weights[eval_indices[:,1]]
+        weights = mesh.weights()[eval_indices[:,1]]
 
         #compute eval locs
         if self.output_same:
-            eval_locs = handler.input_points[eval_indices[:,0]] - handler.input_points[eval_indices[:,1]]
+            eval_locs = mesh.input_points()[eval_indices[:,0]] - mesh.input_points()[eval_indices[:,1]]
         else:
-            eval_locs = handler.output_points[eval_indices[:,0]] - handler.input_points[eval_indices[:,1]]
-            handler.step()
+            eval_locs = mesh.output_points()[eval_indices[:,0]] - mesh.input_points()[eval_indices[:,1]]
+            mesh.step()
 
         #compute filter
         filters = self.G(eval_locs)

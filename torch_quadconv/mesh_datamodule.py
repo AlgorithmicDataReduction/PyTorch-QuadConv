@@ -1,8 +1,10 @@
 '''
 '''
 
+import os
 from warnings import warn
-from pathlib import Path
+
+import h5py as h5
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.tri import Triangulation
@@ -13,6 +15,7 @@ from torch.utils.data import random_split, DataLoader
 
 import pytorch_lightning as pl
 
+from .mesh_handler import Elements, MeshHandler
 from .utils import quadrature
 
 '''
@@ -78,53 +81,28 @@ class MeshDataModule(pl.LightningDataModule):
 
         return parent_parser
 
-    '''
-    Load mesh points from point.npy file in data directory.
-    '''
-    def _load_points(self):
-
-        data_path = Path(self.data_dir)
-
-        #look for points file
-        points_file = data_path.joinpath('points.npy')
-        try:
-            self.points = torch.from_numpy(np.float32(np.load(points_file)))
-
-            assert self.points.shape[0] == self.num_points, f"Expected number of points ({self.num_points}) does not match actual number ({self.points.shape[0]})"
-            assert self.points.shape[1] == self.spatial_dim, f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
-
-        except FileNotFoundError:
-            self.points = None
-
-        except Exception as e:
-            raise e
-
-        return
+    @property
+    def input_shape(self):
+        return (1, len(self.channels), self.num_points)
 
     '''
-    Load mesh features from features*.npy files in data directory.
+    Load mesh features from features.hdf5 files in data directory.
     '''
     def _load_features(self):
 
-        data_path = Path(self.data_dir)
+        features_file = os.path.join(self.data_dir, "features.hdf5")
 
-        #look for features files
-        features_files = data_path.glob('features*.npy')
-        features = []
+        try:
+            with h5.File(features_file, 'r') as file:
+                features = torch.from_numpy(file["features"][...].astype(np.float32))
 
-        for file in features_files:
-            try:
-                features.append(torch.from_numpy(np.float32(np.load(file))))
+                assert features.dim() == 3, f"Features has {features.dim()} dimensions, but should only have 3"
 
-            except Exception as e:
-                raise e
-
-        #no features found
-        if len(features) == 0:
+        except FileNotFoundError:
             raise Exception(f'No features have been found in: {data_path}')
 
-        #concatenate features
-        features = torch.cat(features, 0)
+        except Exception as e:
+            raise e
 
         return features
 
@@ -132,8 +110,6 @@ class MeshDataModule(pl.LightningDataModule):
     Transform features by selecting channels, reshaping, and normalizing.
     '''
     def _transform(self, features):
-
-        assert features.dim() == 3, f"Features has {features.dim()} dimensions, but should only have 3"
 
         #extract channels
         features = features[...,self.channels]
@@ -213,35 +189,49 @@ class MeshDataModule(pl.LightningDataModule):
         return
 
     '''
-    Get all data details necessary for building network.
-
-    Ouput: (input_shape, input_nodes, input_weights)
+    Load mesh from mesh.hdf5 file in data directory.
     '''
-    def get_data_info(self):
+    def load_mesh(self):
 
-        #input data shape
-        input_shape = (1, len(self.channels), self.num_points)
+        mesh_file = os.path.join(self.data_dir, "mesh.hdf5")
 
-        #get points and establish weights
-        self._load_points()
+        try:
+            with h5.File(mesh_file, 'r') as file:
 
-        if self.points == None:
+                self.points = torch.from_numpy(file["points"][...].astype(np.float32))
+
+                assert self.num_points == self.points.shape[0], f"Expected number of points ({self.num_points}) does not match actual number ({self.points.shape[0]})"
+                assert self.spatial_dim == self.points.shape[1], f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
+
+                if self.quad_map != None:
+                    weights = getattr(quadrature, self.quad_map)(self.points, self.num_points)
+                else:
+                    weights = None
+
+                if 'elements' in file.keys():
+                    element_pos = file['elements']["element_positions"][...]
+                    element_ind = file['elements']["element_indices"][...]
+
+                    if "boundary_point_indices" in file['elements'].keys():
+                        bd_point_ind = file['elements']["boundary_point_indices"][...]
+                    else:
+                        bd_point_ind = None
+
+                    elements = Elements(element_pos, element_ind, bd_point_ind)
+
+                else:
+                    elements = None
+
+        except FileNotFoundError:
             if self.quad_map != None:
                 self.points, weights = getattr(quadrature, self.quad_map)(self.spatial_dim, self.num_points)
             else:
                 raise ValueError("Quadrature map must be specified when no points file is provided")
 
-        else:
-            if self.quad_map != None:
-                weights = getattr(quadrature, self.quad_map)(self.points, self.num_points)
-            else:
-                weights = None
+        except Exception as e:
+            raise e
 
-        data_info = {'input_shape': input_shape,
-                        'input_nodes': self.points,
-                        'input_weights': weights}
-
-        return data_info
+        return MeshHandler(self.points, weights, elements)
 
     '''
     Get a single data sample.
@@ -258,7 +248,7 @@ class MeshDataModule(pl.LightningDataModule):
     Input:
         data: all batched data
     '''
-    def agglomerate(self, features):
+    def coalesce(self, features):
 
         #first, concatenate all the batches
         features = torch.cat(features)
