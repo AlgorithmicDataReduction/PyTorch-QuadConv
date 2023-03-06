@@ -45,6 +45,7 @@ class MeshDataModule(pl.LightningDataModule):
             batch_size,
             channels,
             quad_map = None,
+            quad_args = {},
             normalize = True,
             split = 0.8,
             shuffle = False,
@@ -130,7 +131,6 @@ class MeshDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
 
-        #setup
         if (stage == "fit" or stage is None) and (self.train is None or self.val is None):
             #load features
             features = self._load_features()
@@ -195,6 +195,8 @@ class MeshDataModule(pl.LightningDataModule):
 
         mesh_file = os.path.join(self.data_dir, "mesh.hdf5")
 
+        elements = None
+
         try:
             with h5.File(mesh_file, 'r') as file:
 
@@ -204,7 +206,7 @@ class MeshDataModule(pl.LightningDataModule):
                 assert self.spatial_dim == self.points.shape[1], f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
 
                 if self.quad_map != None:
-                    weights = getattr(quadrature, self.quad_map)(self.points, self.num_points)
+                    weights = getattr(quadrature, self.quad_map)(self.points, self.num_points, **self.quad_args)
                 else:
                     weights = None
 
@@ -219,12 +221,9 @@ class MeshDataModule(pl.LightningDataModule):
 
                     elements = Elements(element_pos, element_ind, bd_point_ind)
 
-                else:
-                    elements = None
-
         except FileNotFoundError:
             if self.quad_map != None:
-                self.points, weights = getattr(quadrature, self.quad_map)(self.spatial_dim, self.num_points)
+                self.points, weights = getattr(quadrature, self.quad_map)(self.spatial_dim, self.num_points, **self.quad_args)
             else:
                 raise ValueError("Quadrature map must be specified when no points file is provided")
 

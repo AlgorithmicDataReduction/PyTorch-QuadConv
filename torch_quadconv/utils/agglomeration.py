@@ -7,6 +7,8 @@ import sys
 import numpy as np
 from ctypes import CDLL, POINTER, c_double, c_bool, c_int
 
+import torch
+
 ################################################################################
 
 '''
@@ -42,7 +44,12 @@ Input:
 void agglomerate(activity, points, element_indices, elements, boundary, int spatial_dim,
                     int num_points, int num_elements, int num_boundary_points, int stages, int factor)
 '''
-def agglomerate(points, bd_point_ind, element_pos, element_ind, levels, factor):
+def agglomerate(points, elements, levels, factor):
+
+    #extract element details
+    bd_point_ind = elements.bd_point_ind
+    element_pos = elements.element_pos
+    element_ind = elements.element_ind
 
     #extract some attributes
     num_points, spatial_dim = points.shape
@@ -64,4 +71,4 @@ def agglomerate(points, bd_point_ind, element_pos, element_ind, levels, factor):
     lib = CDLL(lib_path)
     lib.agglomerate(activity_ptr, points_ptr, element_pos_ptr, element_ind_ptr, bd_point_ind_ptr, spatial_dim, num_points, num_elements, num_bd_points, levels, factor)
 
-    return activity
+    return torch.tensor(activity)

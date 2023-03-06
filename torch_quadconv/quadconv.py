@@ -85,8 +85,8 @@ class QuadConv(nn.Module):
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
-            self.H = self._create_mlp(mlp_spec)
-            self.H.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
+            self.G = self._create_mlp(mlp_spec)
+            self.G.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
 
         #mlp for each output channel
         elif filter_mode == 'share_in':
@@ -97,7 +97,7 @@ class QuadConv(nn.Module):
             for j in range(self.out_channels):
                 self.filter.append(self._create_mlp(mlp_spec))
 
-            self.H = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.channels_in, self.channels_out)
+            self.G = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.channels_in, self.channels_out)
 
         #mlp for each input and output channel pair
         elif filter_mode == 'nested':
@@ -109,13 +109,10 @@ class QuadConv(nn.Module):
                 for j in range(self.out_channels):
                     self.filter.append(self._create_mlp(mlp_spec))
 
-            self.H = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.in_channels, self.out_channels)
+            self.G = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.in_channels, self.out_channels)
 
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
-
-        #multiply by bump function
-        self.G = lambda z: self._bump(z)*self.H(z)
 
         return
 
@@ -150,19 +147,6 @@ class QuadConv(nn.Module):
     '''
     def _bump_arg(self, z):
         return torch.linalg.vector_norm(z, dim=(2), keepdims = True)**4
-
-    '''
-    Calculate bump function.
-
-    Input:
-        z: evaluation locations, [num_points, spatial_dim]
-    '''
-    def _bump(self, z):
-
-        bump_arg = torch.linalg.vector_norm(z, dim=(1), keepdims = False)**4
-        bump = torch.exp(1-1/(1-self.decay_param*bump_arg))
-
-        return bump.reshape(-1, 1, 1)
 
     '''
     Compute indices associated with non-zero filters.

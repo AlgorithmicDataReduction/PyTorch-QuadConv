@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from .utils import quadrature
+from .utils.agglomeration import agglomerate
 
 class Elements(nn.Module):
 
@@ -33,7 +34,7 @@ class MeshHandler(nn.Module):
             input_weights = None,
             input_elements = None,
             weight_activation = "Sigmoid",
-            normalize_weights = False,
+            normalize_weights = False
         ):
         super().__init__()
 
@@ -45,8 +46,7 @@ class MeshHandler(nn.Module):
 
         #weights
         if input_weights is None:
-            input_weights = torch.empty(input_points.shape[0])
-            input_weights = torch.nn.init.uniform_(input_weights, a=0, b=1)
+            input_weights = torch.nn.init.uniform_(torch.empty(input_points.shape[0]), a=0, b=1)
             req_grad = True
         else:
             req_grad = False
@@ -98,13 +98,13 @@ class MeshHandler(nn.Module):
         return self._elements[self._get_index()]
 
     '''
-    Cache mesh stages.
+    Construct mesh levels via quadrature map.
 
     Input:
         point_seq: sequence of number of points (e.g. [100, 50, 10])
         mirror: whether or not to mirror the point_seq, i.e. append reversed point_seq
     '''
-    def cache(self, point_seq, mirror=False, quad_map='newton_cotes_quad'):
+    def construct(self, point_seq, mirror=False, quad_map='newton_cotes_quad', quad_args={}):
 
         #get quad map
         quad_map = getattr(quadrature, quad_map)
@@ -119,17 +119,42 @@ class MeshHandler(nn.Module):
 
         #construct other point sets
         for i, num_points in enumerate(point_seq[1:]):
-            points, weights = quad_map(self._points[i-1], num_points)
+            points, weights = quad_map(self._points[i-1], num_points, **quad_args)
 
             if weights is None:
-                weights = torch.empty(points.shape[0])
-                weights = torch.nn.init.uniform_(weights, a=0, b=1)
+                weights = torch.nn.init.uniform_(torch.empty(points.shape[0]), a=0, b=1)
                 req_grad = True
             else:
                 req_grad = False
 
             self._points.append(nn.Parameter(points, requires_grad=False))
             self._weights.append(nn.Parameter(weights, requires_grad=req_grad))
+
+        #mirror the sequence, but reuse underlying data
+        if mirror:
+            self._num_stages *= 2
+
+        return self
+
+    '''
+    Construct mesh levels via agglomeration
+    '''
+    def agglomerate(self, levels, factor, mirror=False):
+
+        #set number of meshes and mesh stages
+        self._num_meshes = levels
+        self._num_stages = levels-1
+        self._radix = levels-1
+
+        #agglomerate
+        activity = agglomerate(self._points[0], self._elements[0], levls, factor)
+
+        for i in range(levels):
+            sub_points = self._points[0][activity[:,i]]
+            weights = torch.nn.init.uniform_(torch.empty(sub_points.shape[0]), a=0, b=1)
+
+            self._points.append(nn.Parameter(sub_points, requires_grad=False))
+            self._weights.append(nn.Parameter(weights, requires_grad=True))
 
         #mirror the sequence, but reuse underlying data
         if mirror:

@@ -137,3 +137,27 @@ def newton_cotes_quad_n5(input_points, num_points):
 
 def newton_cotes_quad_n5_square(spatial_dim, num_points):
     return newton_cotes_quad_n5(torch.tensor([[1.0]*spatial_dim,[0.0]*spatial_dim]), num_points)
+
+################################################################################
+
+def log_linear_weights(input_points, num_points, points_per_dim=[30, 50]):
+
+    coord_min,_ = torch.min(input_points, dim=0)
+    coord_max,_ = torch.max(input_points, dim=0)
+
+    #weights
+    d1 = (coord_max[0]-coord_min[0]) / (points_per_dim[0]-1)
+    d2 = (coord_max[1]-coord_min[1]) / (points_per_dim[1]-1)
+
+    rep = [int(num_points/composite_quad_order)]
+    nc_weights = torch.as_tensor(newton_cotes(composite_quad_order-1, 1)[0],dtype=torch.float)
+    weights = []
+
+    for i in range(spatial_dim):
+        weights.append(torch.tile(torch.Tensor((dx[i]/rep[0])*nc_weights), rep))
+
+    weights =  torch.meshgrid(*weights, indexing='xy')
+    weights = torch.dstack(weights).reshape(-1, spatial_dim)
+    weights = torch.prod(weights, dim=1)
+
+    return nodes, weights
