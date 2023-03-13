@@ -32,7 +32,7 @@ class QuadConv(nn.Module):
             out_channels,
             filter_seq,
             filter_mode = 'single',
-            weight_activation = nn.Sigmoid,
+            decay_param = None,
             bias = False,
             output_same = False,
             cache = True
@@ -54,13 +54,13 @@ class QuadConv(nn.Module):
         self.cached = False
 
         #decay parameter
-        self.decay_param = (self.in_points/16)**2
+        if decay_param == None:
+            self.decay_param = (self.in_points/16)**2
+        else:
+            self.decay_param == decay_param
 
         #initialize filter
         self._init_filter(filter_seq, filter_mode)
-
-        #quadrature weights activation
-        self.weight_activation = weight_activation()
 
         #bias
         if bias:
