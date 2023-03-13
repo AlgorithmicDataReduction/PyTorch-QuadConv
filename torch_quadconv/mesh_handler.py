@@ -69,7 +69,7 @@ class MeshHandler(nn.Module):
         return
 
     def step(self):
-        self._current_index = (self._current_index + 1)%(self._num_stages)
+        self._current_index = (self._current_index + 1)%(self._num_levels)
 
         return
 
@@ -114,7 +114,7 @@ class MeshHandler(nn.Module):
 
         #set number of meshes and mesh stages
         self._num_meshes = len(point_seq)
-        self._num_stages = len(point_seq)-1
+        self._num_levels = len(point_seq)-1
         self._radix = len(point_seq)-1
 
         #construct other point sets
@@ -132,7 +132,7 @@ class MeshHandler(nn.Module):
 
         #mirror the sequence, but reuse underlying data
         if mirror:
-            self._num_stages *= 2
+            self._num_levels *= 2
 
         return self
 
@@ -142,12 +142,12 @@ class MeshHandler(nn.Module):
     def agglomerate(self, levels, factor, mirror=False):
 
         #set number of meshes and mesh stages
-        self._num_meshes = levels
-        self._num_stages = levels-1
-        self._radix = levels-1
+        self._num_meshes = levels+1
+        self._num_levels = levels
+        self._radix = levels
 
         #agglomerate
-        activity = agglomerate(self._points[0], self._elements[0], levls, factor)
+        activity = agglomerate(self._points[0].data.numpy(), self._elements[0], levels, factor)
 
         for i in range(levels):
             sub_points = self._points[0][activity[:,i]]
@@ -158,6 +158,6 @@ class MeshHandler(nn.Module):
 
         #mirror the sequence, but reuse underlying data
         if mirror:
-            self._num_stages *= 2
+            self._num_levels *= 2
 
         return self
