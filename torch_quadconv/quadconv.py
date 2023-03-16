@@ -57,7 +57,7 @@ class QuadConv(nn.Module):
         if decay_param == None:
             self.decay_param = (self.in_points/16)**2
         else:
-            self.decay_param == decay_param
+            self.decay_param = decay_param
 
         #initialize filter
         self._init_filter(filter_seq, filter_mode)
