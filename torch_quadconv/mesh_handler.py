@@ -61,6 +61,11 @@ class MeshHandler(nn.Module):
 
         return
 
+    def reset(self):
+        self._current_index = 0
+
+        return
+
     def step(self):
         self._current_index = (self._current_index + 1)%(self._num_stages)
 
@@ -121,6 +126,7 @@ class MeshHandler(nn.Module):
 
             self._points.append(nn.Parameter(points, requires_grad=False))
             self._weights.append(nn.Parameter(weights, requires_grad=req_grad))
+            self._adjacency.append(None)
 
         #mirror the sequence, but reuse underlying data
         if mirror:
