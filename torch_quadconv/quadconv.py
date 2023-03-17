@@ -85,8 +85,8 @@ class QuadConv(nn.Module):
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
-            self.H = self._create_mlp(mlp_spec)
-            self.H.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
+            self.filter = self._create_mlp(mlp_spec)
+            self.H = lambda z: self.filter(z).reshape(-1, self.in_channels, self.out_channels)
 
         #mlp for each output channel
         elif filter_mode == 'share_in':
