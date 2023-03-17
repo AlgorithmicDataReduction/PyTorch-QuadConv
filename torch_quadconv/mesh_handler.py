@@ -52,7 +52,7 @@ class MeshHandler(nn.Module):
         if input_adjacency != None:
             self._adjacency = nn.ParameterList([input_adjacency])
         else:
-            self._adjacency = nn.ParameterList()
+            self._adjacency = nn.ParameterList([None])
 
         #other attributes
         self._spatial_dim = input_points.shape[1]
