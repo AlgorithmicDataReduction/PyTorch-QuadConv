@@ -3,7 +3,6 @@
 
 import torch
 import torch.nn as nn
-import torch_scatter
 
 from .utils.misc import Sin
 
@@ -234,7 +233,7 @@ class QuadConv(nn.Module):
         integral = values.new_zeros(features.shape[0], self.out_channels, self.out_points)
 
         #scatter
-        torch_scatter.segment_coo(values, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), integral, reduce="sum")
+        integral.scatter_add_(2, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), values)
 
         #add bias
         if self.bias is not None:
