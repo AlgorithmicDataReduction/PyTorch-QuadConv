@@ -6,6 +6,8 @@ import torch.nn as nn
 
 from .utils import quadrature
 
+from scipy.spatial import Delaunay
+
 '''
 Point and Quadrature data handler.
 
@@ -22,7 +24,7 @@ class MeshHandler(nn.Module):
             input_weights = None,
             input_adjacency = None,
             quad_map = 'newton_cotes_quad',
-            weight_activation = nn.Identity,
+            weight_activation = 'Identity',
             normalize_weights = False,
         ):
         super().__init__()
@@ -35,29 +37,28 @@ class MeshHandler(nn.Module):
 
         self.normalize_weights = normalize_weights
 
+        self.point_seq = None
+
         #weights
         if input_weights is None:
-            input_weights = torch.zeros(input_points.shape[0])
-            input_weights = torch.nn.init.uniform_(input_weights, a= 0, b = 1)
-            self.weight_activation = getattr(nn, weight_activation)()
-            req_grad = True
+            self.build_weight_map()
         else:
             req_grad = False
             self.weight_activation = getattr(nn, weight_activation)()
 
-        self._weights = nn.ParameterList([nn.Parameter(input_weights, requires_grad=req_grad)])
+        self._quad_map = getattr(quadrature, quad_map)
 
+        self._downsample_map = []
 
         #adjacency
         if input_adjacency != None:
             self._adjacency = nn.ParameterList([input_adjacency])
         else:
-            self._adjacency = nn.ParameterList()
+            self._adjacency = nn.ParameterList([nn.Parameter(torch.from_numpy(Delaunay(input_points).simplices).long(), requires_grad=False)])
 
         #other attributes
         self._spatial_dim = input_points.shape[1]
         self._current_index = 0
-        self._quad_map = getattr(quadrature, quad_map)
 
         return
 
@@ -79,16 +80,49 @@ class MeshHandler(nn.Module):
 
     @property
     def weights(self):
-        if self.normalize_weights:
-            with torch.no_grad():
-                self._weights[self._get_index()] = self._weights[self._get_index()] / torch.sum(self.weight_activation(self._weights[self._get_index()]))
-
-        return self.weight_activation(self._weights[self._get_index()])
+        return self.eval_weight_map(self._points[self._get_index()])
 
     @property
     def adjacency(self):
         return self._adjacency[self._get_index()]
+    
+    def get_downsample_map(self, key_num):
 
+        output = list(dsm for dsm in self._downsample_map if len(dsm) == key_num)[0]
+
+        return output
+    
+
+
+    def build_weight_map(self, element_size = 3, dimension = 2):
+
+        self.weight_map = nn.Sequential(
+            nn.Linear(element_size * dimension, 8),
+            nn.Sigmoid(),
+            nn.Linear(8, 8),
+            nn.Sigmoid(),
+            nn.Linear(8, 8),
+            nn.Sigmoid(),
+            nn.Linear(8, element_size),
+            nn.Sigmoid()
+        )
+
+        return
+    
+
+    def eval_weight_map(self, points, element_size = 3, dimension = 2):
+
+        element_list = self.adjacency
+
+        el_points = points[element_list].reshape(-1, element_size * dimension)
+
+        el_weights =  self.weight_map(el_points)
+
+        weights = torch.zeros(points.shape[0], device=points.device)
+
+        weights.scatter_add_(0, element_list.reshape(-1), el_weights.reshape(-1))
+
+        return weights
     '''
     Cache mesh stages.
 
@@ -106,21 +140,29 @@ class MeshHandler(nn.Module):
         self._num_stages = len(point_seq)-1
         self._radix = len(point_seq)-1
 
+        self.point_seq = point_seq.copy()
+
         #construct other point sets
         for i, num_points in enumerate(point_seq[1:]):
-            points, weights = self._quad_map(self._points[i-1], num_points)
+            points, weights, *elim_map = self._quad_map(self._points[i].clone(), num_points)
 
             if weights is None:
                 weights = torch.ones(points.shape[0])
-                #weights = torch.nn.init.uniform_(weights, a= 0, b = 1)
                 weights /= torch.sum(weights)
-
                 req_grad = True
             else:
                 req_grad = False
 
-            self._points.append(nn.Parameter(points, requires_grad=False))
-            self._weights.append(nn.Parameter(weights, requires_grad=req_grad))
+            self._points.append(nn.Parameter(torch.from_numpy(points), requires_grad=False))
+
+            if num_points != points.shape[0]:
+                self.point_seq[i+1] = points.shape[0]
+                Warning('Number of points in the user defined sequence is changing from {num_points} to {points.shape[0]}')
+
+            #self._weights.append(nn.Parameter(weights, requires_grad=req_grad))
+            self._adjacency.append(nn.Parameter(torch.from_numpy(Delaunay(points).simplices).long(), requires_grad=False))
+            if len(elim_map) > 0:
+                self._downsample_map.append(elim_map[0])
 
         #mirror the sequence, but reuse underlying data
         if mirror:
