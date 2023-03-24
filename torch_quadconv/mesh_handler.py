@@ -92,11 +92,7 @@ class MeshHandler(nn.Module):
             with torch.no_grad():
                 self._weights[self._get_index()] = self._weights[self._get_index()] / torch.sum(self._weight_activation(self._weights[self._get_index()]))
 
-        w = self._weights[self._get_index()]
-
-        #NOTE: This might cause problems during inference
-        if w.requires_grad:
-            w = self._weight_activation(w)
+        w = self._weight_activation(self._weights[self._get_index()])
 
         return w
 
@@ -162,6 +158,7 @@ class MeshHandler(nn.Module):
 
             self._points.append(nn.Parameter(sub_points, requires_grad=False))
             self._weights.append(nn.Parameter(weights, requires_grad=True))
+            self._elements.append(None)
 
         #mirror the sequence, but reuse underlying data
         if mirror:
