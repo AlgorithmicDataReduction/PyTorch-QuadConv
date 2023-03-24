@@ -53,7 +53,8 @@ class MeshHandler(nn.Module):
 
         self._weights = nn.ParameterList([nn.Parameter(input_weights, requires_grad=req_grad)])
 
-        self._weight_activation = getattr(nn, weight_activation)()
+        #NOTE: We shouldn't really need this at some point
+        self._weight_activation = getattr(nn, weight_activation)() if req_grad else nn.Identity()
         self._normalize_weights = normalize_weights
 
         #adjacency
