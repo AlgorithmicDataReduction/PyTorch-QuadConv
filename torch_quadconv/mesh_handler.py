@@ -89,6 +89,7 @@ class MeshHandler(nn.Module):
 
         w = self._weights[self._get_index()]
 
+        #NOTE: This might cause problems during inference
         if w.requires_grad:
             w = self._weight_activation(w)
 
