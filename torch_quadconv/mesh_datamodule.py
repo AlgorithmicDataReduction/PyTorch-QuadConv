@@ -136,8 +136,8 @@ class MeshDataModule(pl.LightningDataModule):
             features = self._load_features()
             features = self._transform(features)
 
-            train_size = round(self.split*len(full))
-            val_size = len(full) - train_size
+            train_size = round(self.split*len(features))
+            val_size = len(features) - train_size
 
             self.train, self.val = random_split(features, [train_size, val_size])
 

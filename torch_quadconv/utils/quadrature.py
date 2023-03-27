@@ -4,6 +4,7 @@ Quadratrure, downsampling, and agglomeration functions.
 
 import torch
 
+from math import prod
 from scipy.integrate import newton_cotes
 
 ################################################################################
@@ -62,46 +63,37 @@ Builds a uniform grid of points.
 Input:
     input_points: input pointss
     num_points: number of output points
-    x0: left end point
-    x1: right end point
+    ratio: ratio of points along each spatial dimension
+    const: whether to use constant weights or learned weights
 '''
-def param_quad(input_points, num_points):
+def param_quad(input_points, num_points, ratio=[], const=False):
 
     spatial_dim = input_points.shape[1]
 
-    num_points = round(num_points**(1/spatial_dim))
+    #compute number of points along each dimension
+    if len(ratio) == 0:
+        ratio = [1]*spatial_dim
+    else:
+        assert len(ratio) == spatial_dim
 
+    num_points = round((num_points/prod(ratio))**(1/spatial_dim))
+
+    #grid dimensions
     coord_min,_ = torch.min(input_points,dim=0)
     coord_max,_ = torch.max(input_points,dim=0)
 
     #nodes
     nodes = []
     for i in range(spatial_dim):
-        nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points))
+        nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points*ratio[i]))
 
     nodes = torch.meshgrid(*nodes, indexing='xy')
     nodes = torch.dstack(nodes).view(-1, spatial_dim)
 
-    return nodes, None
+    #weights
+    weights = torch.ones(nodes.shape[0]) if const else None
 
-def param_quad_const_weights(input_points, num_points):
-
-    spatial_dim = input_points.shape[1]
-
-    num_points = round(num_points**(1/spatial_dim))
-
-    coord_min,_ = torch.min(input_points,dim=0)
-    coord_max,_ = torch.max(input_points,dim=0)
-
-    #nodes
-    nodes = []
-    for i in range(spatial_dim):
-        nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points))
-
-    nodes = torch.meshgrid(*nodes, indexing='xy')
-    nodes = torch.dstack(nodes).view(-1, spatial_dim)
-
-    return nodes, torch.ones(nodes.shape[0])
+    return nodes, weights
 
 '''
 Randomly downsample the input points.
@@ -111,18 +103,16 @@ NOTE: only using one permuation here which is a bit weird
 Input:
     input_points: input points
     num_points: number of points to sample
+    const: whether to use constant weights or learned weights
 '''
-def random_downsample(input_points, num_points):
+def random_downsample(input_points, num_points, const=False):
 
     idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
 
-    return input_points[idxs, :], None
+    #weights
+    weights = torch.ones(num_points) if const else None
 
-def random_downsample_const_weights(input_points, num_points):
-
-    idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
-
-    return input_points[idxs, :], torch.ones(num_points)
+    return input_points[idxs, :], weights
 
 ################################################################################
 

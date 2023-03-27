@@ -85,7 +85,7 @@ class QuadConv(nn.Module):
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
             self.filter = self._create_mlp(mlp_spec)
-            self.H = lambda z: self.H(z).reshape(-1, self.in_channels, self.out_channels)
+            self.H = lambda z: self.filter(z).reshape(-1, self.in_channels, self.out_channels)
 
         #mlp for each output channel
         elif filter_mode == 'share_in':
@@ -96,7 +96,7 @@ class QuadConv(nn.Module):
             for j in range(self.out_channels):
                 self.filter.append(self._create_mlp(mlp_spec))
 
-            self.H = lambda z: torch.cat([module(z) for module in self.H]).reshape(-1, self.channels_in, self.channels_out)
+            self.H = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.channels_in, self.channels_out)
 
         #mlp for each input and output channel pair
         elif filter_mode == 'nested':
@@ -108,7 +108,7 @@ class QuadConv(nn.Module):
                 for j in range(self.out_channels):
                     self.filter.append(self._create_mlp(mlp_spec))
 
-            self.H = lambda z: torch.cat([module(z) for module in self.H]).reshape(-1, self.in_channels, self.out_channels)
+            self.H = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.in_channels, self.out_channels)
 
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
@@ -190,6 +190,8 @@ class QuadConv(nn.Module):
         if self.cache:
             self.eval_indices = nn.Parameter(idx, requires_grad=False)
             self.cached = True
+
+        print(f"QuadConv eval_indices: {idx.numel}")
 
         return idx
 
