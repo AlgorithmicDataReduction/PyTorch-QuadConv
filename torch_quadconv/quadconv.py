@@ -191,7 +191,7 @@ class QuadConv(nn.Module):
             self.eval_indices = nn.Parameter(idx, requires_grad=False)
             self.cached = True
 
-        print(f"QuadConv eval_indices: {idx.numel}")
+        print(f"QuadConv eval_indices: {idx.numel()}")
 
         return idx
 
