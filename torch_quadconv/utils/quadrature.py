@@ -87,8 +87,7 @@ def param_quad(input_points, num_points, ratio=[], const=False):
     for i in range(spatial_dim):
         nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points*ratio[i]))
 
-    nodes = torch.meshgrid(*nodes, indexing='xy')
-    nodes = torch.dstack(nodes).view(-1, spatial_dim)
+    nodes = torch.cartesian_prod(*nodes)
 
     #weights
     weights = torch.ones(nodes.shape[0]) if const else None
