@@ -148,6 +148,19 @@ class QuadConv(nn.Module):
         return torch.linalg.vector_norm(z, dim=(2), keepdims = True)**4
 
     '''
+    Calculate bump function.
+
+    Input:
+        z: evaluation locations, [num_points, spatial_dim]
+    '''
+    def _bump(self, z):
+
+        bump_arg = torch.linalg.vector_norm(z, dim=(1), keepdims = False)**4
+        bump = torch.exp(1-1/(1-self.decay_param*bump_arg))
+
+        return bump.reshape(-1, 1, 1)
+
+    '''
     Compute indices associated with non-zero filters.
 
     Input:
@@ -205,7 +218,7 @@ class QuadConv(nn.Module):
             mesh.step()
 
         #compute filter
-        filters = self.G(eval_locs)
+        filters = self._bump(eval_locs)*self.G(eval_locs)
 
         #compute quadrature as weights*filters*features
         values = torch.einsum('n, nij, bin -> bjn',
