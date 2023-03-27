@@ -84,34 +84,37 @@ class QuadConv(nn.Module):
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
-            self.H = self._create_mlp(mlp_spec)
-            self.G = lambda z: self.H(z).reshape(-1, self.in_channels, self.out_channels)
+            self.filter = self._create_mlp(mlp_spec)
+            self.H = lambda z: self.H(z).reshape(-1, self.in_channels, self.out_channels)
 
         #mlp for each output channel
         elif filter_mode == 'share_in':
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels)
 
-            self.H = nn.ModuleList()
+            self.filter = nn.ModuleList()
             for j in range(self.out_channels):
                 self.filter.append(self._create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat([module(z) for module in self.H]).reshape(-1, self.channels_in, self.channels_out)
+            self.H = lambda z: torch.cat([module(z) for module in self.H]).reshape(-1, self.channels_in, self.channels_out)
 
         #mlp for each input and output channel pair
         elif filter_mode == 'nested':
 
             mlp_spec = (self.spatial_dim, *filter_seq, 1)
 
-            self.H = nn.ModuleList()
+            self.filter = nn.ModuleList()
             for i in range(self.in_channels):
                 for j in range(self.out_channels):
                     self.filter.append(self._create_mlp(mlp_spec))
 
-            self.G = lambda z: torch.cat([module(z) for module in self.H]).reshape(-1, self.in_channels, self.out_channels)
+            self.H = lambda z: torch.cat([module(z) for module in self.H]).reshape(-1, self.in_channels, self.out_channels)
 
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
+
+        #multiply by bump function
+        self.G = lambda z: self._bump(z)*self.H(z)
 
         return
 
@@ -218,7 +221,7 @@ class QuadConv(nn.Module):
             mesh.step()
 
         #compute filter
-        filters = self._bump(eval_locs)*self.G(eval_locs)
+        filters = self.G(eval_locs)
 
         #compute quadrature as weights*filters*features
         values = torch.einsum('n, nij, bin -> bjn',
