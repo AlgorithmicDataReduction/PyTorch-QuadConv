@@ -123,3 +123,52 @@ def random_downsample_const_weights(input_points, num_points):
     idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
 
     return input_points[idxs, :], torch.ones(num_points)
+
+################################################################################
+
+def const_unit_weights(input_points, num_points):
+    return torch.ones(num_points)
+
+def newton_cotes_quad_square(spatial_dim, num_points):
+    return newton_cotes_quad(torch.tensor([[1.0]*spatial_dim,[0.0]*spatial_dim]), num_points)
+
+def newton_cotes_quad_n5(input_points, num_points):
+    return newton_cotes_quad(input_points, num_points, 5)
+
+def newton_cotes_quad_n5_square(spatial_dim, num_points):
+    return newton_cotes_quad_n5(torch.tensor([[1.0]*spatial_dim,[0.0]*spatial_dim]), num_points)
+
+################################################################################
+
+def log_linear_weights(input_points, num_points, points_per_dim=[30, 30], base=4, composite_quad_order=2):
+
+    coord_min, _ = torch.min(input_points, dim=0)
+    coord_max, _ = torch.max(input_points, dim=0)
+
+    #weights
+    dx = torch.logspace(0, 1, points_per_dim[0], base=base)
+    dx = (dx-1)/(base-1)
+
+    dy = (coord_max[1]-coord_min[1]) / (composite_quad_order-1)
+
+    weights = []
+
+    #log dimension (x)
+    trap = [(dx[1]-dx[0])/2]
+    trap.extend([(dx[i+1]-dx[i-1])/2 for i in range(1, points_per_dim[0]-1)])
+    trap.append((dx[-1]-dx[-2])/2)
+
+    weights.append(torch.tensor(trap))
+
+    #linear dimension (y)
+    rep = [int(points_per_dim[1]/composite_quad_order)]
+    nc_weights = torch.as_tensor(newton_cotes(composite_quad_order-1, 1)[0], dtype=torch.float)
+
+    weights.append(torch.tile(torch.Tensor((dy/rep[0])*nc_weights), rep))
+
+    #combine and reshape
+    weights =  torch.meshgrid(*weights, indexing='xy')
+    weights = torch.dstack(weights).reshape(-1, 2)
+    weights = torch.prod(weights, dim=1)
+
+    return weights
