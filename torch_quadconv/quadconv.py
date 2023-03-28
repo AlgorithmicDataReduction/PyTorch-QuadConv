@@ -34,7 +34,8 @@ class QuadConv(nn.Module):
             decay_param = None,
             bias = False,
             output_same = False,
-            cache = True
+            cache = True,
+            verbose = False
         ):
         super().__init__()
 
@@ -51,6 +52,7 @@ class QuadConv(nn.Module):
 
         self.cache = cache
         self.cached = False
+        self.verbose = verbose
 
         #decay parameter
         if decay_param == None:
@@ -191,7 +193,15 @@ class QuadConv(nn.Module):
             self.eval_indices = nn.Parameter(idx, requires_grad=False)
             self.cached = True
 
-        print(f"QuadConv eval_indices: {idx.numel()}")
+        if self.verbose:
+            print(f"QuadConv eval_indices: {idx.numel()}")
+
+            hist = torch.histc(idx[:,0], bins=self.out_points, min=0, max=self.out_points-1)
+
+            print(f"Max support points: {torch.max(hist)}")
+            print(f"Min support points: {torch.min(hist)}")
+            print(f"Avg support points: {torch.sum(hist)/hist.numel()}")
+            print("\n")
 
         return idx
 
