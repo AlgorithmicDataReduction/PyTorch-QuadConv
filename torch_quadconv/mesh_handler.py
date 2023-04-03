@@ -69,8 +69,8 @@ class MeshHandler(nn.Module):
 
         return
 
-    def reset(self):
-        self._current_index = 0
+    def reset(self, mirror=False):
+        self._current_index = 0 + mirror*self._radix
 
         return
 
