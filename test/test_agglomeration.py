@@ -7,9 +7,9 @@ from torch_quadconv.mesh_handler import Elements
 
 with h5.File("data/mesh.hdf5", "r") as file:
     points = file["points"][...]
-    bd_point_ind = file["boundary_point_indices"][...]
-    element_pos = file["element_positions"][...]
-    element_ind = file["element_indices"][...]
+    bd_point_ind = file["elements"]["boundary_point_indices"][...]
+    element_pos = file["elements"]["element_positions"][...]
+    element_ind = file["elements"]["element_indices"][...]
 
 print(f"Points: {points.shape}")
 print(f"Boundary Point Indices: {bd_point_ind.shape[0]}, {np.max(bd_point_ind)}")

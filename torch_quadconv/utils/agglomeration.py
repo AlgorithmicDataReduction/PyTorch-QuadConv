@@ -67,7 +67,7 @@ def agglomerate(points, elements, levels, factor):
     bd_point_ind_ptr = bd_point_ind.astype(np.int32).ctypes.data_as(POINTER(c_int))
 
     #call C function
-    lib_path = os.path.join(os.path.dirname(__file__), "libopossum.so")
+    lib_path = os.path.join(os.path.dirname(__file__), "opossum_agglom.so")
     lib = CDLL(lib_path)
     lib.agglomerate(activity_ptr, points_ptr, element_pos_ptr, element_ind_ptr, bd_point_ind_ptr, spatial_dim, num_points, num_elements, num_bd_points, levels, factor)
 
