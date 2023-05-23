@@ -64,19 +64,26 @@ Input:
     input_points: input pointss
     num_points: number of output points
     ratio: ratio of points along each spatial dimension
+    base: logspace base, fractional has decreasing spacing from min to max
     const: whether to use constant weights or learned weights
 '''
-def param_quad(input_points, num_points, ratio=[], const=False):
+def param_quad(input_points, num_points, ratio=[], base=[], const=False):
 
     spatial_dim = input_points.shape[1]
 
-    #compute number of points along each dimension
+    num_points = round((num_points/prod(ratio))**(1/spatial_dim))
+
+    #check ratio
     if len(ratio) == 0:
         ratio = [1]*spatial_dim
     else:
         assert len(ratio) == spatial_dim
 
-    num_points = round((num_points/prod(ratio))**(1/spatial_dim))
+    #check base
+    if len(base) == 0:
+        base = [None]*spatial_dim
+    else:
+        assert len(base) == spatial_dim
 
     #grid dimensions
     coord_min,_ = torch.min(input_points,dim=0)
@@ -85,7 +92,16 @@ def param_quad(input_points, num_points, ratio=[], const=False):
     #nodes
     nodes = []
     for i in range(spatial_dim):
-        nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points*ratio[i]))
+        #linearly spaced nodes
+        if base[i] == None:
+            nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points*ratio[i]))
+
+        #logarithmically spaced nodes
+        else:
+            p = torch.logspace(0, 1, steps=num_points*ratio[i], base=base[i])
+            p = coord_min[i] + ((coord_max[i]-coord_min[i])/(base[i]-1))*(p-1)
+
+            nodes.append(p)
 
     nodes = torch.cartesian_prod(*nodes)
 
