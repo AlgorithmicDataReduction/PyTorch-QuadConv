@@ -46,6 +46,8 @@ void agglomerate(activity, points, element_indices, elements, boundary, int spat
 '''
 def agglomerate(points, elements, levels, factor):
 
+    print("Agglomerating...")
+
     #extract element details
     bd_point_ind = elements.bd_point_ind
     element_pos = elements.element_pos
