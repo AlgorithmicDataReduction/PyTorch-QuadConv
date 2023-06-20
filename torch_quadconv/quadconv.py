@@ -182,12 +182,15 @@ class QuadConv(nn.Module):
         assert output_points.shape[0] == self.out_points, f'{output_points.shape[0]} != {self.out_points}'
 
         #determine indices
+        #NOTE: The following block is what we would want to loop on for computing these evaluation indices in batches
+        ####
         locs = output_points.unsqueeze(1) - input_points.unsqueeze(0)
 
         bump_arg = self._bump_arg(locs)
 
         tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
         idx = torch.nonzero(tf_vec, as_tuple=False)
+        ####
 
         if self.cache:
             self.eval_indices = nn.Parameter(idx, requires_grad=False)
