@@ -59,7 +59,7 @@ def agglomerate(points, elements, levels, factor):
     num_elements = element_pos.shape[0] - 1
 
     #create activity array
-    activity = np.zeros((num_points, levels), dtype=np.bool)
+    activity = np.zeros((num_points, levels), dtype=bool)
     activity_ptr = activity.ctypes.data_as(POINTER(c_bool))
 
     #get input pointers
