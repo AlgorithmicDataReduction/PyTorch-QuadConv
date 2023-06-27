@@ -120,9 +120,14 @@ Input:
     num_points: number of points to sample
     const: whether to use constant weights or learned weights
 '''
-def random_downsample(input_points, num_points, const=False):
+def random_downsample(input_points, num_points, const=False, seed=None):
 
-    idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
+    if seed is not None:
+        gen = torch.Generator().manual_seed(seed)
+    else:
+        gen = None
+
+    idxs = torch.randperm(input_points.shape[0], device=input_points.device, generator=gen)[:num_points]
 
     #weights
     weights = torch.ones(num_points) if const else None
