@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from torch_quadconv.utils.agglomeration import agglomerate
 from torch_quadconv.mesh_handler import Elements
 
-with h5.File("data/mesh.hdf5", "r") as file:
+with h5.File("data/flat_plate_2d_cut/mesh.hdf5", "r") as file:
     points = file["points"][...]
     bd_point_ind = file["elements"]["boundary_point_indices"][...]
     element_pos = file["elements"]["element_positions"][...]
@@ -16,7 +16,7 @@ print(f"Boundary Point Indices: {bd_point_ind.shape[0]}, {np.max(bd_point_ind)}"
 print(f"Element Positions: {element_pos.shape[0]-1}, {element_pos[-1]}, {np.max(element_pos)}")
 print(f"Elements Indices: {element_ind.shape[0]}, {3*(element_pos.shape[0]-1)}, {np.max(element_ind)}")
 
-levels = 1
+levels = 2
 factor = 100
 
 #check aligned, writeable, and C contiguous
