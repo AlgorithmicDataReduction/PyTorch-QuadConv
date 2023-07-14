@@ -192,6 +192,31 @@ class QuadConv(nn.Module):
             self.cached = True
 
         return idx
+    
+
+    def _memeff_compute_eval_indices(self, handler):
+
+        #get output points
+        input_points = handler.input_points
+        output_points = input_points if self.output_same else handler.output_points
+
+        #check
+        assert input_points.shape[0] == self.in_points, f'{input_points.shape[0]} != {self.in_points}'
+        assert output_points.shape[0] == self.out_points, f'{output_points.shape[0]} != {self.out_points}'
+
+        #determine indices
+        locs = output_points.unsqueeze(1) - input_points.unsqueeze(0)
+
+        bump_arg = self._bump_arg(locs)
+
+        tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
+        idx = torch.nonzero(tf_vec, as_tuple=False)
+
+        if self.cache:
+            self.eval_indices = nn.Parameter(idx, requires_grad=False)
+            self.cached = True
+
+        return idx
 
     '''
     Apply operator via quadrature approximation of convolution with features and learned filter.
