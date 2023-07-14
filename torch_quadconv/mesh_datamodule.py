@@ -36,11 +36,8 @@ class MeshDataModule(pl.LightningDataModule):
 
     def __init__(self,*,
             data_dir,
-            spatial_dim,
-            num_points,
             batch_size,
-            channels,
-            quad_map = None,
+            channels = [],
             normalize = True,
             split = 0.8,
             shuffle = False,
@@ -50,7 +47,7 @@ class MeshDataModule(pl.LightningDataModule):
         ):
         super().__init__()
 
-        assert len(channels) != 0
+        #assert len(channels) != 0
 
         args = locals()
         args.pop('self')
@@ -59,6 +56,8 @@ class MeshDataModule(pl.LightningDataModule):
             setattr(self, key, value)
 
         self.train, self.val, self.test, self.predict = None, None, None, None
+
+        self.num_channels = None
 
         self.setup("fit")
 
@@ -102,15 +101,18 @@ class MeshDataModule(pl.LightningDataModule):
         try:
             self.points = torch.from_numpy(np.float32(np.load(points_file)))
 
-            assert self.points.shape[0] == self.num_points, f"Expected number of points ({self.num_points}) does not match actual number ({self.points.shape[0]})"
-            assert self.points.shape[1] == self.spatial_dim, f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
+            self.num_points = self.points.shape[0]
+            self.spatial_dim = self.points.shape[1]
+
+            #assert self.points.shape[0] == self.num_points, f"Expected number of points ({self.num_points}) does not match actual number ({self.points.shape[0]})"
+            #assert self.points.shape[1] == self.spatial_dim, f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
 
             #look for weights file
             weights_file = data_path.joinpath('weights.npy')
             try:
                 self.weights = torch.from_numpy(np.float32(np.load(weights_file)))
 
-                assert self.weights.shape[0] == self.num_points
+                #assert self.weights.shape[0] == self.num_points
 
             except FileNotFoundError:
                 self.weights = None
@@ -142,6 +144,8 @@ class MeshDataModule(pl.LightningDataModule):
 
         #concatenate features
         features = torch.cat(features, 0)
+
+        self.num_channels = features.shape[2]
 
         return features
 
@@ -216,7 +220,7 @@ class MeshDataModule(pl.LightningDataModule):
 
         features = self._load_data()
 
-        input_shape = (1, len(self.channels), self.num_points)
+        input_shape = (1, self.num_channels, self.num_points)
 
         if self.points == None:
 

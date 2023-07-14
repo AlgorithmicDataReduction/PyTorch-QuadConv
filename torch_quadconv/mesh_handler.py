@@ -24,6 +24,7 @@ class MeshHandler(nn.Module):
             input_weights = None,
             input_adjacency = None,
             quad_map = 'newton_cotes_quad',
+            multilevel_map = 'mfnus',
             weight_activation = 'Identity',
             normalize_weights = False,
         ):
@@ -46,9 +47,11 @@ class MeshHandler(nn.Module):
             req_grad = False
             self.weight_activation = getattr(nn, weight_activation)()
 
-        self._quad_map = getattr(quadrature, quad_map)
+        #self._quad_map = getattr(quadrature, quad_map)
 
-        self._downsample_map = []
+        self._elim_map = []
+
+        self.multilevel_map = getattr(quadrature, multilevel_map)
 
         #adjacency
         if input_adjacency != None:
@@ -88,7 +91,7 @@ class MeshHandler(nn.Module):
     
     def get_downsample_map(self, key_num):
 
-        output = list(dsm for dsm in self._downsample_map if len(dsm) == key_num)[0]
+        output = list(dsm for dsm in self._elim_map if len(dsm) == key_num)[0]
 
         return output
     
@@ -163,6 +166,38 @@ class MeshHandler(nn.Module):
             self._adjacency.append(nn.Parameter(torch.from_numpy(Delaunay(points).simplices).long(), requires_grad=False))
             if len(elim_map) > 0:
                 self._downsample_map.append(elim_map[0])
+
+        #mirror the sequence, but reuse underlying data
+        if mirror:
+            self._num_stages *= 2
+
+        return self
+
+
+    def build_seq(self, stages, mirror=False):
+
+        #make sure input_points and point_seq align
+
+        #set number of meshes and mesh stages
+        self._num_meshes = stages + 1
+        self._num_stages = stages
+        self._radix = stages
+
+        self.point_seq = []
+
+        self.point_seq.append(self._points[0].shape[0])
+
+        #construct other point sets
+        for i in range(stages):
+            points, elim_map = self.multilevel_map(self._points[i].clone())
+
+            self._points.append(nn.Parameter(torch.from_numpy(points), requires_grad=False))
+
+            self.point_seq.append(points.shape[0])
+
+            self._adjacency.append(nn.Parameter(torch.from_numpy(Delaunay(points).simplices).long(), requires_grad=False))
+
+            self._elim_map.append(elim_map)
 
         #mirror the sequence, but reuse underlying data
         if mirror:
