@@ -148,7 +148,7 @@ class QuadConv(nn.Module):
         z: evaluation locations, [out_points, in_points, spatial_dim]
     '''
     def _bump_arg(self, z):
-        return torch.linalg.vector_norm(z, dim=(2), keepdims = True)**4
+        return torch.sum(torch.square(z), dim=(2), keepdims = True)**2
 
     '''
     Calculate bump function.
@@ -158,7 +158,7 @@ class QuadConv(nn.Module):
     '''
     def _bump(self, z):
 
-        bump_arg = torch.linalg.vector_norm(z, dim=(1), keepdims = False)**4
+        bump_arg = torch.sum(torch.square(z), dim=(1), keepdims = False)**2
         bump = torch.exp(1-1/(1-self.decay_param*bump_arg))
 
         return bump.reshape(-1, 1, 1)
