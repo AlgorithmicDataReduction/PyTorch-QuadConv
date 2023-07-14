@@ -147,7 +147,7 @@ class MeshHandler(nn.Module):
 
         #construct other point sets
         for i, num_points in enumerate(point_seq[1:]):
-            points, weights, *elim_map = self._quad_map(self._points[i].clone(), num_points)
+            points, weights, *elim_map = self.multilevel_map(self._points[i].clone(), num_points)
 
             if weights is None:
                 weights = torch.ones(points.shape[0])
@@ -165,7 +165,7 @@ class MeshHandler(nn.Module):
             #self._weights.append(nn.Parameter(weights, requires_grad=req_grad))
             self._adjacency.append(nn.Parameter(torch.from_numpy(Delaunay(points).simplices).long(), requires_grad=False))
             if len(elim_map) > 0:
-                self._downsample_map.append(elim_map[0])
+                self._elim_map.append(elim_map[0])
 
         #mirror the sequence, but reuse underlying data
         if mirror:
@@ -189,7 +189,7 @@ class MeshHandler(nn.Module):
 
         #construct other point sets
         for i in range(stages):
-            points, elim_map = self.multilevel_map(self._points[i].clone())
+            points, weights, *elim_map = self.multilevel_map(self._points[i].clone())
 
             self._points.append(nn.Parameter(torch.from_numpy(points), requires_grad=False))
 
@@ -197,7 +197,7 @@ class MeshHandler(nn.Module):
 
             self._adjacency.append(nn.Parameter(torch.from_numpy(Delaunay(points).simplices).long(), requires_grad=False))
 
-            self._elim_map.append(elim_map)
+            self._elim_map.append(elim_map[0])
 
         #mirror the sequence, but reuse underlying data
         if mirror:
