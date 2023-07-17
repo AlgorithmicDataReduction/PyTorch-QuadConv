@@ -128,8 +128,8 @@ def random_downsample_const_weights(input_points, num_points):
 
 
 
-def mfnus(input_points, *args, appx_ds=1.01):
+def mfnus(input_points, *args, appx_ds=1.65):
 
-    new_xy, elim_map = MFNUS(input_points, fc=appx_ds, K=3)
+    new_xy, elim_map = MFNUS(input_points, fc=appx_ds, K=10)
 
     return new_xy, None, elim_map
