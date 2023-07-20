@@ -67,10 +67,11 @@ def agglomerate(points, elements, levels, factor):
     element_pos_ptr = element_pos.astype(np.int32).ctypes.data_as(POINTER(c_int))
     element_ind_ptr = element_ind.astype(np.int32).ctypes.data_as(POINTER(c_int))
     bd_point_ind_ptr = bd_point_ind.astype(np.int32).ctypes.data_as(POINTER(c_int))
+    factor_ptr = factor.astype(np.int32).ctypes.data_as(POINTER(c_int))
 
     #call C function
     lib_path = os.path.join(os.path.dirname(__file__), "libopossum_agglom.so")
     lib = CDLL(lib_path)
-    lib.agglomerate(activity_ptr, points_ptr, element_pos_ptr, element_ind_ptr, bd_point_ind_ptr, spatial_dim, num_points, num_elements, num_bd_points, levels, factor)
+    lib.agglomerate(activity_ptr, points_ptr, element_pos_ptr, element_ind_ptr, bd_point_ind_ptr, spatial_dim, num_points, num_elements, num_bd_points, levels, factor_ptr)
 
     return torch.tensor(activity)

@@ -213,9 +213,9 @@ class QuadConv(nn.Module):
 
     Input:
         mesh: MeshHandler object
-        features: a tensor of shape (batch size  X num of points X input channels)
+        features: a tensor of shape (batch size X input channels X num input points)
 
-    Output: tensor of shape (batch size X num of output points X output channels)
+    Output: tensor of shape (batch size X output channels X num output points)
     '''
     def forward(self, mesh, features):
 

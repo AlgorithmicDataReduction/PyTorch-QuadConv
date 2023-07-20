@@ -16,8 +16,8 @@ print(f"Boundary Point Indices: {bd_point_ind.shape[0]}, {np.max(bd_point_ind)}"
 print(f"Element Positions: {element_pos.shape[0]-1}, {element_pos[-1]}, {np.max(element_pos)}")
 print(f"Elements Indices: {element_ind.shape[0]}, {3*(element_pos.shape[0]-1)}, {np.max(element_ind)}")
 
-levels = 2
-factor = 100
+levels = 3
+factor = np.array([200, 10, 3])
 
 #check aligned, writeable, and C contiguous
 print(points.flags["CARRAY"])
@@ -50,9 +50,9 @@ for i, ax in enumerate(np.ravel(axis)[1:]):
         ax.scatter(sub_points[:,0], sub_points[:,1], s=10)
         ax.axes.get_xaxis().set_visible(False)
         ax.axes.get_yaxis().set_visible(False)
-        ax.set_title(f"Stage {i+1}, {sub_points.shape[0]} points")
+        ax.set_title(f"Stage {i+1}, Factor {factor[i]}, {sub_points.shape[0]} points")
     except: pass
 
-fig.suptitle(f"Agglomeration, factor {factor}")
+fig.suptitle(f"Agglomeration")
 
 plt.show()
