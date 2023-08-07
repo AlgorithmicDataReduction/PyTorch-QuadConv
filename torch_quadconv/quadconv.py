@@ -197,14 +197,13 @@ class QuadConv(nn.Module):
             self.cached = True
 
         if self.verbose:
-            print(f"QuadConv eval_indices: {idx.numel()}")
+            print(f"\nQuadConv eval_indices: {idx.numel()}")
 
             hist = torch.histc(idx[:,0], bins=self.out_points, min=0, max=self.out_points-1)
 
             print(f"Max support points: {torch.max(hist)}")
             print(f"Min support points: {torch.min(hist)}")
             print(f"Avg support points: {torch.sum(hist)/hist.numel()}")
-            print("\n")
 
         return idx
 
