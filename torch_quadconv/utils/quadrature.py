@@ -94,11 +94,11 @@ def param_quad(input_points, num_points, ratio=[], base=[], const=False):
     for i in range(spatial_dim):
         #linearly spaced nodes
         if base[i] == None:
-            nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points*ratio[i]))
+            nodes.append(torch.linspace(coord_min[i], coord_max[i], round(num_points*ratio[i])))
 
         #logarithmically spaced nodes
         else:
-            p = torch.logspace(0, 1, steps=num_points*ratio[i], base=base[i])
+            p = torch.logspace(0, 1, steps=round(num_points*ratio[i]), base=base[i])
             p = coord_min[i] + ((coord_max[i]-coord_min[i])/(base[i]-1))*(p-1)
 
             nodes.append(p)
