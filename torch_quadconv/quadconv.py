@@ -116,7 +116,8 @@ class QuadConv(nn.Module):
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
 
         #multiply by bump function
-        self.G = lambda z: self._bump(z)*self.H(z)
+        #NOTE: Unnecessary, but leaving this in for backwards compatability
+        self.G = self.H
 
         return
 
@@ -151,19 +152,6 @@ class QuadConv(nn.Module):
     '''
     def _bump_arg(self, z):
         return torch.linalg.vector_norm(z, dim=(2), keepdims = True)**4
-
-    '''
-    Calculate bump function.
-
-    Input:
-        z: evaluation locations, [num_points, spatial_dim]
-    '''
-    def _bump(self, z):
-
-        bump_arg = torch.linalg.vector_norm(z, dim=(1), keepdims = False)**4
-        bump = torch.exp(1-1/(1-self.decay_param*bump_arg))
-
-        return bump.reshape(-1, 1, 1)
 
     '''
     Compute indices associated with non-zero filters.
