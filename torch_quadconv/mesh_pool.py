@@ -37,7 +37,7 @@ class Mesh_MaxPool(nn.Module):
              
             if not self.adjoint:
                   
-                elim_map = handler.get_downsample_map(handler.output_points.shape[0]).copy()
+                elim_map = handler.get_downsample_map(handler.output_points().shape[0]).copy()
 
                 for i in elim_map.keys():
                     elim_map[i] = np.append(elim_map[i], i)
@@ -52,7 +52,7 @@ class Mesh_MaxPool(nn.Module):
 
             elif self.adjoint:
              
-                forward_elim_map = handler.get_downsample_map(handler.input_points.shape[0]).copy()
+                forward_elim_map = handler.get_downsample_map(handler.input_points().shape[0]).copy()
 
                 new_ind = {}
                 for i,j in enumerate(forward_elim_map):
@@ -69,13 +69,13 @@ class Mesh_MaxPool(nn.Module):
 
                 #elim_map = {tuple(v) : k for k, v in forward_elim_map.items()}
 
-                self.index = torch.zeros(x.shape[0], x.shape[1], handler.output_points.shape[0], dtype=torch.int64, device=x.device)
+                self.index = torch.zeros(x.shape[0], x.shape[1], handler.output_points().shape[0], dtype=torch.int64, device=x.device)
 
                 for i in inv_map:
                     for j in inv_map[i]:
                         self.index[:, :, int(i)] = int(new_ind[j])
 
-                self.output_shape = (x.shape[0], x.shape[1], handler.output_points.shape[0])
+                self.output_shape = (x.shape[0], x.shape[1], handler.output_points().shape[0])
                   
 
         if not self.adjoint:

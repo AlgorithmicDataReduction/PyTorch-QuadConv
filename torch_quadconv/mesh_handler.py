@@ -41,6 +41,7 @@ class MeshHandler(nn.Module):
         #weights
         if input_weights is None:
             self.build_weight_map()
+            req_grad = True
         else:
             req_grad = False
 
@@ -106,7 +107,7 @@ class MeshHandler(nn.Module):
     
     def eval_weight_map(self, points, element_size=3, dimension=2):
 
-        element_list = self.adjacency
+        element_list = self.adjacency()
 
         el_points = points[element_list].reshape(-1, element_size * dimension)
 
