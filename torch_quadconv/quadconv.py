@@ -115,7 +115,6 @@ class QuadConv(nn.Module):
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
 
-        #multiply by bump function
         #NOTE: Unnecessary, but leaving this in for backwards compatability
         self.G = self.H
 
