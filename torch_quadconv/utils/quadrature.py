@@ -7,6 +7,8 @@ import torch
 from math import prod
 from scipy.integrate import newton_cotes
 
+from .MFNUS2 import MFNUS
+
 ################################################################################
 
 '''
@@ -51,7 +53,7 @@ def newton_cotes_quad(input_points, num_points, composite_quad_order=2):
     for i in range(spatial_dim):
         weights.append(torch.tile(torch.Tensor((dx[i]/rep[0])*nc_weights), rep))
 
-    weights =  torch.meshgrid(*weights, indexing='xy')
+    weights = torch.meshgrid(*weights, indexing='xy')
     weights = torch.dstack(weights).reshape(-1, spatial_dim)
     weights = torch.prod(weights, dim=1)
 
@@ -161,3 +163,11 @@ def log_linear_weights(input_points, num_points, points_per_dim=[30, 30], base=4
     weights = torch.prod(weights, dim=1)
 
     return weights
+
+################################################################################
+
+def mfnus(input_points, *args, appx_ds=1.01):
+
+    new_xy, elim_map = MFNUS(input_points, fc=1.1, K=10)
+
+    return new_xy, None, elim_map

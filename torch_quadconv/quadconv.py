@@ -222,6 +222,17 @@ class QuadConv(nn.Module):
         #compute filter
         filters = self.G(eval_locs)
 
+        integral = self._integrate(weights, filters, features, eval_indices)
+
+        #add bias
+        if self.bias is not None:
+            integral += self.bias
+
+        return integral
+    
+    #@torch.compile
+    def _integrate(self, weights, filters, features, eval_indices):
+
         #compute quadrature as weights*filters*features
         values = torch.einsum('n, nij, bin -> bjn',
                                 weights,
@@ -233,9 +244,5 @@ class QuadConv(nn.Module):
 
         #scatter
         integral.scatter_add_(2, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), values)
-
-        #add bias
-        if self.bias is not None:
-            integral += self.bias
 
         return integral
