@@ -119,6 +119,41 @@ class MeshHandler(nn.Module):
         return weights
     
     '''
+    Build a learnable map from mesh points to quadrature weights.
+
+    Input:
+    '''
+    # def build_quad_map(self):
+
+    #     self.local_1 = nn.Sequential(
+    #                         nn.Conv1d(2, 10, 1),
+    #                         nn.InstanceNorm1d(10, affine=True),
+    #                         nn.Sigmoid())
+
+    #     self.local_2 = nn.Sequential(
+    #                         nn.Conv1d(10, 10, 1),
+    #                         nn.InstanceNorm1d(10, affine=True))
+
+    #     self.pool = nn.AdaptiveAvgPool2d(1)
+
+    #     self.act = nn.Sigmoid()
+
+    #     self.local_3 = nn.Sequential(
+    #                         nn.Conv1d(10, 1, 1),
+    #                         nn.InstanceNorm1d(1, affine=True),
+    #                         nn.Sigmoid())
+
+    #     return
+
+    # def quad_map_eval(self, x):
+
+    #     x = self.local_1(x)
+    #     x = self.act(self.local_2(x) + self.pool(x))
+    #     w = self.local_3(x)
+
+    #     return w.squeeze()
+    
+    '''
     Construct mesh levels via quadrature map.
 
     Input:
