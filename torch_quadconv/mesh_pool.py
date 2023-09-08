@@ -1,13 +1,18 @@
+'''
+'''
 
-
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
 import numpy as np
 
+'''
+Mesh max-pooling oeprator
 
+Input:
+    adjoint: 
+'''
 class Mesh_MaxPool(nn.Module):
-
 
     def __init__(self, adjoint=False):
         super().__init__()

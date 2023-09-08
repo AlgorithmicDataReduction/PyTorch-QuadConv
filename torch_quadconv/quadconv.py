@@ -191,6 +191,34 @@ class QuadConv(nn.Module):
             print("\n")
 
         return idx
+    
+    '''
+    Compute QuadConv integral
+    
+    Input:
+        weights:
+        filters:
+        features:
+        eval_indices:
+
+    Ouput:
+    '''
+    #@torch.compile
+    def _integrate(self, weights, filters, features, eval_indices):
+
+        #compute quadrature as weights*filters*features
+        values = torch.einsum('n, nij, bin -> bjn',
+                                weights,
+                                filters,
+                                features[:,:,eval_indices[:,1]])
+
+        #setup integral
+        integral = values.new_zeros(features.shape[0], self.out_channels, self.out_points)
+
+        #scatter
+        integral.scatter_add_(2, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), values)
+
+        return integral
 
     '''
     Apply operator via quadrature approximation of convolution with features and learned filter.
@@ -227,22 +255,5 @@ class QuadConv(nn.Module):
         #add bias
         if self.bias is not None:
             integral += self.bias
-
-        return integral
-    
-    #@torch.compile
-    def _integrate(self, weights, filters, features, eval_indices):
-
-        #compute quadrature as weights*filters*features
-        values = torch.einsum('n, nij, bin -> bjn',
-                                weights,
-                                filters,
-                                features[:,:,eval_indices[:,1]])
-
-        #setup integral
-        integral = values.new_zeros(features.shape[0], self.out_channels, self.out_points)
-
-        #scatter
-        integral.scatter_add_(2, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), values)
 
         return integral
