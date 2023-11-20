@@ -39,7 +39,7 @@ class MeshHandler(nn.Module):
         self._downsample_map = []
 
         #weights
-        self._weight_activation = getattr(nn, weight_activation)() if req_grad else nn.Identity()
+        # self._weight_activation = getattr(nn, weight_activation)() if req_grad else nn.Identity()
         self._normalize_weights = normalize_weights
 
         #adjacency
