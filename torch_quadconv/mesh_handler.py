@@ -170,8 +170,8 @@ class MeshHandler(nn.Module):
 
         #construct weight map
         if weight_map is True:
-            self.build_weight_map()
             self.const = const
+            self.build_weight_map()
 
         #get quad map
         quad_map = getattr(quadrature, quad_map)
