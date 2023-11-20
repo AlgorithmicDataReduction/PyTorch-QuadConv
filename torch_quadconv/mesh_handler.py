@@ -87,7 +87,7 @@ class MeshHandler(nn.Module):
     def build_weight_map(self, element_size=3, dimension=2):
 
         if self.const:
-            self.weight_map = lambda x: torch.ones(x.shape[0])
+            self.weight_map = lambda x: torch.ones(x.shape[0], device=x.device)
 
         else:
             self.weight_map = nn.Sequential(
