@@ -32,8 +32,8 @@ QuadConv()
 @article{quadconv,
 	title = {{QuadConv: Quadrature-Based Convolutions with Applications to Non-Uniform PDE Data Compression}},
 	author = {Doherty, Kevin and Simpson, Cooper and Becker, Stephen and Doostan, Alireza},
-	year = {2022},
-	journal = {arXiv},
+	year = {2023},
+	journal = {J. Comp. Physics, {\em to appear}},
 	doi = {10.48550/ARXIV.2211.05151}
 }
 ```
