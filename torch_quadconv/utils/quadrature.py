@@ -166,7 +166,7 @@ def log_linear_weights(input_points, num_points, points_per_dim=[30, 30], base=4
 
 ################################################################################
 
-def mfnus(input_points, *args, appx_ds=1.65, K=10):
+def mfnus(input_points, num_points, appx_ds=1.65, K=10):
 
     new_xy, elim_map = MFNUS(input_points, fc=appx_ds, K=K)
 

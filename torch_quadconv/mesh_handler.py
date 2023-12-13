@@ -33,13 +33,11 @@ class MeshHandler(nn.Module):
 
         #points
         self._points = nn.ParameterList([nn.Parameter(input_points, requires_grad=False)])
-
         self.point_seq = None
-
         self._downsample_map = []
 
         #weights
-        # self._weight_activation = getattr(nn, weight_activation)() if req_grad else nn.Identity()
+        self._weight_activation = getattr(nn, weight_activation)
         self._normalize_weights = normalize_weights
 
         #adjacency
@@ -74,7 +72,7 @@ class MeshHandler(nn.Module):
         return self._points[self._get_index(1)]
 
     def weights(self):
-        return self.eval_weight_map(self._points[self._get_index()])
+        return self.weight_map(self._points[self._get_index()])
 
     def adjacency(self):
         return self._adjacency[self._get_index()]
@@ -84,42 +82,38 @@ class MeshHandler(nn.Module):
 
         return output
     
-    def build_weight_map(self, element_size=3, dimension=2):
+    def build_weight_map(self, element_size=3, dimension=2, const=False):
 
-        if self.const:
-            self.weight_map = lambda x: torch.ones(x.shape[0], device=x.device)
-
+        if const:
+            weight_map = lambda points: torch.ones(points.shape[0], device=points.device)
         else:
-            self.weight_map = nn.Sequential(
+            self._weight_network = nn.Sequential(
                 nn.Linear(element_size * dimension, 8),
-                nn.Sigmoid(),
+                self._weight_activation(),
                 nn.Linear(8, 8),
-                nn.Sigmoid(),
+                self._weight_activation(),
                 nn.Linear(8, 8),
-                nn.Sigmoid(),
+                self._weight_activation(),
                 nn.Linear(8, element_size),
-                nn.Sigmoid()
+                self._weight_activation()
             )
 
+            def weight_map(points):
+                element_list = self.adjacency()
+
+                el_points = points[element_list].reshape(-1, element_size * dimension)
+
+                el_weights =  self._weight_network(el_points)
+
+                weights = torch.zeros(points.shape[0], device=points.device)
+
+                weights.scatter_add_(0, element_list.reshape(-1), el_weights.reshape(-1))
+
+                return weights
+            
+        self.weight_map = weight_map
+
         return
-    
-    def eval_weight_map(self, points, element_size=3, dimension=2):
-
-        if self.const:
-            weights = self.weight_map(points)
-
-        else:
-            element_list = self.adjacency()
-
-            el_points = points[element_list].reshape(-1, element_size * dimension)
-
-            el_weights =  self.weight_map(el_points)
-
-            weights = torch.zeros(points.shape[0], device=points.device)
-
-            weights.scatter_add_(0, element_list.reshape(-1), el_weights.reshape(-1))
-
-        return weights
     
     '''
     Build a learnable map from mesh points to quadrature weights.
@@ -164,14 +158,11 @@ class MeshHandler(nn.Module):
         mirror: whether or not to mirror the point_seq, i.e. append reversed point_seq
         quad_map: 
     '''
-    def construct(self, point_seq, mirror=False, quad_map='param_quad', quad_args={"const":False}, weight_map=True):
-
-        const = quad_args.pop("const")
+    def construct(self, point_seq, mirror=False, quad_map='param_quad', weight_map=True, quad_args={"point_args": {}, "weight_args": {"const":False}}):
 
         #construct weight map
         if weight_map is True:
-            self.const = const
-            self.build_weight_map()
+            self.build_weight_map(**quad_args.get("weight_args"))
 
         #get quad map
         quad_map = getattr(quadrature, quad_map)
@@ -188,8 +179,9 @@ class MeshHandler(nn.Module):
 
         #construct other point sets
         for i, num_points in enumerate(point_seq[1:]):
-            points, weights, *elim_map = quad_map(self._points[i].clone(), num_points, **quad_args)
+            points, weights, *elim_map = quad_map(self._points[i].clone(), num_points, **quad_args.get("point_args"))
 
+            #NOTE: We are assuming weight map is always true
             if weight_map is False:
 
                 if weights is None:
@@ -199,7 +191,6 @@ class MeshHandler(nn.Module):
                 else:
                     req_grad = False
 
-                #Not doing anything with weights
                 # self._weights
 
             self._points.append(nn.Parameter(torch.from_numpy(points), requires_grad=False))
