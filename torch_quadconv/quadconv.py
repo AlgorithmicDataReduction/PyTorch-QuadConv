@@ -56,7 +56,7 @@ class QuadConv(nn.Module):
 
         #decay parameter
         if decay_param == None:
-            self.decay_param = (self.in_points/16)**2
+            self.decay_param = (self.in_points/16)**-2
         else:
             self.decay_param = decay_param
 
@@ -150,7 +150,10 @@ class QuadConv(nn.Module):
         z: evaluation locations, [out_points, in_points, spatial_dim]
     '''
     def _bump_arg(self, z):
-        return torch.linalg.vector_norm(z, dim=(2), keepdims = True)**4
+        # return torch.linalg.vector_norm(z, dim=(2), keepdims = True)
+        # a, b = 2, 0.5
+        a, b = 1, 1
+        return torch.sqrt(z[:,:,0]**2/a**2 + z[:,:,1]**2/b**2)
 
     '''
     Compute indices associated with non-zero filters.
@@ -173,8 +176,9 @@ class QuadConv(nn.Module):
 
         bump_arg = self._bump_arg(locs)
 
-        tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
+        tf_vec = (bump_arg <= self.decay_param).squeeze()
         idx = torch.nonzero(tf_vec, as_tuple=False)
+        print(idx.dtype)
 
         if self.cache:
             self.eval_indices = nn.Parameter(idx, requires_grad=False)
@@ -183,7 +187,7 @@ class QuadConv(nn.Module):
         if self.verbose:
             print(f"QuadConv eval_indices: {idx.numel()}")
 
-            hist = torch.histc(idx[:,0], bins=self.out_points, min=0, max=self.out_points-1)
+            hist = torch.histc(idx[:,1].to(torch.float32), bins=self.out_points, min=0, max=self.in_points-1)
 
             print(f"Max support points: {torch.max(hist)}")
             print(f"Min support points: {torch.min(hist)}")
