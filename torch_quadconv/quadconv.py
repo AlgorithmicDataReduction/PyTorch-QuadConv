@@ -178,7 +178,6 @@ class QuadConv(nn.Module):
 
         tf_vec = (bump_arg <= self.decay_param).squeeze()
         idx = torch.nonzero(tf_vec, as_tuple=False)
-        print(idx.dtype)
 
         if self.cache:
             self.eval_indices = nn.Parameter(idx, requires_grad=False)
@@ -187,7 +186,7 @@ class QuadConv(nn.Module):
         if self.verbose:
             print(f"QuadConv eval_indices: {idx.numel()}")
 
-            hist = torch.histc(idx[:,1].to(torch.float32), bins=self.out_points, min=0, max=self.in_points-1)
+            hist = torch.histc(idx[:,0].to(torch.float32), bins=self.out_points, min=0, max=self.out_points-1)
 
             print(f"Max support points: {torch.max(hist)}")
             print(f"Min support points: {torch.min(hist)}")
