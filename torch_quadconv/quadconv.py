@@ -150,10 +150,10 @@ class QuadConv(nn.Module):
         z: evaluation locations, [out_points, in_points, spatial_dim]
     '''
     def _bump_arg(self, z):
-        # return torch.linalg.vector_norm(z, dim=(2), keepdims = True)
-        a, b = 2, 0.5
+        return torch.linalg.vector_norm(z, dim=(2), keepdims = True)
+        # a, b = 2, 0.5
         # a, b = 1, 1
-        return torch.sqrt(z[:,:,0]**2/a**2 + z[:,:,1]**2/b**2)
+        # return torch.sqrt(z[:,:,0]**2/a**2 + z[:,:,1]**2/b**2)
 
     '''
     Compute indices associated with non-zero filters.
