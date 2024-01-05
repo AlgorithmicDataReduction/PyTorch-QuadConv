@@ -56,7 +56,7 @@ class QuadConv(nn.Module):
 
         #decay parameter
         if decay_param == None:
-            self.decay_param = (self.in_points/16)**-2
+            self.decay_param = 4/torch.sqrt(self.in_points)
         else:
             self.decay_param = decay_param
 
