@@ -2,12 +2,12 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "PyTorch-QuadConv"
 authors:
-  - family-names: Simpson
-    given-names: Cooper
-    orcid: https://orcid.org/0000-0003-3922-2797
   - family-names: Doherty
     given-names: Kevin
     orcid: 
+  - family-names: Simpson
+    given-names: Cooper
+    orcid: https://orcid.org/0000-0003-3922-2797
 version: 0.0.0
 doi: 
 date-released: 2023
