@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 from .utils.misc import Sin
 
@@ -56,7 +57,7 @@ class QuadConv(nn.Module):
 
         #decay parameter
         if decay_param == None:
-            self.decay_param = 4/torch.sqrt(self.in_points)
+            self.decay_param = 4/np.sqrt(self.in_points)
         else:
             self.decay_param = decay_param
 
