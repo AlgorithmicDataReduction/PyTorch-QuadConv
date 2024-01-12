@@ -75,3 +75,4 @@ def agglomerate(points, elements, levels, factor):
     lib.agglomerate(activity_ptr, points_ptr, element_pos_ptr, element_ind_ptr, bd_point_ind_ptr, spatial_dim, num_points, num_elements, num_bd_points, levels, factor_ptr)
 
     return torch.tensor(activity)
+

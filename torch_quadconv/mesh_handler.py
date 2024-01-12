@@ -3,20 +3,9 @@
 
 import torch
 import torch.nn as nn
+from scipy.spatial import Delaunay
 
 from .utils import quadrature
-from .utils.agglomeration import agglomerate
-
-class Elements(nn.Module):
-
-     def __init__(self, element_pos, element_ind, bd_point_ind=None):
-         super().__init__()
-
-         self.element_pos = element_pos
-         self.element_ind = element_ind
-         self.bd_point_ind = bd_point_ind
-
-         return
 
 '''
 Point and Quadrature data handler.
@@ -24,17 +13,18 @@ Point and Quadrature data handler.
 Input:
     input_points: input mesh nodes
     input_weights: input mesh quadrature weights
-    input_elements: input mesh element structure
-    quad_map: map from number of points to quadrature (points, weights)
+    input_adjacency: input adjacency structure
+    weight_activation: activation function for weights
+    normalize_weights: whether to normalize weights
 '''
 class MeshHandler(nn.Module):
 
     def __init__(self,
             input_points,
             input_weights = None,
-            input_elements = None,
-            weight_activation = "Sigmoid",
-            normalize_weights = False
+            input_adjacency = None,
+            weight_activation = 'Sigmoid',
+            normalize_weights = False,
         ):
         super().__init__()
 
@@ -43,25 +33,18 @@ class MeshHandler(nn.Module):
 
         #points
         self._points = nn.ParameterList([nn.Parameter(input_points, requires_grad=False)])
+        self.point_seq = None
+        self._downsample_map = []
 
         #weights
-        if input_weights is None:
-            input_weights = torch.nn.init.uniform_(torch.empty(input_points.shape[0]), a=0, b=1)
-            req_grad = True
-        else:
-            req_grad = False
-
-        self._weights = nn.ParameterList([nn.Parameter(input_weights, requires_grad=req_grad)])
-
-        #NOTE: We shouldn't really need this at some point
-        self._weight_activation = getattr(nn, weight_activation)() if req_grad else nn.Identity()
+        self._weight_activation = getattr(nn, weight_activation)
         self._normalize_weights = normalize_weights
 
         #adjacency
-        if input_elements != None:
-            self._elements = nn.ModuleList([input_elements])
+        if input_adjacency != None:
+            self._adjacency = nn.ModuleList([input_adjacency])
         else:
-            self._elements = nn.ModuleList([None])
+            self._adjacency = nn.ParameterList([nn.Parameter(torch.from_numpy(Delaunay(input_points).simplices).long(), requires_grad=False)])
 
         #other attributes
         self._spatial_dim = input_points.shape[1]
@@ -89,25 +72,97 @@ class MeshHandler(nn.Module):
         return self._points[self._get_index(1)]
 
     def weights(self):
-        if self._normalize_weights:
-            with torch.no_grad():
-                self._weights[self._get_index()] = self._weights[self._get_index()] / torch.sum(self._weight_activation(self._weights[self._get_index()]))
+        return self.weight_map(self._points[self._get_index()])
 
-        w = self._weight_activation(self._weights[self._get_index()])
+    def adjacency(self):
+        return self._adjacency[self._get_index()]
+    
+    def get_downsample_map(self, key_num):
+        output = list(dsm for dsm in self._downsample_map if len(dsm) == key_num)[0]
 
-        return w
+        return output
+    
+    def build_weight_map(self, element_size=3, dimension=2, const=False):
 
-    def elements(self):
-        return self._elements[self._get_index()]
+        if const:
+            weight_map = lambda points: torch.ones(points.shape[0], device=points.device)
+        else:
+            self._weight_network = nn.Sequential(
+                nn.Linear(element_size * dimension, 8),
+                self._weight_activation(),
+                nn.Linear(8, 8),
+                self._weight_activation(),
+                nn.Linear(8, 8),
+                self._weight_activation(),
+                nn.Linear(8, element_size),
+                self._weight_activation()
+            )
 
+            def weight_map(points):
+                element_list = self.adjacency()
+
+                el_points = points[element_list].reshape(-1, element_size * dimension)
+
+                el_weights =  self._weight_network(el_points)
+
+                weights = torch.zeros(points.shape[0], device=points.device)
+
+                weights.scatter_add_(0, element_list.reshape(-1), el_weights.reshape(-1))
+
+                return weights
+            
+        self.weight_map = weight_map
+
+        return
+    
+    '''
+    Build a learnable map from mesh points to quadrature weights.
+
+    Input:
+    '''
+    # def build_weight_map(self):
+
+    #     self.local_1 = nn.Sequential(
+    #                         nn.Conv1d(2, 10, 1),
+    #                         nn.InstanceNorm1d(10, affine=True),
+    #                         nn.Sigmoid())
+
+    #     self.local_2 = nn.Sequential(
+    #                         nn.Conv1d(10, 10, 1),
+    #                         nn.InstanceNorm1d(10, affine=True))
+
+    #     self.pool = nn.AdaptiveAvgPool2d(1)
+
+    #     self.act = nn.Sigmoid()
+
+    #     self.local_3 = nn.Sequential(
+    #                         nn.Conv1d(10, 1, 1),
+    #                         nn.InstanceNorm1d(1, affine=True),
+    #                         nn.Sigmoid())
+
+    #     return
+
+    # def weight_map_eval(self, x):
+
+    #     x = self.local_1(x)
+    #     x = self.act(self.local_2(x) + self.pool(x))
+    #     w = self.local_3(x)
+
+    #     return w.squeeze()
+    
     '''
     Construct mesh levels via quadrature map.
 
     Input:
         point_seq: sequence of number of points (e.g. [100, 50, 10])
         mirror: whether or not to mirror the point_seq, i.e. append reversed point_seq
+        quad_map: 
     '''
-    def construct(self, point_seq, mirror=False, quad_map='newton_cotes_quad', quad_args={}):
+    def construct(self, point_seq, mirror=False, quad_map='param_quad', weight_map=True, quad_args={"point_args": {}, "weight_args": {"const":False}}):
+
+        #construct weight map
+        if weight_map is True:
+            self.build_weight_map(**quad_args.get("weight_args"))
 
         #get quad map
         quad_map = getattr(quadrature, quad_map)
@@ -120,46 +175,35 @@ class MeshHandler(nn.Module):
         self._num_levels = len(point_seq)-1
         self._radix = len(point_seq)-1
 
+        self.point_seq = point_seq.copy()
+
         #construct other point sets
         for i, num_points in enumerate(point_seq[1:]):
-            points, weights = quad_map(self._points[i-1], num_points, **quad_args)
+            points, weights, *elim_map = quad_map(self._points[i].clone(), num_points, **quad_args.get("point_args"))
 
-            if weights is None:
-                weights = torch.nn.init.uniform_(torch.empty(points.shape[0]), a=0, b=1)
-                req_grad = True
-            else:
-                req_grad = False
+            #NOTE: We are assuming weight map is always true
+            if weight_map is False:
 
-            self._points.append(nn.Parameter(points, requires_grad=False))
-            self._weights.append(nn.Parameter(weights, requires_grad=req_grad))
-            self._elements.append(None)
+                if weights is None:
+                    weights = torch.ones(points.shape[0])
+                    weights /= torch.sum(weights)
+                    req_grad = True
+                else:
+                    req_grad = False
 
-        #mirror the sequence, but reuse underlying data
-        if mirror:
-            self._num_levels *= 2
+                # self._weights
 
-        return self
+            self._points.append(nn.Parameter(torch.from_numpy(points), requires_grad=False))
 
-    '''
-    Construct mesh levels via agglomeration
-    '''
-    def agglomerate(self, levels, factor, mirror=False):
+            if num_points != points.shape[0]:
+                self.point_seq[i+1] = points.shape[0]
+                Warning('Number of points in the user defined sequence is changing from {num_points} to {points.shape[0]}')
 
-        #set number of meshes and mesh stages
-        self._num_meshes = levels+1
-        self._num_levels = levels
-        self._radix = levels
+            #self._weights.append(nn.Parameter(weights, requires_grad=req_grad))
+            self._adjacency.append(nn.Parameter(torch.from_numpy(Delaunay(points).simplices).long(), requires_grad=False))
 
-        #agglomerate
-        activity = agglomerate(self._points[0].data.numpy(), self._elements[0], levels, factor)
-
-        for i in range(levels):
-            sub_points = self._points[0][activity[:,i]]
-            weights = torch.nn.init.uniform_(torch.empty(sub_points.shape[0]), a=0, b=1)
-
-            self._points.append(nn.Parameter(sub_points, requires_grad=False))
-            self._weights.append(nn.Parameter(weights, requires_grad=True))
-            self._elements.append(None)
+            if len(elim_map) > 0:
+                self._downsample_map.append(elim_map[0])
 
         #mirror the sequence, but reuse underlying data
         if mirror:

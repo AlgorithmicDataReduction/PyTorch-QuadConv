@@ -56,3 +56,4 @@ for i, ax in enumerate(np.ravel(axis)[1:]):
 fig.suptitle(f"Agglomeration")
 
 plt.show()
+
