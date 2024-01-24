@@ -4,72 +4,50 @@
 import pytest
 import torch
 
-from torch_quadconv import QuadConv, MeshHandler
+from torch_quadconv import QuadConv, Grid
 
 '''
 Would be better to combine these in the future.
 '''
 
 def test_forward():
-    input_nodes, input_weights = torch.randn(25, 2), torch.randn(25)
 
-    Mesh = MeshHandler(input_nodes, input_weights)
+    test_grid = Grid((20,20))
 
-    Mesh.cache([25, 16])
+    test_data = torch.randn(8,16,20*20)
 
-    QC = QuadConv(spatial_dim = 2,
-                    in_points = 25,
-                    out_points = 16,
-                    in_channels = 1,
-                    out_channels = 2,
-                    filter_seq = [4,4])
+    QC = QuadConv(domain= test_grid, range=Grid((5,5)), in_channels=16, out_channels=32)
 
-    input = torch.randn(1, 1, 25)
+    output = QC.forward(test_data)
 
-    output = QC.forward(Mesh, input)
-
-    assert output.shape == torch.Size([1,2,16])
-    assert QC.cached == True
+    assert output.shape == torch.Size([8,32,25])
 
     return
 
 def test_forward_cuda():
-    input_nodes, input_weights = torch.randn(25, 2), torch.randn(25)
 
-    Mesh = MeshHandler(input_nodes, input_weights)
+    test_grid = Grid((20,20)).cuda()
 
-    Mesh = Mesh.cache([25, 16]).cuda()
+    test_data = torch.randn(8,16,20*20).cuda()
 
-    QC = QuadConv(spatial_dim = 2,
-                    in_points = 25,
-                    out_points = 16,
-                    in_channels = 1,
-                    out_channels = 2,
-                    filter_seq = [4,4]).cuda()
+    QC = QuadConv(domain= test_grid, range=Grid((5,5)), in_channels=16, out_channels=32).cuda()
 
-    input = torch.randn(1, 1, 25).cuda()
+    output = QC.forward(test_data)
 
-    output = QC.forward(Mesh, input)
+    assert output.shape == torch.Size([8,32,25])
 
     return
 
 def test_forward_output_same():
-    input_nodes, input_weights = torch.randn(25, 2), torch.randn(25)
 
-    Mesh = MeshHandler(input_nodes, input_weights)
+    test_grid = Grid((20,20))
 
-    Mesh = Mesh.cache([25, 16]).cuda()
+    test_data = torch.randn(8,2,20*20)
 
-    QC = QuadConv(spatial_dim = 2,
-                    in_points = 25,
-                    out_points = 25,
-                    in_channels = 1,
-                    out_channels = 2,
-                    filter_seq = [4,4],
-                    output_same = True).cuda()
+    QC = QuadConv(domain= test_grid, range=Grid((5,5)), in_channels=2, out_channels=4, output_same=True)
 
-    input = torch.randn(1, 1, 25).cuda()
+    output = QC.forward(test_data)
 
-    output = QC.forward(Mesh, input)
+    assert output.shape == torch.Size([8,4,400])
 
     return

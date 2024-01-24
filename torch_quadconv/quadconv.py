@@ -10,9 +10,8 @@ from .utils.misc import Sin
 Quadrature convolution operator.
 
 Input:
-    spatial_dim: spatial dimension of input data
-    in_points: number of input points
-    out_points: number of output points
+    domain: the domain of the operator (as a domains object)
+    range: the range of the operator (as a domains object)
     in_channels: input feature channels
     out_channels: output feature channels
     filter_seq: number of features at each filter stage
@@ -24,12 +23,11 @@ Input:
 class QuadConv(nn.Module):
 
     def __init__(self,*,
-            spatial_dim,
-            in_points,
-            out_points,
+            domain,
+            range,
             in_channels,
             out_channels,
-            filter_seq,
+            filter_seq = [16, 16, 16, 16, 16],
             filter_mode = 'single',
             decay_param = None,
             bias = False,
@@ -39,31 +37,37 @@ class QuadConv(nn.Module):
         super().__init__()
 
         #validate spatial dim
-        assert spatial_dim > 0
+        assert domain.shape[1] == range.shape[1], "Domain and range must have the same spatial dimension"
 
         #set attributes
-        self.spatial_dim = spatial_dim
-        self.in_points = in_points
-        self.out_points = out_points
+        self.spatial_dim = domain.shape[1]
+
+        self.add_module('domain', domain)
+        self.add_module('range', range)
+
         self.out_channels = out_channels
         self.in_channels = in_channels
         self.output_same = output_same
 
         self.cache = cache
         self.cached = False
+        self.weight_map = None
+        self.einsum_op = None
 
         #decay parameter
         if decay_param == None:
-            self.decay_param = (self.in_points/16)**2
+            self.decay_param = (self.domain.shape[0]/16)**2
         else:
             self.decay_param == decay_param
 
         #initialize filter
         self._init_filter(filter_seq, filter_mode)
 
+        self._build_weight_map()
+
         #bias
         if bias:
-            bias = torch.empty(1, self.out_channels, self.out_points)
+            bias = torch.empty(1, self.out_channels, self.range.shape[0])
             self.bias = nn.Parameter(nn.init.xavier_uniform_(bias, gain=2), requires_grad=True)
         else:
             self.bias = None
@@ -167,17 +171,13 @@ class QuadConv(nn.Module):
     Compute indices associated with non-zero filters.
 
     Input:
-        handler: MeshHandler or PointCloudHandler object
+        self.domain / self.range: 
     '''
-    def _compute_eval_indices(self, handler):
+    def _compute_eval_indices(self):
 
         #get output points
-        input_points = handler.input_points
-        output_points = input_points if self.output_same else handler.output_points
-
-        #check
-        assert input_points.shape[0] == self.in_points, f'{input_points.shape[0]} != {self.in_points}'
-        assert output_points.shape[0] == self.out_points, f'{output_points.shape[0]} != {self.out_points}'
+        input_points = self.domain.points
+        output_points = input_points if self.output_same else self.range.points
 
         #determine indices
         locs = output_points.unsqueeze(1) - input_points.unsqueeze(0)
@@ -188,62 +188,68 @@ class QuadConv(nn.Module):
         idx = torch.nonzero(tf_vec, as_tuple=False)
 
         if self.cache:
-            self.eval_indices = nn.Parameter(idx, requires_grad=False)
+            self.register_buffer('eval_indices', idx, persistent=False)
             self.cached = True
 
         return idx
     
 
-    def _memeff_compute_eval_indices(self, handler):
+    def _build_weight_map(self, element_size = 3, dimension = 2):
 
-        #get output points
-        input_points = handler.input_points
-        output_points = input_points if self.output_same else handler.output_points
+        self.weight_map = nn.Sequential(
+            nn.Linear(element_size * dimension, 8),
+            nn.Sigmoid(),
+            nn.Linear(8, 8),
+            nn.Sigmoid(),
+            nn.Linear(8, 8),
+            nn.Sigmoid(),
+            nn.Linear(8, element_size),
+            nn.Sigmoid()
+        )
 
-        #check
-        assert input_points.shape[0] == self.in_points, f'{input_points.shape[0]} != {self.in_points}'
-        assert output_points.shape[0] == self.out_points, f'{output_points.shape[0]} != {self.out_points}'
+        return
+    
 
-        #determine indices
-        locs = output_points.unsqueeze(1) - input_points.unsqueeze(0)
+    def eval_weight_map(self, domain, element_size = 3, dimension = 2):
 
-        bump_arg = self._bump_arg(locs)
+        element_list = domain.adjacency
 
-        tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
-        idx = torch.nonzero(tf_vec, as_tuple=False)
+        el_points = domain.points[element_list].reshape(-1, element_size * dimension)
 
-        if self.cache:
-            self.eval_indices = nn.Parameter(idx, requires_grad=False)
-            self.cached = True
+        el_weights =  self.weight_map(el_points)
 
-        return idx
+        weights = torch.zeros(domain.points.shape[0]).to(el_points)
+
+        weights.scatter_add_(0, element_list.reshape(-1), el_weights.reshape(-1))
+
+        return weights
+
 
     '''
     Apply operator via quadrature approximation of convolution with features and learned filter.
 
     Input:
-        handler: MeshHandler or PointCloudHandler object
         features: a tensor of shape (batch size  X num of points X input channels)
 
     Output: tensor of shape (batch size X num of output points X output channels)
     '''
-    def forward(self, handler, features):
+    def forward(self, features):
 
         #get evaluation indices
         if self.cached:
             eval_indices = self.eval_indices
         else:
-            eval_indices = self._compute_eval_indices(handler)
+            eval_indices = self._compute_eval_indices()
 
         #get weights
-        weights = handler.weights[eval_indices[:,1]]
+        weights = self.eval_weight_map(self.domain)[eval_indices[:,1]]
 
         #compute eval locs
         if self.output_same:
-            eval_locs = handler.input_points[eval_indices[:,0]] - handler.input_points[eval_indices[:,1]]
+            eval_locs = self.domain.points[eval_indices[:,0]] - self.domain.points[eval_indices[:,1]]
         else:
-            eval_locs = handler.output_points[eval_indices[:,0]] - handler.input_points[eval_indices[:,1]]
-            handler.step()
+            eval_locs = self.range.points[eval_indices[:,0]] - self.domain.points[eval_indices[:,1]]
+
 
         #compute filter
         filters = self.G(eval_locs)
@@ -259,16 +265,27 @@ class QuadConv(nn.Module):
     #@torch.compile
     def _integrate(self, weights, filters, features, eval_indices):
 
+        '''
+        #compute interior of the integral (including weights) for all left hand sides of the integral
+        weights = weights.reshape(1, -1 , 1, 1)
+
+        filters = filters.view(1, *filters.shape)
+
+        features = features[:,:,eval_indices[:,1]].unsqueeze(2).permute(0, 3, 1, 2)
+
+        values = (weights * filters * features).sum(dim=2).permute(0, 2, 1)
+        '''
+        
         #compute quadrature as weights*filters*features
         values = torch.einsum('n, nij, bin -> bjn',
                                 weights,
                                 filters,
                                 features[:,:,eval_indices[:,1]])
 
-        #setup integral
-        integral = values.new_zeros(features.shape[0], self.out_channels, self.out_points)
+        #setup integral array
+        integral = values.new_zeros(features.shape[0], self.out_channels, self.range.shape[0])
 
-        #scatter
+        #scatter values via addition into integral array
         integral.scatter_add_(2, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), values)
 
         return integral
