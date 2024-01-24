@@ -1,4 +1,5 @@
-from torch_quadconv import Grid
+from torch_quadconv import Grid, Mesh
+import torch
 import pytest
 
 
@@ -30,7 +31,31 @@ def test_grid_pool_map():
 
 
 def test_mesh_downsample():
-    pass
+
+    #set random seed
+    torch.manual_seed(0)
+
+    points = torch.rand(100,3)
+
+    test_mesh = Mesh(points = points)
+
+    smaller_mesh = test_mesh.downsample(factor=2)
+
+    assert smaller_mesh.points.shape[0] <= test_mesh.points.shape[0]
+
+    return
 
 def test_mesh_pool_map():
-    pass    
+    
+    #set random seed
+    torch.manual_seed(0)
+
+    points = torch.rand(100,3)
+
+    test_mesh = Mesh(points = points)
+
+    index_map = test_mesh.pool_map(factor=2)
+
+    assert type(index_map) == dict
+
+    return     
