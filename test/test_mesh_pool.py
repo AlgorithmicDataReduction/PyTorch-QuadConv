@@ -39,10 +39,4 @@ def test_forward():
 
     print(Mesh.get_downsample_map(Mesh.output_points.shape[0]).copy())
 
-
-
     return
-
-
-
-test_forward()

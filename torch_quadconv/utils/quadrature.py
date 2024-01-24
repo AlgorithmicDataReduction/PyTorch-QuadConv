@@ -4,6 +4,7 @@ Quadratrure, downsampling, and agglomeration functions.
 
 import torch
 
+from math import prod
 from scipy.integrate import newton_cotes
 
 from .MFNUS2 import MFNUS
@@ -64,46 +65,52 @@ Builds a uniform grid of points.
 Input:
     input_points: input pointss
     num_points: number of output points
-    x0: left end point
-    x1: right end point
+    ratio: ratio of points along each spatial dimension
+    base: logspace base, fractional has decreasing spacing from min to max
+    const: whether to use constant weights or learned weights
 '''
-def param_quad(input_points, num_points):
+def param_quad(input_points, num_points, ratio=[], base=[], const=False):
 
     spatial_dim = input_points.shape[1]
 
-    num_points = round(num_points**(1/spatial_dim))
+    num_points = round((num_points/prod(ratio))**(1/spatial_dim))
 
+    #check ratio
+    if len(ratio) == 0:
+        ratio = [1]*spatial_dim
+    else:
+        assert len(ratio) == spatial_dim
+
+    #check base
+    if len(base) == 0:
+        base = [None]*spatial_dim
+    else:
+        assert len(base) == spatial_dim
+
+    #grid dimensions
     coord_min,_ = torch.min(input_points,dim=0)
     coord_max,_ = torch.max(input_points,dim=0)
 
     #nodes
     nodes = []
     for i in range(spatial_dim):
-        nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points))
+        #linearly spaced nodes
+        if base[i] == None:
+            nodes.append(torch.linspace(coord_min[i], coord_max[i], round(num_points*ratio[i])))
 
-    nodes = torch.meshgrid(*nodes, indexing='xy')
-    nodes = torch.dstack(nodes).view(-1, spatial_dim)
+        #logarithmically spaced nodes
+        else:
+            p = torch.logspace(0, 1, steps=round(num_points*ratio[i]), base=base[i])
+            p = coord_min[i] + ((coord_max[i]-coord_min[i])/(base[i]-1))*(p-1)
 
-    return nodes, None
+            nodes.append(p)
 
-def param_quad_const_weights(input_points, num_points):
+    nodes = torch.cartesian_prod(*nodes)
 
-    spatial_dim = input_points.shape[1]
+    #weights
+    weights = torch.ones(nodes.shape[0]) if const else None
 
-    num_points = round(num_points**(1/spatial_dim))
-
-    coord_min,_ = torch.min(input_points,dim=0)
-    coord_max,_ = torch.max(input_points,dim=0)
-
-    #nodes
-    nodes = []
-    for i in range(spatial_dim):
-        nodes.append(torch.linspace(coord_min[i], coord_max[i], num_points))
-
-    nodes = torch.meshgrid(*nodes, indexing='xy')
-    nodes = torch.dstack(nodes).view(-1, spatial_dim)
-
-    return nodes, torch.ones(nodes.shape[0])
+    return nodes, weights
 
 '''
 Randomly downsample the input points.
@@ -113,23 +120,75 @@ NOTE: only using one permuation here which is a bit weird
 Input:
     input_points: input points
     num_points: number of points to sample
+    const: whether to use constant weights or learned weights
 '''
-def random_downsample(input_points, num_points):
+def random_downsample(input_points, num_points, const=False, seed=None):
 
-    idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
+    if seed is not None:
+        gen = torch.Generator().manual_seed(seed)
+    else:
+        gen = None
 
-    return input_points[idxs, :], None
+    idxs = torch.randperm(input_points.shape[0], device=input_points.device, generator=gen)[:num_points]
 
-def random_downsample_const_weights(input_points, num_points):
+    #weights
+    weights = torch.ones(num_points) if const else None
 
-    idxs = torch.randperm(input_points.shape[0], device=input_points.device)[:num_points]
+    return input_points[idxs, :], weights
 
-    return input_points[idxs, :], torch.ones(num_points)
+################################################################################
 
+def const_unit_weights(input_points, num_points):
+    return torch.ones(num_points)
 
+def newton_cotes_quad_square(spatial_dim, num_points):
+    return newton_cotes_quad(torch.tensor([[1.0]*spatial_dim,[0.0]*spatial_dim]), num_points)
 
-def mfnus(input_points, *args, appx_ds=1.65):
+def newton_cotes_quad_n5(input_points, num_points):
+    return newton_cotes_quad(input_points, num_points, 5)
 
-    new_xy, elim_map = MFNUS(input_points, fc=appx_ds, K=10)
+def newton_cotes_quad_n5_square(spatial_dim, num_points):
+    return newton_cotes_quad_n5(torch.tensor([[1.0]*spatial_dim,[0.0]*spatial_dim]), num_points)
+
+################################################################################
+
+def log_linear_weights(input_points, num_points, points_per_dim=[30, 30], base=4, composite_quad_order=2):
+
+    coord_min, _ = torch.min(input_points, dim=0)
+    coord_max, _ = torch.max(input_points, dim=0)
+
+    #weights
+    dx = torch.logspace(0, 1, points_per_dim[0], base=base)
+    dx = (dx-1)/(base-1)
+
+    dy = (coord_max[1]-coord_min[1]) / (composite_quad_order-1)
+
+    weights = []
+
+    #log dimension (x)
+    trap = [(dx[1]-dx[0])/2]
+    trap.extend([(dx[i+1]-dx[i-1])/2 for i in range(1, points_per_dim[0]-1)])
+    trap.append((dx[-1]-dx[-2])/2)
+
+    weights.append(torch.tensor(trap))
+
+    #linear dimension (y)
+    rep = [int(points_per_dim[1]/composite_quad_order)]
+    nc_weights = torch.as_tensor(newton_cotes(composite_quad_order-1, 1)[0], dtype=torch.float)
+
+    weights.append(torch.tile(torch.Tensor((dy/rep[0])*nc_weights), rep))
+
+    #combine and reshape
+    weights =  torch.meshgrid(*weights, indexing='xy')
+    weights = torch.dstack(weights).reshape(-1, 2)
+    weights = torch.prod(weights, dim=1)
+
+    return weights
+
+################################################################################
+
+def mfnus(input_points, num_points, appx_ds=1.65, K=10):
+
+    new_xy, elim_map = MFNUS(input_points, fc=appx_ds, K=K)
 
     return new_xy, None, elim_map

@@ -7,7 +7,7 @@ name = "pytorch-quadconv"
 description = "PyTorch quadrature convolution layer and associated functionality."
 readme = "README.md"
 version = "0.1.0"
-license = {file = "LICENSE.txt"}
+license = {file = "LICENSE"}
 authors = [
   {name = "Cooper Simpson", email = "simpson.r.cooper@gmail.com"},
   {name = "Kevin Doherty", email = "kevin.doherty@colorado.edu"}
@@ -24,11 +24,10 @@ classifiers = [
 ]
 requires-python = ">=3.6"
 dependencies = [
-  "torch-scatter"
 ]
 
-[tool.setuptools]
-packages = ["torch_quadconv", "torch_quadconv.utils"]
+[tool.setuptools.packages.find]
+include = ["torch_quadconv*"]
 
 [project.optional-dependencies]
 test = ["pytest"]

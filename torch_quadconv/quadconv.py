@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 from .utils.misc import Sin
 
@@ -32,7 +33,8 @@ class QuadConv(nn.Module):
             decay_param = None,
             bias = False,
             output_same = False,
-            cache = True
+            cache = True,
+            verbose = False
         ):
         super().__init__()
 
@@ -51,14 +53,15 @@ class QuadConv(nn.Module):
 
         self.cache = cache
         self.cached = False
+        self.verbose = verbose
         self.weight_map = None
         self.einsum_op = None
 
         #decay parameter
         if decay_param == None:
-            self.decay_param = (self.domain.shape[0]/16)**2
+            self.decay_param = 4/np.sqrt(self.in_points)
         else:
-            self.decay_param == decay_param
+            self.decay_param = decay_param
 
         #initialize filter
         self._init_filter(filter_seq, filter_mode)
@@ -88,8 +91,8 @@ class QuadConv(nn.Module):
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
-            self.H = self._create_mlp(mlp_spec)
-            self.H.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
+            self.filter = self._create_mlp(mlp_spec)
+            self.H = lambda z: self.filter(z).reshape(-1, self.in_channels, self.out_channels)
 
         #mlp for each output channel
         elif filter_mode == 'share_in':
@@ -117,8 +120,8 @@ class QuadConv(nn.Module):
         else:
             raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
 
-        #multiply by bump function
-        self.G = lambda z: self._bump(z)*self.H(z)
+        #NOTE: Unnecessary, but leaving this in for backwards compatability
+        self.G = self.H
 
         return
 
@@ -152,20 +155,10 @@ class QuadConv(nn.Module):
         z: evaluation locations, [out_points, in_points, spatial_dim]
     '''
     def _bump_arg(self, z):
-        return torch.sum(torch.square(z), dim=(2), keepdims = True)**2
-
-    '''
-    Calculate bump function.
-
-    Input:
-        z: evaluation locations, [num_points, spatial_dim]
-    '''
-    def _bump(self, z):
-
-        bump_arg = torch.sum(torch.square(z), dim=(1), keepdims = False)**2
-        bump = torch.exp(1-1/(1-self.decay_param*bump_arg))
-
-        return bump.reshape(-1, 1, 1)
+        return torch.linalg.vector_norm(z, dim=(2), keepdims = True)
+        # a, b = 2, 0.5
+        # a, b = 1, 1
+        # return torch.sqrt(z[:,:,0]**2/a**2 + z[:,:,1]**2/b**2)
 
     '''
     Compute indices associated with non-zero filters.
@@ -180,16 +173,28 @@ class QuadConv(nn.Module):
         output_points = input_points if self.output_same else self.range.points
 
         #determine indices
+        #NOTE: The following block is what we would want to loop on for computing these evaluation indices in batches
+        ####
         locs = output_points.unsqueeze(1) - input_points.unsqueeze(0)
 
         bump_arg = self._bump_arg(locs)
 
-        tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
+        tf_vec = (bump_arg <= self.decay_param).squeeze()
         idx = torch.nonzero(tf_vec, as_tuple=False)
+        ####
 
         if self.cache:
             self.register_buffer('eval_indices', idx, persistent=False)
             self.cached = True
+
+        if self.verbose:
+            print(f"\nQuadConv eval_indices: {idx.numel()}")
+
+            hist = torch.histc(idx[:,1].to(torch.float32), bins=self.out_points, min=0, max=self.out_points-1)
+
+            print(f"Max support points: {torch.max(hist)}")
+            print(f"Min support points: {torch.min(hist)}")
+            print(f"Avg support points: {torch.sum(hist)/hist.numel()}")
 
         return idx
     
@@ -226,8 +231,8 @@ class QuadConv(nn.Module):
 
 
     '''
-    Apply operator via quadrature approximation of convolution with features and learned filter.
-
+    Compute QuadConv integral
+    
     Input:
         features: a tensor of shape (batch size  X num of points X input channels)
 
@@ -287,5 +292,43 @@ class QuadConv(nn.Module):
 
         #scatter values via addition into integral array
         integral.scatter_add_(2, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), values)
+
+        return integral
+
+    '''
+    Apply operator via quadrature approximation of convolution with features and learned filter.
+
+    Input:
+        mesh: MeshHandler object
+        features: a tensor of shape (batch size X input channels X num input points)
+
+    Output: tensor of shape (batch size X output channels X num output points)
+    '''
+    def forward(self, mesh, features):
+
+        #get evaluation indices
+        if self.cached:
+            eval_indices = self.eval_indices
+        else:
+            eval_indices = self._compute_eval_indices(mesh)
+
+        #get weights
+        weights = mesh.weights()[eval_indices[:,1]]
+
+        #compute eval locs
+        if self.output_same:
+            eval_locs = mesh.input_points()[eval_indices[:,0]] - mesh.input_points()[eval_indices[:,1]]
+        else:
+            eval_locs = mesh.output_points()[eval_indices[:,0]] - mesh.input_points()[eval_indices[:,1]]
+            mesh.step()
+
+        #compute filter
+        filters = self.G(eval_locs)
+
+        integral = self._integrate(weights, filters, features, eval_indices)
+
+        #add bias
+        if self.bias is not None:
+            integral += self.bias
 
         return integral
