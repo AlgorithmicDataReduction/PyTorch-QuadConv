@@ -1,25 +1,10 @@
-'''
-'''
-
 import torch
 import torch.nn as nn
 
-from .utils.misc import Sin
+from pykeops.torch import LazyTensor
+from pykeops.torch.cluster import grid_cluster, sort_clusters, cluster_ranges_centroids, from_matrix
 
-'''
-Quadrature convolution operator.
 
-Input:
-    domain: the domain of the operator (as a domains object)
-    range: the range of the operator (as a domains object)
-    in_channels: input feature channels
-    out_channels: output feature channels
-    filter_seq: number of features at each filter stage
-    filter_mode: type of point to filter operation
-    bias: whether or not to use bias
-    output_same: whether or not to use the input points as the output points
-    cache: whether or not to cache the evaluation indices
-'''
 class QuadConv(nn.Module):
 
     def __init__(self,*,
@@ -28,7 +13,6 @@ class QuadConv(nn.Module):
             in_channels,
             out_channels,
             filter_seq = [16, 16, 16, 16, 16],
-            filter_mode = 'single',
             decay_param = None,
             bias = False,
             output_same = False,
@@ -52,7 +36,6 @@ class QuadConv(nn.Module):
         self.cache = cache
         self.cached = False
         self.weight_map = None
-        self.einsum_op = None
 
         #decay parameter
         if decay_param == None:
@@ -61,9 +44,11 @@ class QuadConv(nn.Module):
             self.decay_param == decay_param
 
         #initialize filter
-        self._init_filter(filter_seq, filter_mode)
+        self._init_filter(filter_seq)
 
         self._build_weight_map()
+
+        self.cache_ranges()
 
         #bias
         if bias:
@@ -71,6 +56,41 @@ class QuadConv(nn.Module):
             self.bias = nn.Parameter(nn.init.xavier_uniform_(bias, gain=2), requires_grad=True)
         else:
             self.bias = None
+
+        return
+    
+
+    def cache_ranges(self):
+
+        eps = 0.1  # Size of our square bins
+
+        alpha = self.decay_param
+
+        x_labels = grid_cluster(self.domain.points, eps)  # class labels
+        y_labels = grid_cluster(self.range.points, eps)  # class labels
+
+    
+        # Compute one range and centroid per class:
+        x_ranges, x_centroids, _ = cluster_ranges_centroids(self.domain.points, x_labels)
+        y_ranges, y_centroids, _ = cluster_ranges_centroids(self.range.points, y_labels)
+
+
+        x, x_labels = sort_clusters(self.domain.points, x_labels)
+        y, y_labels = sort_clusters(self.range.points, y_labels)
+            
+
+        keep = (((y_centroids[None, :, :]-x_centroids[:, None, :])**2).sum(-1) - 1 / alpha) < 0
+
+
+        keep = keep
+        x_ranges = x_ranges
+        y_ranges = y_ranges
+                
+        ranges_ij = from_matrix(x_ranges, y_ranges, keep)
+
+        self.ranges_ij = ranges_ij
+
+        self.cached = True
 
         return
 
@@ -81,117 +101,36 @@ class QuadConv(nn.Module):
         filter_seq: mlp feature sequence
         filter_mode: type of filter operation
     '''
-    def _init_filter(self, filter_seq, filter_mode):
+    def _init_filter(self, filter_seq):
 
-        #single mlp
-        if filter_mode == 'single':
 
-            mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
+        mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
-            self.H = self._create_mlp(mlp_spec)
-            self.H.append(nn.Unflatten(1, (self.in_channels, self.out_channels)))
+        self._lazy_mlp_list = nn.ParameterList()
 
-        #mlp for each output channel
-        elif filter_mode == 'share_in':
-
-            mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels)
-
-            self.filter = nn.ModuleList()
-            for j in range(self.out_channels):
-                self.filter.append(self._create_mlp(mlp_spec))
-
-            self.H = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.channels_in, self.channels_out)
-
-        #mlp for each input and output channel pair
-        elif filter_mode == 'nested':
-
-            mlp_spec = (self.spatial_dim, *filter_seq, 1)
-
-            self.filter = nn.ModuleList()
-            for i in range(self.in_channels):
-                for j in range(self.out_channels):
-                    self.filter.append(self._create_mlp(mlp_spec))
-
-            self.H = lambda z: torch.cat([module(z) for module in self.filter]).reshape(-1, self.in_channels, self.out_channels)
-
-        else:
-            raise ValueError(f'core::modules::quadconv: Filter mode {filter_mode} is not supported.')
-
-        #multiply by bump function
-        self.G = lambda z: self._bump(z)*self.H(z)
+        for i in range(len(mlp_spec)-1):
+            self._lazy_mlp_list.append(nn.Parameter(torch.randn(mlp_spec[i] , mlp_spec[i+1])))
 
         return
+    
 
-    '''
-    Build an mlp.
+    def _lazy_kernel(self, x, y):
 
-    Input:
-        mlp_channels: sequence of channels
-    '''
-    def _create_mlp(self, mlp_channels):
+        alpha = self.decay_param
 
-        #linear layer settings
-        activation = Sin()
-        bias = False
+        out = y - x
 
-        #build mlp
-        mlp = nn.Sequential()
+        domain = (out.sqnorm2() - 1 / alpha).ifelse(1,0)
 
-        for i in range(len(mlp_channels)-2):
-            mlp.append(nn.Linear(mlp_channels[i], mlp_channels[i+1], bias=bias))
-            mlp.append(activation)
+        bump = (-1 / (1 - alpha * out.sqnorm2())).exp() * domain
 
-        mlp.append(nn.Linear(mlp_channels[-2], mlp_channels[-1], bias=bias))
+        for lazy in self._lazy_mlp_list:
 
-        return mlp
+            this_lazy = LazyTensor(lazy.data.view(-1))
 
-    '''
-    Calculate bump vector norm.
-
-    Input:
-        z: evaluation locations, [out_points, in_points, spatial_dim]
-    '''
-    def _bump_arg(self, z):
-        return torch.sum(torch.square(z), dim=(2), keepdims = True)**2
-
-    '''
-    Calculate bump function.
-
-    Input:
-        z: evaluation locations, [num_points, spatial_dim]
-    '''
-    def _bump(self, z):
-
-        bump_arg = torch.sum(torch.square(z), dim=(1), keepdims = False)**2
-        bump = torch.exp(1-1/(1-self.decay_param*bump_arg))
-
-        return bump.reshape(-1, 1, 1)
-
-    '''
-    Compute indices associated with non-zero filters.
-
-    Input:
-        self.domain / self.range: 
-    '''
-    def _compute_eval_indices(self):
-
-        #get output points
-        input_points = self.domain.points
-        output_points = input_points if self.output_same else self.range.points
-
-        #determine indices
-        locs = output_points.unsqueeze(1) - input_points.unsqueeze(0)
-
-        bump_arg = self._bump_arg(locs)
-
-        tf_vec = (bump_arg <= 1/self.decay_param).squeeze()
-        idx = torch.nonzero(tf_vec, as_tuple=False)
-
-        if self.cache:
-            self.register_buffer('eval_indices', idx, persistent=False)
-            self.cached = True
-
-        return idx
+            out = this_lazy.matvecmult(out).sin()
+        
+        return out * bump
     
 
     def _build_weight_map(self, element_size = 3, dimension = 2):
@@ -235,57 +174,37 @@ class QuadConv(nn.Module):
     '''
     def forward(self, features):
 
-        #get evaluation indices
-        if self.cached:
-            eval_indices = self.eval_indices
-        else:
-            eval_indices = self._compute_eval_indices()
+        #use_cuda = torch.cuda.is_available()
+        #dtype = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 
         #get weights
-        weights = self.eval_weight_map(self.domain)[eval_indices[:,1]]
+        weights = self.eval_weight_map(self.domain)
 
-        #compute eval locs
-        if self.output_same:
-            eval_locs = self.domain.points[eval_indices[:,0]] - self.domain.points[eval_indices[:,1]]
-        else:
-            eval_locs = self.range.points[eval_indices[:,0]] - self.domain.points[eval_indices[:,1]]
+        features = features.permute(0, 2, 1).contiguous()
 
+        f = LazyTensor(features.view(features.shape[0], features.shape[1], 1, features.shape[2]))
 
-        #compute filter
-        filters = self.G(eval_locs)
+        x_i = LazyTensor(self.domain.points.view(self.domain.num_points, 1, self.spatial_dim))   
 
-        integral = self._integrate(weights, filters, features, eval_indices)
+        y_j = LazyTensor(self.range.points.view(1, self.range.num_points, self.spatial_dim))
+
+        ex_tensor = LazyTensor(torch.ones(1, 1, 1, self.out_channels))
+
+        ex_f = f.keops_kron(ex_tensor, [self.in_channels], [self.out_channels])
+
+        rho_i = LazyTensor(weights.view(self.domain.num_points, 1, 1))
+
+        G_ij = self._lazy_kernel(x_i,  y_j) * rho_i * ex_f
+
+        if self.cached:
+            #TODO This is waiting for a KeOps update to support sparse computation on the GPU (currently only CPU)
+            #G_ij.ranges = self.ranges_ij
+            pass
+
+        integral = G_ij.sum_reduction(axis=1).reshape(features.shape[0], self.range.num_points, self.in_channels, self.out_channels).sum(dim=-2)
 
         #add bias
         if self.bias is not None:
             integral += self.bias
-
-        return integral
-    
-    #@torch.compile
-    def _integrate(self, weights, filters, features, eval_indices):
-
-        '''
-        #compute interior of the integral (including weights) for all left hand sides of the integral
-        weights = weights.reshape(1, -1 , 1, 1)
-
-        filters = filters.view(1, *filters.shape)
-
-        features = features[:,:,eval_indices[:,1]].unsqueeze(2).permute(0, 3, 1, 2)
-
-        values = (weights * filters * features).sum(dim=2).permute(0, 2, 1)
-        '''
-        
-        #compute quadrature as weights*filters*features
-        values = torch.einsum('n, nij, bin -> bjn',
-                                weights,
-                                filters,
-                                features[:,:,eval_indices[:,1]])
-
-        #setup integral array
-        integral = values.new_zeros(features.shape[0], self.out_channels, self.range.shape[0])
-
-        #scatter values via addition into integral array
-        integral.scatter_add_(2, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), values)
 
         return integral
