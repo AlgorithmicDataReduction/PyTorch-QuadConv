@@ -9,10 +9,12 @@ import numpy as np
 class Mesh_MaxPool(nn.Module):
 
 
-    def __init__(self, adjoint=False):
+    def __init__(self, pool_map, adjoint=False):
         super().__init__()
 
         self.adjoint = adjoint
+
+        self.pool_map = pool_map
 
         self.cached = False
 
@@ -21,7 +23,7 @@ class Mesh_MaxPool(nn.Module):
 
         return
 
-    def forward(self, handler, data):
+    def forward(self, data):
         x = data
 
         if self.index is not None: 
@@ -32,7 +34,7 @@ class Mesh_MaxPool(nn.Module):
              
             if not self.adjoint:
                   
-                elim_map = handler.get_downsample_map(handler.output_points.shape[0]).copy()
+                elim_map = self.pool_map
 
                 for i in elim_map.keys():
                     elim_map[i] = np.append(elim_map[i], i)
@@ -47,7 +49,7 @@ class Mesh_MaxPool(nn.Module):
 
             elif self.adjoint:
              
-                forward_elim_map = handler.get_downsample_map(handler.input_points.shape[0]).copy()
+                forward_elim_map = self.pool_map
 
                 new_ind = {}
                 for i,j in enumerate(forward_elim_map):
@@ -62,23 +64,16 @@ class Mesh_MaxPool(nn.Module):
                         v_get = inv_map.get(vv,[])
                         inv_map[vv] = v_get+[k]
 
-                #elim_map = {tuple(v) : k for k, v in forward_elim_map.items()}
-
-                self.index = torch.zeros(x.shape[0], x.shape[1], handler.output_points.shape[0], dtype=torch.int64, device=x.device)
+                self.index = torch.zeros(x.shape[0], x.shape[1], len(inv_map), dtype=torch.int64, device=x.device)
 
                 for i in inv_map:
                     for j in inv_map[i]:
                         self.index[:, :, int(i)] = int(new_ind[j])
 
-                self.output_shape = (x.shape[0], x.shape[1], handler.output_points.shape[0])
+                self.output_shape = (x.shape[0], x.shape[1], len(inv_map))
                   
 
         if not self.adjoint:
-                
-            #elim_map = handler.get_downsample_map(handler.output_points.shape[0]).copy()
-
-            #if torch.linalg.norm(handler.input_points[list(elim_map.keys()),:]- handler.output_points) > 1e-6:
-            #    print(f'FAILURE: {torch.linalg.norm(handler.input_points[list(elim_map.keys()),:]- handler.output_points)}')
 
             output = torch.zeros(*self.output_shape, device=x.device)
             output.scatter_reduce_(dim=2, index=self.index, src=x, reduce='amax', include_self=False)
@@ -87,8 +82,6 @@ class Mesh_MaxPool(nn.Module):
 
                 output = torch.gather(input=x, dim=2, index=self.index)
 
-
-        handler.step()
 
         return output
     
@@ -154,8 +147,6 @@ class Mesh_AvgPool(nn.Module):
                         v_get = inv_map.get(vv,[])
                         inv_map[vv] = v_get+[k]
 
-                #elim_map = {tuple(v) : k for k, v in forward_elim_map.items()}
-
                 self.index = torch.zeros(x.shape[0], x.shape[1], len(inv_map), dtype=torch.int64, device=x.device)
 
                 for i in inv_map:
@@ -166,11 +157,6 @@ class Mesh_AvgPool(nn.Module):
                   
 
         if not self.adjoint:
-                
-            #elim_map = handler.get_downsample_map(handler.output_points.shape[0]).copy()
-
-            #if torch.linalg.norm(handler.input_points[list(elim_map.keys()),:]- handler.output_points) > 1e-6:
-            #    print(f'FAILURE: {torch.linalg.norm(handler.input_points[list(elim_map.keys()),:]- handler.output_points)}')
 
             output = torch.zeros(*self.output_shape, device=x.device)
             output.scatter_reduce_(dim=2, index=self.index, src=x, reduce='mean', include_self=False)
