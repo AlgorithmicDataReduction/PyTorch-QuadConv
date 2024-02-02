@@ -23,7 +23,7 @@ Input:
 '''
 class QuadConv(nn.Module):
 
-    def __init__(self,*,
+    def __init__(self,
             domain,
             range,
             in_channels,
@@ -59,7 +59,7 @@ class QuadConv(nn.Module):
 
         #decay parameter
         if decay_param == None:
-            self.decay_param = 4/np.sqrt(self.in_points)
+            self.decay_param = 4/np.sqrt(self.domain.points)
         else:
             self.decay_param = decay_param
 

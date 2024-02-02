@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "pytorch-quadconv"
@@ -12,6 +12,7 @@ authors = [
   {name = "Cooper Simpson", email = "simpson.r.cooper@gmail.com"},
   {name = "Kevin Doherty", email = "kevin.doherty@colorado.edu"}
 ]
+
 keywords = [
   "Machine Learning",
   "Deep Learning"
@@ -19,15 +20,29 @@ keywords = [
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
-    "Development Status :: 3-Alpha",
+    "Development Status :: 3 - Alpha",
     "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
 requires-python = ">=3.6"
+
 dependencies = [
 ]
 
-[tool.setuptools.packages.find]
-include = ["torch_quadconv*"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["torch_quadconv/"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "torch_quadconv/*.py",
+  "torch_quadconv/**/*.py",
+  "/test",
+]
+exclude = [
+]
 
 [project.optional-dependencies]
 test = ["pytest"]
