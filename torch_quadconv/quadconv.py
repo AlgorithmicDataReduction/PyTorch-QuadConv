@@ -6,6 +6,7 @@ import torch.nn as nn
 import numpy as np
 
 from .utils.misc import Sin
+from .utils.mlp import Siren
 
 '''
 Quadrature convolution operator.
@@ -133,18 +134,7 @@ class QuadConv(nn.Module):
     '''
     def _create_mlp(self, mlp_channels):
 
-        #linear layer settings
-        activation = Sin()
-        bias = False
-
-        #build mlp
-        mlp = nn.Sequential()
-
-        for i in range(len(mlp_channels)-2):
-            mlp.append(nn.Linear(mlp_channels[i], mlp_channels[i+1], bias=bias))
-            mlp.append(activation)
-
-        mlp.append(nn.Linear(mlp_channels[-2], mlp_channels[-1], bias=bias))
+        mlp = Siren(mlp_channels)
 
         return mlp
 
@@ -156,9 +146,6 @@ class QuadConv(nn.Module):
     '''
     def _bump_arg(self, z):
         return torch.linalg.vector_norm(z, dim=(2), keepdims = True)
-        # a, b = 2, 0.5
-        # a, b = 1, 1
-        # return torch.sqrt(z[:,:,0]**2/a**2 + z[:,:,1]**2/b**2)
 
     '''
     Compute indices associated with non-zero filters.
@@ -190,7 +177,7 @@ class QuadConv(nn.Module):
         if self.verbose:
             print(f"\nQuadConv eval_indices: {idx.numel()}")
 
-            hist = torch.histc(idx[:,1].to(torch.float32), bins=self.out_points, min=0, max=self.out_points-1)
+            hist = torch.histc(idx[:,1].to(torch.float32), bins=self.range.num_points, min=0, max=self.range.num_points-1)
 
             print(f"Max support points: {torch.max(hist)}")
             print(f"Min support points: {torch.min(hist)}")
@@ -292,43 +279,5 @@ class QuadConv(nn.Module):
 
         #scatter values via addition into integral array
         integral.scatter_add_(2, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), values)
-
-        return integral
-
-    '''
-    Apply operator via quadrature approximation of convolution with features and learned filter.
-
-    Input:
-        mesh: MeshHandler object
-        features: a tensor of shape (batch size X input channels X num input points)
-
-    Output: tensor of shape (batch size X output channels X num output points)
-    '''
-    def forward(self, mesh, features):
-
-        #get evaluation indices
-        if self.cached:
-            eval_indices = self.eval_indices
-        else:
-            eval_indices = self._compute_eval_indices(mesh)
-
-        #get weights
-        weights = mesh.weights()[eval_indices[:,1]]
-
-        #compute eval locs
-        if self.output_same:
-            eval_locs = mesh.input_points()[eval_indices[:,0]] - mesh.input_points()[eval_indices[:,1]]
-        else:
-            eval_locs = mesh.output_points()[eval_indices[:,0]] - mesh.input_points()[eval_indices[:,1]]
-            mesh.step()
-
-        #compute filter
-        filters = self.G(eval_locs)
-
-        integral = self._integrate(weights, filters, features, eval_indices)
-
-        #add bias
-        if self.bias is not None:
-            integral += self.bias
 
         return integral

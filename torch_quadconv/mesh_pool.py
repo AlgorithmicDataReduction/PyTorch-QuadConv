@@ -10,7 +10,8 @@ import numpy as np
 Mesh max-pooling oeprator
 
 Input:
-    adjoint: 
+    pool_map: dictionary of pooling indices
+    adjoint: identify if the pooling is upsampling or downsampling
 '''
 class Mesh_MaxPool(nn.Module):
 

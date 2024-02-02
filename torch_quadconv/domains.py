@@ -171,7 +171,12 @@ class Mesh(nn.Module):
         domain = None
 
         #look for points file
-        points_file = data_path.joinpath('points.npy')
+        if data_path.is_dir():
+            points_file = data_path.joinpath('points.npy')
+        elif data_path.is_file():
+            points_file = data_path
+            data_path = data_path.parent
+
         try:
             points = torch.from_numpy(np.float32(np.load(points_file)))
 
@@ -200,12 +205,17 @@ class Mesh(nn.Module):
         return points, adjacency, domain
 
 
-    def downsample(self, factor):
+    def downsample(self, factor=2):
         assert factor >= 1, "Factor must be greater or equal to 1"
 
         points, weights, elim_map = self.multilevel_map(self.points, appx_ds=factor)
 
-        return Mesh(points = torch.from_numpy(points), domain=self.domain, parent = weakref.proxy(self))
+        '''A weak reference to the parent is used to avoid circular references, which would prevent the parent from being garbage collected. 
+        This is important because the parent is likely to be a large object that we want to be able to delete when it is no longer needed.
+        HOWEVER, this throws an error on the way into the trainer.fit function with lightning, since its an unhashable object'''
+
+        #return Mesh(points = torch.from_numpy(points), domain=self.domain, parent = weakref.proxy(self))
+        return Mesh(points = torch.from_numpy(points), domain=self.domain, parent = self)
 
 
     def upsample(self):
@@ -215,7 +225,7 @@ class Mesh(nn.Module):
         return self.parent
     
 
-    def pool_map(self, factor):
+    def pool_map(self, factor=2):
 
         _, _, elim_map = self.multilevel_map(self.points, appx_ds=factor)
 
