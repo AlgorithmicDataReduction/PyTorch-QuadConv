@@ -31,7 +31,8 @@ class QuadConv(nn.Module):
             out_channels,
             filter_seq = [16, 16, 16, 16, 16],
             filter_mode = 'single',
-            decay_param = None,
+            knn = 9,
+            omega_0 = 1.0, 
             bias = False,
             output_same = False,
             cache = True,
@@ -55,14 +56,8 @@ class QuadConv(nn.Module):
         self.cache = cache
         self.cached = False
         self.verbose = verbose
-        self.weight_map = None
-        self.einsum_op = None
-
-        #decay parameter
-        if decay_param == None:
-            self.decay_param = 4/np.sqrt(self.domain.points)
-        else:
-            self.decay_param = decay_param
+        self.knn = knn
+        self.omega_0 = omega_0
 
         #initialize filter
         self._init_filter(filter_seq, filter_mode)
@@ -92,8 +87,8 @@ class QuadConv(nn.Module):
 
             mlp_spec = (self.spatial_dim, *filter_seq, self.in_channels*self.out_channels)
 
-            self.filter = self._create_mlp(mlp_spec)
-            self.H = lambda z: self.filter(z).reshape(-1, self.in_channels, self.out_channels)
+            mlp = self._create_mlp(mlp_spec)
+            self.H = lambda z: self.mlp(z).reshape(-1, self.in_channels, self.out_channels)
 
         #mlp for each output channel
         elif filter_mode == 'share_in':
@@ -134,18 +129,9 @@ class QuadConv(nn.Module):
     '''
     def _create_mlp(self, mlp_channels):
 
-        mlp = Siren(mlp_channels)
+        self.register_module('mlp', Siren(mlp_channels, outermost_linear=True, first_omega_0=self.omega_0, hidden_omega_0=self.omega_0))
 
-        return mlp
-
-    '''
-    Calculate bump vector norm.
-
-    Input:
-        z: evaluation locations, [out_points, in_points, spatial_dim]
-    '''
-    def _bump_arg(self, z):
-        return torch.linalg.vector_norm(z, dim=(2), keepdims = True)
+        return self.mlp
 
     '''
     Compute indices associated with non-zero filters.
@@ -155,40 +141,29 @@ class QuadConv(nn.Module):
     '''
     def _compute_eval_indices(self):
 
-        #get output points
-        input_points = self.domain.points
-        output_points = input_points if self.output_same else self.range.points
+        idx = self.domain.query(self.range, k=self.knn)[1]
 
-        #determine indices
-        #NOTE: The following block is what we would want to loop on for computing these evaluation indices in batches
-        ####
-        locs = output_points.unsqueeze(1) - input_points.unsqueeze(0)
-
-        bump_arg = self._bump_arg(locs)
-
-        tf_vec = (bump_arg <= self.decay_param).squeeze()
-        idx = torch.nonzero(tf_vec, as_tuple=False)
-        ####
+        eval_indices = torch.tensor([ [i,idx[i,j]] for i in range(idx.shape[0]) for j in range(idx.shape[1]) ]).to(self.domain.points.device, dtype=torch.long)
 
         if self.cache:
-            self.register_buffer('eval_indices', idx, persistent=False)
+            self.register_buffer('eval_indices', eval_indices, persistent=False)
             self.cached = True
 
         if self.verbose:
-            print(f"\nQuadConv eval_indices: {idx.numel()}")
+            print(f"\nQuadConv eval_indices: {eval_indices.numel()}")
 
-            hist = torch.histc(idx[:,1].to(torch.float32), bins=self.range.num_points, min=0, max=self.range.num_points-1)
+            unique_val_counts = torch.unique(eval_indices[:,0].to(torch.float32), return_counts=True)[1]
 
-            print(f"Max support points: {torch.max(hist)}")
-            print(f"Min support points: {torch.min(hist)}")
-            print(f"Avg support points: {torch.sum(hist)/hist.numel()}")
+            print(f"Max support points: {torch.max(unique_val_counts)}")
+            print(f"Min support points: {torch.min(unique_val_counts)}")
+            print(f"Avg support points: {torch.sum(unique_val_counts)/unique_val_counts.numel()}")
 
-        return idx
+        return eval_indices
     
 
     def _build_weight_map(self, element_size = 3, dimension = 2):
 
-        self.weight_map = nn.Sequential(
+        weight_map = nn.Sequential(
             nn.Linear(element_size * dimension, 8),
             nn.Sigmoid(),
             nn.Linear(8, 8),
@@ -198,6 +173,8 @@ class QuadConv(nn.Module):
             nn.Linear(8, element_size),
             nn.Sigmoid()
         )
+
+        self.register_module('weight_map', weight_map)
 
         return
     
@@ -254,7 +231,6 @@ class QuadConv(nn.Module):
 
         return integral
     
-    #@torch.compile
     def _integrate(self, weights, filters, features, eval_indices):
 
         '''

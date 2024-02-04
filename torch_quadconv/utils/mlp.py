@@ -19,13 +19,15 @@ class SineLayer(nn.Module):
     # activations constant, but boost gradients to the weight matrix (see supplement Sec. 1.5)
     
     def __init__(self, in_features, out_features, bias=True,
-                 is_first=False, omega_0=30):
+                 is_first=False, omega_0=30.):
         super().__init__()
         self.omega_0 = omega_0
         self.is_first = is_first
         
         self.in_features = in_features
-        self.linear = nn.Linear(in_features, out_features, bias=bias)
+        self.out_features = out_features
+
+        self.register_module('linear', nn.Linear(in_features, out_features, bias=bias))    
         
         self.init_weights()
     
@@ -43,10 +45,11 @@ class SineLayer(nn.Module):
     
 class Siren(nn.Module):
     def __init__(self, mlp_spec, outermost_linear=False, 
-                 first_omega_0=30., hidden_omega_0=30.):
+                 first_omega_0=1., hidden_omega_0=1.):
         super().__init__()
         
-        self.net = nn.Sequential()
+        self.register_module('net', nn.Sequential())
+        self.register_module('normalize', nn.InstanceNorm1d(mlp_spec[0]))
 
         self.net.append(SineLayer(mlp_spec[0], mlp_spec[1], 
                                   is_first=True, omega_0=first_omega_0))
@@ -56,7 +59,7 @@ class Siren(nn.Module):
                                       is_first=False, omega_0=hidden_omega_0))
 
         if outermost_linear:
-            final_linear = nn.Linear(mlp_spec[-2], mlp_spec[-1])
+            final_linear = nn.Linear(mlp_spec[-2], mlp_spec[-1], bias=True)
             
             with torch.no_grad():
                 final_linear.weight.uniform_(-np.sqrt(6 / mlp_spec[-2]) / hidden_omega_0, 
@@ -65,8 +68,8 @@ class Siren(nn.Module):
             self.net.append(final_linear)
         else:
             self.net.append(SineLayer(mlp_spec[-2], mlp_spec[-1], 
-                                      is_first=False, omega_0=hidden_omega_0))
+                                      is_first=False, omega_0=hidden_omega_0, bias=True))
         
 
     def forward(self, coords):
-        return self.net(coords)
+        return self.net(self.normalize(coords))

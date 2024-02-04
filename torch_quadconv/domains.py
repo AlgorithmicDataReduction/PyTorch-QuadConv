@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import weakref
 from torch_quadconv.utils.quadrature import mfnus
+from scipy.spatial import KDTree
 
 
 
@@ -27,6 +28,8 @@ class Grid(nn.Module):
 
         self.spatial_dimension = len(num_points_per_dim)
         self.num_points_per_dim = num_points_per_dim
+        self.kdtree = None
+        self.num_points = torch.prod(torch.tensor(num_points_per_dim))
 
         # If domain is not provided, assume it's [(0, 1)] * len(num_points_per_dim)
         if domain is None:
@@ -61,6 +64,11 @@ class Grid(nn.Module):
     def display(self, ax=None, **kwargs):
         #displays an image of the mesh as a scatter plot
 
+        #set default plot values 
+        for key, value in {'s': 1, 'edgecolor': 'k', 'facecolor' : 'w', 'alpha' : 0.5}.items():
+            if key not in kwargs:
+                kwargs[key] = value
+
         if ax is None:
             ax = plt.gca()
 
@@ -69,6 +77,18 @@ class Grid(nn.Module):
         
         return ax
 
+    def query(self, range, knn=1):
+
+        if self.spatial_dimension != range.spatial_dimension:
+            raise ValueError("Spatial dimensions must match")
+        
+        if self.domain != range.domain:
+            raise ValueError("Domains must match")
+        
+        if self.kdtree is None:
+            self.kdtree = KDTree(self.points)
+
+        return self.kdtree.query(range.points, k=knn)
 
     def downsample(self, factor):
         assert factor >= 1, "Factor must be greater or equal to 1"
@@ -130,6 +150,7 @@ class Mesh(nn.Module):
 
         self.num_points = points.shape[0]
         self.spatial_dimension = points.shape[1]
+        self.kdtree = None
 
         # If domain is not provided, assume it's [(0, 1)]
         if domain is None:
@@ -155,6 +176,11 @@ class Mesh(nn.Module):
 
     def display(self, ax=None, **kwargs):
         #displays an image of the mesh as a scatter plot
+
+        #set default plot values 
+        for key, value in {'s': 1, 'edgecolor': 'k', 'facecolor' : 'w', 'alpha' : 0.5}.items():
+            if key not in kwargs:
+                kwargs[key] = value
 
         if ax is None:
             ax = plt.gca()
@@ -204,6 +230,18 @@ class Mesh(nn.Module):
         
         return points, adjacency, domain
 
+    def query(self, range, k=1):
+
+        if self.spatial_dimension != range.spatial_dimension:
+            raise ValueError("Spatial dimensions must match")
+        
+        if self.domain != range.domain:
+            raise ValueError("Domains must match")
+        
+        if self.kdtree is None:
+            self.kdtree = KDTree(self.points.cpu())
+
+        return self.kdtree.query(range.points.cpu(), k=k)
 
     def downsample(self, factor=2):
         assert factor >= 1, "Factor must be greater or equal to 1"
