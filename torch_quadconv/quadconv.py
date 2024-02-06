@@ -187,7 +187,7 @@ class QuadConv(nn.Module):
 
         el_weights =  self.weight_map(el_points)
 
-        el_weights = el_weights / el_weights.sum(dim=-1).reshape(-1, 1)
+        el_weights = el_weights
 
         weights = torch.zeros(domain.points.shape[0]).to(el_points)
 
