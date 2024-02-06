@@ -187,6 +187,8 @@ class QuadConv(nn.Module):
 
         el_weights =  self.weight_map(el_points)
 
+        el_weights = el_weights / el_weights.sum(dim=-1).reshape(-1, 1)
+
         weights = torch.zeros(domain.points.shape[0]).to(el_points)
 
         weights.scatter_add_(0, element_list.reshape(-1), el_weights.reshape(-1))
@@ -221,7 +223,7 @@ class QuadConv(nn.Module):
 
 
         #compute filter
-        filters = self.G(eval_locs)
+        filters = self.G(eval_locs) / self.in_channels
 
         integral = self._integrate(weights, filters, features, eval_indices)
 
