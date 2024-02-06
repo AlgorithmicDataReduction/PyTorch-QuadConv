@@ -141,7 +141,7 @@ class QuadConv(nn.Module):
     '''
     def _compute_eval_indices(self):
 
-        idx = self.domain.query(self.range, k=self.knn)[1]
+        idx = self.domain.query(self.range, k=self.knn)[1].reshape(-1, self.knn)
 
         eval_indices = torch.tensor([ [i,idx[i,j]] for i in range(idx.shape[0]) for j in range(idx.shape[1]) ]).to(self.domain.points.device, dtype=torch.long)
 
