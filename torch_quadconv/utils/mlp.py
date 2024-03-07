@@ -62,8 +62,8 @@ class Siren(nn.Module):
             final_linear = nn.Linear(mlp_spec[-2], mlp_spec[-1], bias=True)
             
             with torch.no_grad():
-                final_linear.weight.uniform_(-np.sqrt(6 / mlp_spec[-2]) / hidden_omega_0, 
-                                              np.sqrt(6 / mlp_spec[-2]) / hidden_omega_0)
+                final_linear.weight.uniform_(-np.sqrt(6 / mlp_spec[-2]), 
+                                              np.sqrt(6 / mlp_spec[-2]))
                 
             self.net.append(final_linear)
         else:
@@ -72,4 +72,4 @@ class Siren(nn.Module):
         
 
     def forward(self, coords):
-        return self.net(self.normalize(coords))
+        return self.net(coords)

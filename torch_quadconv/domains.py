@@ -77,7 +77,7 @@ class Grid(nn.Module):
         
         return ax
 
-    def query(self, range, knn=1):
+    def query(self, range, k=1):
 
         if self.spatial_dimension != range.spatial_dimension:
             raise ValueError("Spatial dimensions must match")
@@ -88,7 +88,7 @@ class Grid(nn.Module):
         if self.kdtree is None:
             self.kdtree = KDTree(self.points)
 
-        return self.kdtree.query(range.points, k=knn)
+        return self.kdtree.query(range.points, k=k)
 
     def downsample(self, factor):
         assert factor >= 1, "Factor must be greater or equal to 1"

@@ -32,7 +32,7 @@ class QuadConv(nn.Module):
             filter_seq = [16, 16, 16, 16, 16],
             filter_mode = 'single',
             knn = 9,
-            omega_0 = 1.0, 
+            omega_0 = 30.0, 
             bias = False,
             output_same = False,
             cache = True,
@@ -146,6 +146,7 @@ class QuadConv(nn.Module):
         eval_indices = torch.tensor([ [i,idx[i,j]] for i in range(idx.shape[0]) for j in range(idx.shape[1]) ]).to(self.domain.points.device, dtype=torch.long)
 
         if self.cache:
+            self.register_buffer('knn_query', torch.tensor(idx).to(self.domain.points.device, dtype=torch.long), persistent=False)
             self.register_buffer('eval_indices', eval_indices, persistent=False)
             self.cached = True
 
@@ -161,17 +162,13 @@ class QuadConv(nn.Module):
         return eval_indices
     
 
-    def _build_weight_map(self, element_size = 3, dimension = 2):
+    def _build_weight_map(self):
+
+        mlp_channels = (self.knn * self.domain.spatial_dimension, 8, 8, 8, self.knn)
 
         weight_map = nn.Sequential(
-            nn.Linear(element_size * dimension, 8),
-            nn.Sigmoid(),
-            nn.Linear(8, 8),
-            nn.Sigmoid(),
-            nn.Linear(8, 8),
-            nn.Sigmoid(),
-            nn.Linear(8, element_size),
-            nn.Sigmoid()
+            Siren(mlp_channels, outermost_linear=True, first_omega_0=self.omega_0, hidden_omega_0=self.omega_0),
+            nn.Identity()
         )
 
         self.register_module('weight_map', weight_map)
@@ -179,19 +176,19 @@ class QuadConv(nn.Module):
         return
     
 
-    def eval_weight_map(self, domain, element_size = 3, dimension = 2):
+    def eval_weight_map(self, domain):
 
-        element_list = domain.adjacency
+        quadratures = domain.points[self.knn_query]
 
-        el_points = domain.points[element_list].reshape(-1, element_size * dimension)
+        p_maxs = torch.amax(quadratures, dim=(1), keepdim=True)+1e-5
+        p_mins = torch.amin(quadratures, dim=(1), keepdim=True)+1e-5
 
-        el_weights =  self.weight_map(el_points)
+        diff = p_maxs - p_mins
+        diff[diff == 0] = 1
 
-        el_weights = el_weights
+        eval_locs = (domain.points.unsqueeze(1) - quadratures) / diff
 
-        weights = torch.zeros(domain.points.shape[0]).to(el_points)
-
-        weights.scatter_add_(0, element_list.reshape(-1), el_weights.reshape(-1))
+        weights = self.weight_map(eval_locs.flatten(start_dim=1, end_dim=2)).reshape(-1) + (1)
 
         return weights
 
@@ -213,7 +210,7 @@ class QuadConv(nn.Module):
             eval_indices = self._compute_eval_indices()
 
         #get weights
-        weights = self.eval_weight_map(self.domain)[eval_indices[:,1]]
+        weights = self.eval_weight_map(self.domain)
 
         #compute eval locs
         if self.output_same:
@@ -222,8 +219,17 @@ class QuadConv(nn.Module):
             eval_locs = self.range.points[eval_indices[:,0]] - self.domain.points[eval_indices[:,1]]
 
 
+        p_maxs = torch.amax(eval_locs, dim=(0), keepdim=True)+1e-5
+        p_mins = torch.amin(eval_locs, dim=(0), keepdim=True)+1e-5
+
+        diff = p_maxs - p_mins
+        diff[diff == 0] = 1
+
+        eval_locs = (eval_locs) / diff
+
+
         #compute filter
-        filters = self.G(eval_locs) / self.in_channels
+        filters = self.G(eval_locs)
 
         integral = self._integrate(weights, filters, features, eval_indices)
 
@@ -258,4 +264,4 @@ class QuadConv(nn.Module):
         #scatter values via addition into integral array
         integral.scatter_add_(2, eval_indices[:,0].expand(features.shape[0], self.out_channels, -1), values)
 
-        return integral
+        return integral / self.in_channels
